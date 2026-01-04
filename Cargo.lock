@@ -2665,6 +2665,7 @@ dependencies = [
 name = "my-movies-tauri"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "my-movies-server",
  "serde",
  "serde_json",

@@ -13,6 +13,45 @@ fn get_runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
+fn setup_app_environment() {
+    // Get the app's data directory (~/Library/Application Support/com.mymovies.desktop on macOS)
+    let data_dir = dirs::data_dir()
+        .map(|d| d.join("com.mymovies.desktop"))
+        .unwrap_or_else(|| std::path::PathBuf::from("./data"));
+
+    // Create data directory if it doesn't exist
+    std::fs::create_dir_all(&data_dir).ok();
+
+    // SAFETY: We call this at app startup before any threads are spawned,
+    // so there's no risk of data races with other threads reading env vars.
+    unsafe {
+        // Set DATABASE_URL if not already set
+        if std::env::var("DATABASE_URL").is_err() {
+            let db_path = data_dir.join("my-movies.db");
+            let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
+            std::env::set_var("DATABASE_URL", &db_url);
+            tracing::info!("Database path: {}", db_path.display());
+        }
+
+        // Set default JWT_SECRET if not set (for desktop app, a static secret is acceptable)
+        if std::env::var("JWT_SECRET").is_err() {
+            // This is a fallback for desktop use - in production server deployments, use a proper secret
+            std::env::set_var(
+                "JWT_SECRET",
+                "my-movies-desktop-jwt-secret-change-in-production",
+            );
+        }
+
+        // Set default TMDB_API_KEY if not set
+        // Users should set this in their environment for full functionality
+        if std::env::var("TMDB_API_KEY").is_err() {
+            // Empty key - TMDB features won't work until user configures it
+            std::env::set_var("TMDB_API_KEY", "");
+            tracing::warn!("TMDB_API_KEY not set - movie metadata lookup will be disabled");
+        }
+    }
+}
+
 fn start_embedded_server() {
     let runtime = get_runtime();
 
@@ -44,6 +83,9 @@ pub fn run() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // Setup environment variables for the app
+    setup_app_environment();
 
     // Start the embedded server before Tauri
     start_embedded_server();

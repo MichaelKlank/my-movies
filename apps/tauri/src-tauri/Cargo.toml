@@ -11,6 +11,7 @@ tauri = { version = "2.1", features = [] }
 tauri-plugin-http = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+dirs = "6"
 
 # Embedded server
 my-movies-server = { path = "../../../crates/server" }
