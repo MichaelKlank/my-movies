@@ -7,7 +7,7 @@
     "beforeDevCommand": "pnpm --filter @my-movies/web dev",
     "devUrl": "http://localhost:5173",
     "beforeBuildCommand": "pnpm --filter @my-movies/web build",
-    "frontendDist": "../../web/dist"
+    "frontendDist": "http://localhost:3000"
   },
   "app": {
     "withGlobalTauri": true,
@@ -17,7 +17,8 @@
         "width": 1200,
         "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "url": "http://localhost:3000"
       }
     ],
     "security": {
@@ -33,6 +34,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "../../web/dist": "frontend"
+    }
   }
 }

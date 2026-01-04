@@ -1,10 +1,7 @@
-// In Tauri production mode, we need absolute URLs since the app is served from tauri:// protocol
-// In dev mode (or web), the Vite proxy handles /api/* -> localhost:3000
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
-
-const API_BASE = isTauri && import.meta.env.PROD
-  ? 'http://127.0.0.1:3000/api/v1'
-  : '/api/v1'
+// API base URL - always relative since:
+// - Dev mode: Vite proxy handles /api/* -> localhost:3000
+// - Production: Server serves both frontend and API from same origin
+const API_BASE = '/api/v1'
 
 type RequestOptions = {
   method?: string
