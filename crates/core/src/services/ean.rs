@@ -165,7 +165,10 @@ impl EanService {
             .map(|(i, &d)| if i % 2 == 0 { d } else { d * 3 })
             .sum();
 
-        sum.is_multiple_of(10)
+        // is_multiple_of is still unstable, use modulo instead
+        #[allow(clippy::manual_is_multiple_of)]
+        let valid = sum % 10 == 0;
+        valid
     }
 }
 

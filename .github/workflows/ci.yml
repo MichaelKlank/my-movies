@@ -96,8 +96,6 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -131,11 +129,9 @@ jobs:
             libgtk-3-dev \
             libglib2.0-dev \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libssl-dev \
-            libayatana-appindicator3-dev
+            libssl-dev
 
       # macOS: Install universal target (both Intel and Apple Silicon)
       - name: Add macOS universal targets
