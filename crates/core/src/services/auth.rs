@@ -296,18 +296,17 @@ impl AuthService {
 
     /// List all users (admin only)
     pub async fn list_all_users(&self) -> Result<Vec<UserPublic>> {
-        let rows = sqlx::query_as::<_, UserRow>(
-            "SELECT * FROM users ORDER BY created_at DESC"
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let rows = sqlx::query_as::<_, UserRow>("SELECT * FROM users ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
 
         let mut users = Vec::new();
         for row in rows {
-            let user: User = row.try_into()
-                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                    Error::Internal(e.to_string())
-                })?;
+            let user: User =
+                row.try_into()
+                    .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                        Error::Internal(e.to_string())
+                    })?;
             users.push(user.into());
         }
         Ok(users)
@@ -320,14 +319,12 @@ impl AuthService {
             UserRole::User => "user",
         };
 
-        let result = sqlx::query(
-            "UPDATE users SET role = ?, updated_at = ? WHERE id = ?"
-        )
-        .bind(role_str)
-        .bind(Utc::now().to_rfc3339())
-        .bind(user_id.to_string())
-        .execute(&self.pool)
-        .await?;
+        let result = sqlx::query("UPDATE users SET role = ?, updated_at = ? WHERE id = ?")
+            .bind(role_str)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
 
         if result.rows_affected() == 0 {
             return Err(Error::UserNotFound);

@@ -200,7 +200,9 @@ impl TmdbService {
     pub async fn find_by_imdb_id(&self, imdb_id: &str) -> Result<Option<TmdbMovie>> {
         let url = format!(
             "{}/find/{}?api_key={}&external_source=imdb_id",
-            TMDB_BASE_URL, imdb_id, self.get_api_key()
+            TMDB_BASE_URL,
+            imdb_id,
+            self.get_api_key()
         );
 
         let response = self
@@ -233,7 +235,9 @@ impl TmdbService {
     pub async fn get_movie_details(&self, tmdb_id: i64) -> Result<TmdbMovieDetails> {
         let url = format!(
             "{}/movie/{}?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.get_api_key()
+            TMDB_BASE_URL,
+            tmdb_id,
+            self.get_api_key()
         );
 
         let response = self
@@ -259,7 +263,9 @@ impl TmdbService {
     pub async fn get_movie_credits(&self, tmdb_id: i64) -> Result<TmdbCredits> {
         let url = format!(
             "{}/movie/{}/credits?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.get_api_key()
+            TMDB_BASE_URL,
+            tmdb_id,
+            self.get_api_key()
         );
 
         let response = self
@@ -301,7 +307,9 @@ impl TmdbService {
     pub async fn get_tv_details(&self, tmdb_id: i64) -> Result<TmdbTvDetails> {
         let url = format!(
             "{}/tv/{}?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.get_api_key()
+            TMDB_BASE_URL,
+            tmdb_id,
+            self.get_api_key()
         );
 
         let response = self

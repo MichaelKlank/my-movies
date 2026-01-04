@@ -22,14 +22,18 @@ impl SettingsService {
         }
 
         // Then check database
-        let setting = sqlx::query_as::<_, Setting>(
-            "SELECT * FROM settings WHERE key = ?"
-        )
-        .bind(key.as_str())
-        .fetch_optional(&self.pool)
-        .await?;
+        let setting = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = ?")
+            .bind(key.as_str())
+            .fetch_optional(&self.pool)
+            .await?;
 
-        Ok(setting.and_then(|s| if s.value.is_empty() { None } else { Some(s.value) }))
+        Ok(setting.and_then(|s| {
+            if s.value.is_empty() {
+                None
+            } else {
+                Some(s.value)
+            }
+        }))
     }
 
     /// Get a setting, returning error if not configured
@@ -45,11 +49,9 @@ impl SettingsService {
 
     /// Get all settings (for admin UI)
     pub async fn list(&self) -> Result<Vec<Setting>> {
-        let settings = sqlx::query_as::<_, Setting>(
-            "SELECT * FROM settings ORDER BY key"
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let settings = sqlx::query_as::<_, Setting>("SELECT * FROM settings ORDER BY key")
+            .fetch_all(&self.pool)
+            .await?;
 
         Ok(settings)
     }
@@ -63,7 +65,7 @@ impl SettingsService {
             ON CONFLICT(key) DO UPDATE SET
                 value = excluded.value,
                 updated_at = CURRENT_TIMESTAMP
-            "#
+            "#,
         )
         .bind(key.as_str())
         .bind(&update.value)
@@ -71,12 +73,10 @@ impl SettingsService {
         .execute(&self.pool)
         .await?;
 
-        let setting = sqlx::query_as::<_, Setting>(
-            "SELECT * FROM settings WHERE key = ?"
-        )
-        .bind(key.as_str())
-        .fetch_one(&self.pool)
-        .await?;
+        let setting = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = ?")
+            .bind(key.as_str())
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(setting)
     }
@@ -92,12 +92,10 @@ impl SettingsService {
 
         for key in [SettingKey::TmdbApiKey] {
             let env_value = std::env::var(key.env_var()).ok();
-            let db_setting = sqlx::query_as::<_, Setting>(
-                "SELECT * FROM settings WHERE key = ?"
-            )
-            .bind(key.as_str())
-            .fetch_optional(&self.pool)
-            .await?;
+            let db_setting = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = ?")
+                .bind(key.as_str())
+                .fetch_optional(&self.pool)
+                .await?;
 
             let (source, is_configured) = if env_value.as_ref().is_some_and(|v| !v.is_empty()) {
                 (SettingSource::Environment, true)
@@ -143,4 +141,3 @@ pub enum SettingSource {
     Database,
     None,
 }
-

@@ -44,7 +44,8 @@ pub async fn update_user_role(
     if user_id == claims.sub && body.role != "admin" {
         return Err(my_movies_core::Error::Validation(
             "Du kannst deine eigene Admin-Rolle nicht entfernen".into(),
-        ).into());
+        )
+        .into());
     }
 
     let new_role = match body.role.as_str() {
@@ -53,7 +54,10 @@ pub async fn update_user_role(
         _ => return Err(my_movies_core::Error::Validation("Invalid role".into()).into()),
     };
 
-    let user = state.auth_service.update_user_role(user_id, new_role).await?;
+    let user = state
+        .auth_service
+        .update_user_role(user_id, new_role)
+        .await?;
     Ok(Json(user))
 }
 
@@ -75,7 +79,8 @@ pub async fn delete_user(
     if user_id == claims.sub {
         return Err(my_movies_core::Error::Validation(
             "Du kannst dich selbst nicht löschen".into(),
-        ).into());
+        )
+        .into());
     }
 
     state.auth_service.delete_user(user_id).await?;
@@ -112,10 +117,14 @@ pub async fn admin_set_password(
     if body.password.len() < 4 {
         return Err(my_movies_core::Error::Validation(
             "Passwort muss mindestens 4 Zeichen lang sein".into(),
-        ).into());
+        )
+        .into());
     }
 
-    state.auth_service.admin_set_password(user_id, &body.password).await?;
+    state
+        .auth_service
+        .admin_set_password(user_id, &body.password)
+        .await?;
     Ok(Json(PasswordResetResponse {
         message: "Password updated successfully".to_string(),
     }))
@@ -125,4 +134,3 @@ pub async fn admin_set_password(
 pub struct PasswordResetResponse {
     pub message: String,
 }
-
