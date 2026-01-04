@@ -463,15 +463,15 @@ impl MovieService {
             let mut group = vec![movie.clone()];
 
             // Find duplicates by barcode
-            if let Some(ref barcode) = movie.barcode {
-                if !barcode.is_empty() {
-                    for other in &movies {
-                        if other.id != movie.id
-                            && other.barcode.as_ref() == Some(barcode)
-                            && !group.iter().any(|m| m.id == other.id)
-                        {
-                            group.push(other.clone());
-                        }
+            if let Some(ref barcode) = movie.barcode
+                && !barcode.is_empty()
+            {
+                for other in &movies {
+                    if other.id != movie.id
+                        && other.barcode.as_ref() == Some(barcode)
+                        && !group.iter().any(|m| m.id == other.id)
+                    {
+                        group.push(other.clone());
                     }
                 }
             }
