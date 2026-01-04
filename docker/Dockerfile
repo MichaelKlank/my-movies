@@ -13,8 +13,7 @@ COPY apps/web apps/web
 RUN pnpm --filter @my-movies/web build
 
 # Build stage for backend
-# Rust 1.85+ required for Edition 2024
-FROM rust:1.85-bookworm AS backend-builder
+FROM rust:1-bookworm AS backend-builder
 WORKDIR /app
 
 # Install SQLx CLI for migrations
