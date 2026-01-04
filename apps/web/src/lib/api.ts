@@ -248,6 +248,22 @@ class ApiClient {
   async enrichMoviesTmdb() {
     return this.request<EnrichResult>('/import/enrich-tmdb', { method: 'POST' })
   }
+
+  // Settings (admin only)
+  async getSettings() {
+    return this.request<SettingStatus[]>('/settings')
+  }
+
+  async updateSetting(key: string, value: string) {
+    return this.request<SettingStatus>(`/settings/${key}`, {
+      method: 'PUT',
+      body: { value },
+    })
+  }
+
+  async testTmdb() {
+    return this.request<TmdbTestResult>('/settings/test/tmdb', { method: 'POST' })
+  }
 }
 
 export const api = new ApiClient()
@@ -418,4 +434,18 @@ export interface DuplicateCheckResult {
 export interface DuplicateGroupsResult {
   duplicate_groups: Movie[][]
   total_groups: number
+}
+
+export interface SettingStatus {
+  key: string
+  env_var: string
+  description: string
+  is_configured: boolean
+  source: 'environment' | 'database' | 'none'
+  value_preview?: string
+}
+
+export interface TmdbTestResult {
+  success: boolean
+  message: string
 }

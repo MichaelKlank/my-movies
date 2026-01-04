@@ -42,6 +42,9 @@ pub enum Error {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Configuration error: {0}")]
+    Configuration(String),
 }
 
 impl Error {
@@ -51,6 +54,7 @@ impl Error {
             Error::Forbidden => 403,
             Error::NotFound | Error::UserNotFound => 404,
             Error::Duplicate(_) | Error::Validation(_) | Error::InvalidResetToken => 400,
+            Error::Configuration(_) => 503,
             _ => 500,
         }
     }

@@ -15,14 +15,14 @@ use my_movies_core::{
     db::create_pool,
     services::{
         AuthService, CollectionService, EanService, ImportService, MovieService, SeriesService,
-        TmdbService,
+        SettingsService, TmdbService,
     },
 };
 
 pub mod middleware;
 pub mod routes;
 
-use routes::{auth, collections, import, movies, scan, series, ws};
+use routes::{auth, collections, import, movies, scan, series, settings, ws};
 
 pub struct AppState {
     pub auth_service: AuthService,
@@ -32,6 +32,7 @@ pub struct AppState {
     pub tmdb_service: TmdbService,
     pub ean_service: EanService,
     pub import_service: ImportService,
+    pub settings_service: SettingsService,
     pub ws_broadcast: tokio::sync::broadcast::Sender<String>,
 }
 
@@ -63,15 +64,27 @@ pub async fn create_app_state(config: &Config) -> anyhow::Result<Arc<AppState>> 
     // Create broadcast channel for WebSocket
     let (ws_tx, _) = tokio::sync::broadcast::channel::<String>(100);
 
+    // Create settings service first to get TMDB API key
+    let settings_service = SettingsService::new(pool.clone());
+
+    // Get TMDB API key from settings (env var has priority, then database)
+    let tmdb_api_key = settings_service
+        .get(my_movies_core::models::SettingKey::TmdbApiKey)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| config.tmdb_api_key.clone());
+
     // Create services
     let state = Arc::new(AppState {
         auth_service: AuthService::new(pool.clone(), config.jwt_secret.clone()),
         movie_service: MovieService::new(pool.clone()),
         series_service: SeriesService::new(pool.clone()),
         collection_service: CollectionService::new(pool.clone()),
-        tmdb_service: TmdbService::new(config.tmdb_api_key.clone()),
+        tmdb_service: TmdbService::new(tmdb_api_key),
         ean_service: EanService::new(),
         import_service: ImportService::new(pool.clone()),
+        settings_service,
         ws_broadcast: ws_tx,
     });
 
@@ -165,6 +178,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         // Import/Export
         .route("/import/csv", post(import::import_csv))
         .route("/import/enrich-tmdb", post(import::enrich_movies_tmdb))
+        // Settings (admin only)
+        .route("/settings", get(settings::get_settings))
+        .route("/settings/:key", axum::routing::put(settings::update_setting))
+        .route("/settings/test/tmdb", post(settings::test_tmdb))
         .layer(axum::middleware::from_fn_with_state(
             state,
             middleware::auth::auth_middleware,
