@@ -278,6 +278,12 @@ pnpm run tauri build
 
 This creates a native app bundle (`My Movies.app` on macOS, `.exe` on Windows, etc.) with the server embedded - no separate backend needed!
 
+> **macOS Gatekeeper Warning:** Unsigned builds will show "App can't be opened" warning. To bypass this, run:
+> ```bash
+> xattr -cr "/Applications/My Movies.app"
+> ```
+> Or right-click the app → "Open" → "Open" again in the dialog.
+
 ### Option B: Standalone Server (For Web/Multi-User Deployment)
 
 For running the server separately (e.g., on a server for multiple users):
