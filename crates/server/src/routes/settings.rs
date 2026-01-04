@@ -1,7 +1,4 @@
-use axum::{
-    Extension, Json,
-    extract::State,
-};
+use axum::{Extension, Json, extract::State};
 use std::sync::Arc;
 
 use my_movies_core::{
@@ -84,4 +81,3 @@ pub struct TmdbTestResult {
     pub success: bool,
     pub message: String,
 }
-

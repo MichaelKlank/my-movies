@@ -22,7 +22,7 @@ use my_movies_core::{
 pub mod middleware;
 pub mod routes;
 
-use routes::{auth, collections, import, movies, scan, series, settings, ws};
+use routes::{auth, collections, import, movies, scan, series, settings, users, ws};
 
 pub struct AppState {
     pub auth_service: AuthService,
@@ -180,8 +180,22 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/import/enrich-tmdb", post(import::enrich_movies_tmdb))
         // Settings (admin only)
         .route("/settings", get(settings::get_settings))
-        .route("/settings/:key", axum::routing::put(settings::update_setting))
+        .route(
+            "/settings/:key",
+            axum::routing::put(settings::update_setting),
+        )
         .route("/settings/test/tmdb", post(settings::test_tmdb))
+        // User management (admin only)
+        .route("/users", get(users::list_users))
+        .route(
+            "/users/:id/role",
+            axum::routing::put(users::update_user_role),
+        )
+        .route("/users/:id", delete(users::delete_user))
+        .route(
+            "/users/:id/password",
+            axum::routing::put(users::admin_set_password),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state,
             middleware::auth::auth_middleware,

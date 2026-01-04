@@ -1,6 +1,6 @@
 import { createRootRouteWithContext, Outlet, Link, useNavigate } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Film, Tv, ScanLine, Upload, LogOut, User, Settings } from 'lucide-react'
+import { Film, Tv, ScanLine, Upload, LogOut, User, Users, Settings } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
 
@@ -79,13 +79,22 @@ function RootLayout() {
               <span className="hidden sm:inline">{user?.username}</span>
             </span>
             {user?.role === 'admin' && (
-              <Link
-                to="/settings"
-                className="rounded-md p-2 hover:bg-accent [&.active]:bg-accent"
-                title="Einstellungen"
-              >
-                <Settings className="h-4 w-4" />
-              </Link>
+              <>
+                <Link
+                  to="/users"
+                  className="rounded-md p-2 hover:bg-accent [&.active]:bg-accent"
+                  title="Benutzerverwaltung"
+                >
+                  <Users className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/settings"
+                  className="rounded-md p-2 hover:bg-accent [&.active]:bg-accent"
+                  title="Einstellungen"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+              </>
             )}
             <button
               onClick={handleLogout}

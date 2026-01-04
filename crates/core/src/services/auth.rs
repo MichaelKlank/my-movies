@@ -291,4 +291,112 @@ impl AuthService {
 
         Ok(())
     }
+
+    // ============ Admin User Management ============
+
+    /// List all users (admin only)
+    pub async fn list_all_users(&self) -> Result<Vec<UserPublic>> {
+        let rows = sqlx::query_as::<_, UserRow>(
+            "SELECT * FROM users ORDER BY created_at DESC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut users = Vec::new();
+        for row in rows {
+            let user: User = row.try_into()
+                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                    Error::Internal(e.to_string())
+                })?;
+            users.push(user.into());
+        }
+        Ok(users)
+    }
+
+    /// Update a user's role (admin only)
+    pub async fn update_user_role(&self, user_id: Uuid, new_role: UserRole) -> Result<UserPublic> {
+        let role_str = match new_role {
+            UserRole::Admin => "admin",
+            UserRole::User => "user",
+        };
+
+        let result = sqlx::query(
+            "UPDATE users SET role = ?, updated_at = ? WHERE id = ?"
+        )
+        .bind(role_str)
+        .bind(Utc::now().to_rfc3339())
+        .bind(user_id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::UserNotFound);
+        }
+
+        self.get_user(user_id).await
+    }
+
+    /// Delete a user and all their data (admin only)
+    pub async fn delete_user(&self, user_id: Uuid) -> Result<()> {
+        // Delete user's movies
+        sqlx::query("DELETE FROM movies WHERE user_id = ?")
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        // Delete user's series
+        sqlx::query("DELETE FROM series WHERE user_id = ?")
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        // Delete user's collections
+        sqlx::query("DELETE FROM collection_items WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?)")
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query("DELETE FROM collections WHERE user_id = ?")
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        // Delete the user
+        let result = sqlx::query("DELETE FROM users WHERE id = ?")
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::UserNotFound);
+        }
+
+        Ok(())
+    }
+
+    /// Admin can set a new password for a user
+    pub async fn admin_set_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
+        // Hash new password
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let password_hash = argon2
+            .hash_password(new_password.as_bytes(), &salt)
+            .map_err(|e| Error::Internal(e.to_string()))?
+            .to_string();
+
+        let result = sqlx::query(
+            "UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL, updated_at = ? WHERE id = ?"
+        )
+        .bind(&password_hash)
+        .bind(Utc::now().to_rfc3339())
+        .bind(user_id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::UserNotFound);
+        }
+
+        Ok(())
+    }
 }

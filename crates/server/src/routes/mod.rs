@@ -5,6 +5,7 @@ pub mod movies;
 pub mod scan;
 pub mod series;
 pub mod settings;
+pub mod users;
 pub mod ws;
 
 use axum::{

@@ -264,6 +264,29 @@ class ApiClient {
   async testTmdb() {
     return this.request<TmdbTestResult>('/settings/test/tmdb', { method: 'POST' })
   }
+
+  // User Management (admin only)
+  async getUsers() {
+    return this.request<UserWithDate[]>('/users')
+  }
+
+  async updateUserRole(userId: string, role: 'admin' | 'user') {
+    return this.request<UserWithDate>(`/users/${userId}/role`, {
+      method: 'PUT',
+      body: { role },
+    })
+  }
+
+  async deleteUser(userId: string) {
+    return this.request<{ message: string }>(`/users/${userId}`, { method: 'DELETE' })
+  }
+
+  async adminSetPassword(userId: string, password: string) {
+    return this.request<{ message: string }>(`/users/${userId}/password`, {
+      method: 'PUT',
+      body: { password },
+    })
+  }
 }
 
 export const api = new ApiClient()
@@ -448,4 +471,8 @@ export interface SettingStatus {
 export interface TmdbTestResult {
   success: boolean
   message: string
+}
+
+export interface UserWithDate extends User {
+  created_at: string
 }

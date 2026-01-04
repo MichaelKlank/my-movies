@@ -90,6 +90,7 @@ pub struct UserPublic {
     pub username: String,
     pub email: String,
     pub role: UserRole,
+    pub created_at: DateTime<Utc>,
 }
 
 impl From<User> for UserPublic {
@@ -99,6 +100,7 @@ impl From<User> for UserPublic {
             username: user.username,
             email: user.email,
             role: user.role,
+            created_at: user.created_at,
         }
     }
 }
