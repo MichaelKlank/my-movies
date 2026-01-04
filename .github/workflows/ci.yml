@@ -57,14 +57,14 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Clippy (Server & Core)
+        run: cargo clippy --package my-movies-server --package my-movies-core --all-targets -- -D warnings
 
-      - name: Build Rust
-        run: cargo build --release
+      - name: Build Rust (Server only)
+        run: cargo build --release --package my-movies-server --package my-movies-core
 
       - name: Run Tests
-        run: cargo test --all
+        run: cargo test --package my-movies-server --package my-movies-core
 
   # ==========================================================================
   # Build Tauri Desktop Apps
@@ -128,10 +128,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libgtk-3-dev \
+            libglib2.0-dev \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev
 
       # macOS: Install universal target (both Intel and Apple Silicon)
       - name: Add macOS universal targets

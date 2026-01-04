@@ -61,16 +61,20 @@ jobs:
         with:
           version: 9
 
-      # Linux dependencies
+      # Linux dependencies for Tauri
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libgtk-3-dev \
+            libglib2.0-dev \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev
 
       # macOS universal targets
       - name: Add macOS universal targets
