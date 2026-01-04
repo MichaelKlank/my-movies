@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  my-movies:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=sqlite:/app/data/my-movies.db?mode=rwc
+      - JWT_SECRET=${JWT_SECRET}
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - RUST_LOG=info
+      - HOST=0.0.0.0
+      - PORT=3000
+    volumes:
+      # Mount local data directory for shared DB between local dev and Docker
+      - ../data:/app/data
+    restart: unless-stopped
+
+  # Optional: Litestream for backups
+  litestream:
+    image: litestream/litestream:0.3
+    volumes:
+      - ../data:/app/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    command: replicate
+    depends_on:
+      - my-movies
+    profiles:
+      - backup
+
+# Note: Using bind mount to ../data instead of Docker volume
+# This shares the database between local development and Docker

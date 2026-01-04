@@ -1,0 +1,21 @@
+dbs:
+  - path: /app/data/my-movies.db
+    replicas:
+      # S3-compatible storage (AWS S3, MinIO, Backblaze B2, etc.)
+      - url: s3://your-bucket-name/my-movies
+        # For MinIO or other S3-compatible storage:
+        # endpoint: https://your-minio-server:9000
+        # force-path-style: true
+        
+        # Credentials from environment
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        
+        # Snapshot interval (how often to create full snapshots)
+        snapshot-interval: 24h
+        
+        # Sync interval (how often to sync WAL frames)
+        sync-interval: 1s
+        
+        # Retention period for snapshots
+        retention: 168h  # 7 days

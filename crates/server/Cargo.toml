@@ -1,0 +1,45 @@
+[package]
+name = "my-movies-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "my_movies_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "my-movies-server"
+path = "src/main.rs"
+
+[dependencies]
+my-movies-core = { path = "../core" }
+
+# Async
+tokio = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dotenvy = { workspace = true }
+
+# Multipart for file uploads
+axum_typed_multipart = "0.13"
+tempfile = "3.12"
+
+# WebSocket
+futures = "0.3"
+tokio-stream = "0.1"

@@ -1,0 +1,20 @@
+{
+  "name": "my-movies",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @my-movies/web dev",
+    "dev:tauri": "pnpm --filter @my-movies/tauri dev",
+    "build": "pnpm --filter @my-movies/web build",
+    "build:tauri": "pnpm --filter @my-movies/tauri build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
