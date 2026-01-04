@@ -40,18 +40,15 @@ pub async fn update_setting(
         _ => return Err(my_movies_core::Error::NotFound.into()),
     };
 
-    // Update the setting in database
-    state
-        .settings_service
-        .update(setting_key.clone(), update.clone())
-        .await?;
-
     // Update runtime services directly (no restart needed!)
     match setting_key {
         SettingKey::TmdbApiKey => {
             state.tmdb_service.set_api_key(update.value.clone());
         }
     }
+
+    // Update the setting in database
+    state.settings_service.update(setting_key, update).await?;
 
     // Return updated status
     let statuses = state.settings_service.get_status().await?;

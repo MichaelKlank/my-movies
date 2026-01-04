@@ -15,10 +15,10 @@ impl SettingsService {
     /// Get a setting value, checking environment variable first, then database
     pub async fn get(&self, key: SettingKey) -> Result<Option<String>> {
         // First check environment variable (highest priority)
-        if let Ok(value) = std::env::var(key.env_var()) {
-            if !value.is_empty() {
-                return Ok(Some(value));
-            }
+        if let Ok(value) = std::env::var(key.env_var())
+            && !value.is_empty()
+        {
+            return Ok(Some(value));
         }
 
         // Then check database
