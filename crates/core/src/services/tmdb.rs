@@ -1,12 +1,13 @@
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
+use std::sync::RwLock;
 use urlencoding;
 
 const TMDB_BASE_URL: &str = "https://api.themoviedb.org/3";
 
 pub struct TmdbService {
     client: reqwest::Client,
-    api_key: String,
+    api_key: RwLock<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -145,15 +146,27 @@ impl TmdbService {
     pub fn new(api_key: String) -> Self {
         Self {
             client: reqwest::Client::new(),
-            api_key,
+            api_key: RwLock::new(api_key),
         }
+    }
+
+    /// Update the API key at runtime (e.g., when settings are changed)
+    pub fn set_api_key(&self, api_key: String) {
+        if let Ok(mut key) = self.api_key.write() {
+            *key = api_key;
+        }
+    }
+
+    /// Get current API key
+    fn get_api_key(&self) -> String {
+        self.api_key.read().map(|k| k.clone()).unwrap_or_default()
     }
 
     pub async fn search_movies(&self, query: &str, year: Option<i32>) -> Result<Vec<TmdbMovie>> {
         let mut url = format!(
             "{}/search/movie?api_key={}&query={}&language=de-DE",
             TMDB_BASE_URL,
-            self.api_key,
+            self.get_api_key(),
             urlencoding::encode(query)
         );
 
@@ -187,7 +200,7 @@ impl TmdbService {
     pub async fn find_by_imdb_id(&self, imdb_id: &str) -> Result<Option<TmdbMovie>> {
         let url = format!(
             "{}/find/{}?api_key={}&external_source=imdb_id",
-            TMDB_BASE_URL, imdb_id, self.api_key
+            TMDB_BASE_URL, imdb_id, self.get_api_key()
         );
 
         let response = self
@@ -220,7 +233,7 @@ impl TmdbService {
     pub async fn get_movie_details(&self, tmdb_id: i64) -> Result<TmdbMovieDetails> {
         let url = format!(
             "{}/movie/{}?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.api_key
+            TMDB_BASE_URL, tmdb_id, self.get_api_key()
         );
 
         let response = self
@@ -246,7 +259,7 @@ impl TmdbService {
     pub async fn get_movie_credits(&self, tmdb_id: i64) -> Result<TmdbCredits> {
         let url = format!(
             "{}/movie/{}/credits?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.api_key
+            TMDB_BASE_URL, tmdb_id, self.get_api_key()
         );
 
         let response = self
@@ -266,7 +279,7 @@ impl TmdbService {
         let url = format!(
             "{}/search/tv?api_key={}&query={}&language=de-DE",
             TMDB_BASE_URL,
-            self.api_key,
+            self.get_api_key(),
             urlencoding::encode(query)
         );
 
@@ -288,7 +301,7 @@ impl TmdbService {
     pub async fn get_tv_details(&self, tmdb_id: i64) -> Result<TmdbTvDetails> {
         let url = format!(
             "{}/tv/{}?api_key={}&language=de-DE",
-            TMDB_BASE_URL, tmdb_id, self.api_key
+            TMDB_BASE_URL, tmdb_id, self.get_api_key()
         );
 
         let response = self
