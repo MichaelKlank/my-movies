@@ -63,8 +63,28 @@ pub async fn test_tmdb(
         return Err(my_movies_core::Error::Forbidden.into());
     }
 
+    // Get the current TMDB API key from settings (fresh, not cached)
+    let api_key = match state.settings_service.get(SettingKey::TmdbApiKey).await {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            return Ok(Json(TmdbTestResult {
+                success: false,
+                message: "TMDB API key is not configured".to_string(),
+            }));
+        }
+        Err(e) => {
+            return Ok(Json(TmdbTestResult {
+                success: false,
+                message: format!("Error reading settings: {}", e),
+            }));
+        }
+    };
+
+    // Create a temporary TMDB service with the current key to test
+    let tmdb_service = my_movies_core::services::TmdbService::new(api_key);
+
     // Try to make a simple TMDB API call
-    match state.tmdb_service.search_movies("test", None).await {
+    match tmdb_service.search_movies("test", None).await {
         Ok(_) => Ok(Json(TmdbTestResult {
             success: true,
             message: "TMDB API key is valid".to_string(),
