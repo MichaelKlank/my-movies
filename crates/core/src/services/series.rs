@@ -39,14 +39,12 @@ impl SeriesService {
     }
 
     pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> Result<Series> {
-        sqlx::query_as::<_, Series>(
-            "SELECT * FROM series WHERE id = ? AND user_id = ?",
-        )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(Error::NotFound)
+        sqlx::query_as::<_, Series>("SELECT * FROM series WHERE id = ? AND user_id = ?")
+            .bind(id.to_string())
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::NotFound)
     }
 
     pub async fn list(&self, user_id: Uuid, filter: SeriesFilter) -> Result<Vec<Series>> {
@@ -97,12 +95,10 @@ impl SeriesService {
     }
 
     pub async fn count(&self, user_id: Uuid) -> Result<i64> {
-        let count = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM series WHERE user_id = ?",
-        )
-        .bind(user_id.to_string())
-        .fetch_one(&self.pool)
-        .await?;
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM series WHERE user_id = ?")
+            .bind(user_id.to_string())
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count)
     }

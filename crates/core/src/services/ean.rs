@@ -1,11 +1,12 @@
-use serde::Deserialize;
 use crate::error::{Error, Result};
+use serde::Deserialize;
 
 /// Service for looking up product information from EAN/barcode
 pub struct EanService {
     client: reqwest::Client,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct OpenGtinResponse {
     error: Option<String>,
@@ -13,6 +14,7 @@ struct OpenGtinResponse {
     products: Vec<OpenGtinProduct>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct OpenGtinProduct {
     #[serde(rename = "detailname")]
@@ -151,10 +153,7 @@ impl EanService {
 
     /// Validate EAN-13 checksum
     pub fn validate_ean13(barcode: &str) -> bool {
-        let digits: Vec<u32> = barcode
-            .chars()
-            .filter_map(|c| c.to_digit(10))
-            .collect();
+        let digits: Vec<u32> = barcode.chars().filter_map(|c| c.to_digit(10)).collect();
 
         if digits.len() != 13 {
             return false;
@@ -166,7 +165,7 @@ impl EanService {
             .map(|(i, &d)| if i % 2 == 0 { d } else { d * 3 })
             .sum();
 
-        sum % 10 == 0
+        sum.is_multiple_of(10)
     }
 }
 
@@ -193,10 +192,7 @@ mod tests {
             EanService::clean_title("The Matrix [Blu-ray]"),
             "The Matrix"
         );
-        assert_eq!(
-            EanService::clean_title("Inception (4K UHD)"),
-            "Inception"
-        );
+        assert_eq!(EanService::clean_title("Inception (4K UHD)"), "Inception");
         assert_eq!(
             EanService::clean_title("Star Wars Steelbook Limited Edition"),
             "Star Wars"

@@ -7,35 +7,35 @@ use uuid::Uuid;
 pub struct Collection {
     pub id: Uuid,
     pub user_id: Uuid,
-    
+
     // Identifiers
     pub collection_number: Option<String>,
     pub barcode: Option<String>,
-    
+
     // Titles
     pub title: String,
     pub sort_title: Option<String>,
     pub personal_title: Option<String>,
-    
+
     // Description
     pub description: Option<String>,
-    
+
     // Media Info
     pub disc_type: Option<String>,
     pub discs: Option<i32>,
     pub region_codes: Option<String>,
-    
+
     // Categorization
     pub genres: Option<String>,
     pub categories: Option<String>,
     pub tags: Option<String>,
-    
+
     // Physical Info
     pub condition: Option<String>,
     pub slip_cover: bool,
     pub cover_type: Option<String>,
     pub edition: Option<String>,
-    
+
     // Financial
     pub purchase_date: Option<NaiveDate>,
     pub price: Option<f64>,
@@ -44,17 +44,17 @@ pub struct Collection {
     pub value_date: Option<NaiveDate>,
     pub value_price: Option<f64>,
     pub value_currency: Option<String>,
-    
+
     // Lending
     pub lent_to: Option<String>,
     pub lent_due: Option<NaiveDate>,
-    
+
     // Location
     pub location: Option<String>,
-    
+
     // Notes
     pub notes: Option<String>,
-    
+
     // Timestamps
     pub added_date: Option<NaiveDate>,
     pub created_at: DateTime<Utc>,

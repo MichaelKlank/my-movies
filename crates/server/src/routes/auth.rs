@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde_json::json;
 
-use my_movies_core::models::{CreateUser, LoginRequest, Claims, ForgotPasswordRequest, ResetPasswordRequest};
+use my_movies_core::models::{
+    Claims, CreateUser, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest,
+};
 
 use crate::AppState;
 
@@ -68,7 +70,11 @@ pub async fn reset_password(
     Json(input): Json<ResetPasswordRequest>,
 ) -> impl IntoResponse {
     match state.auth_service.reset_password(input).await {
-        Ok(()) => (StatusCode::OK, Json(json!({ "message": "Password reset successful" }))).into_response(),
+        Ok(()) => (
+            StatusCode::OK,
+            Json(json!({ "message": "Password reset successful" })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
             Json(json!({ "error": e.to_string() })),

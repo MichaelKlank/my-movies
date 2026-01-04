@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         Query, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     response::IntoResponse,
 };
@@ -23,11 +23,11 @@ pub async fn websocket_handler(
     Query(query): Query<WsQuery>,
 ) -> impl IntoResponse {
     // Verify token if provided
-    if let Some(token) = &query.token {
-        if state.auth_service.verify_token(token).is_err() {
-            // Could return 401 but WebSocket upgrade doesn't support that cleanly
-            // Instead we'll accept but immediately close
-        }
+    if let Some(token) = &query.token
+        && state.auth_service.verify_token(token).is_err()
+    {
+        // Could return 401 but WebSocket upgrade doesn't support that cleanly
+        // Instead we'll accept but immediately close
     }
 
     ws.on_upgrade(move |socket| handle_socket(socket, state))
@@ -42,7 +42,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     // Spawn task to forward broadcasts to this client
     let send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
-            if sender.send(Message::Text(msg.into())).await.is_err() {
+            if sender.send(Message::Text(msg)).await.is_err() {
                 break;
             }
         }

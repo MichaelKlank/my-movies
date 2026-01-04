@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use csv::ReaderBuilder;
 use std::io::Read;
 use uuid::Uuid;
@@ -161,7 +161,9 @@ impl ImportService {
                     }
                 }
                 Err(e) => {
-                    result.errors.push(format!("Row {}: Parse error - {}", row_num, e));
+                    result
+                        .errors
+                        .push(format!("Row {}: Parse error - {}", row_num, e));
                 }
             }
         }
@@ -180,15 +182,12 @@ impl ImportService {
 
         // Determine if this is a movie, series, or collection based on item_type
         match record.item_type.as_deref() {
-            Some("Series") => {
-                self.import_series(user_id, id, &now, record, title).await
-            }
+            Some("Series") => self.import_series(user_id, id, &now, record, title).await,
             Some("Collection") => {
-                self.import_collection(user_id, id, &now, record, title).await
+                self.import_collection(user_id, id, &now, record, title)
+                    .await
             }
-            _ => {
-                self.import_movie(user_id, id, &now, record, title).await
-            }
+            _ => self.import_movie(user_id, id, &now, record, title).await,
         }
     }
 

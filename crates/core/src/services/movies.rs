@@ -191,20 +191,7 @@ impl MovieService {
         // Verify ownership first
         let _ = self.get_by_id(user_id, id).await?;
 
-        // Build dynamic update query
-        let mut updates: Vec<Movie> = Vec::new();
-        let mut params: Vec<Box<dyn std::any::Any + Send + Sync>> = Vec::new();
-
-        macro_rules! add_update {
-            ($field:ident, $column:expr) => {
-                if let Some(ref value) = input.$field {
-                    updates.push(format!("{} = ?", $column));
-                    params.push(Box::new(value.clone()));
-                }
-            };
-        }
-
-        // This is simplified - in production you'd want a more robust approach
+        // Update each field individually if provided
         if let Some(ref title) = input.title {
             sqlx::query("UPDATE movies SET title = ? WHERE id = ? AND user_id = ?")
                 .bind(title)
@@ -429,21 +416,20 @@ impl MovieService {
         let mut duplicates = Vec::new();
 
         // Check by barcode first (most reliable)
-        if let Some(bc) = barcode {
-            if !bc.is_empty() {
-                if let Some(movie) = self.find_by_barcode(user_id, bc).await? {
-                    duplicates.push(movie);
-                    return Ok(duplicates); // Barcode match is definitive
-                }
-            }
+        if let Some(bc) = barcode
+            && !bc.is_empty()
+            && let Some(movie) = self.find_by_barcode(user_id, bc).await?
+        {
+            duplicates.push(movie);
+            return Ok(duplicates); // Barcode match is definitive
         }
 
         // Check by TMDB ID
-        if let Some(id) = tmdb_id {
-            if let Some(movie) = self.find_by_tmdb_id(user_id, id).await? {
-                duplicates.push(movie);
-                return Ok(duplicates); // TMDB ID match is definitive
-            }
+        if let Some(id) = tmdb_id
+            && let Some(movie) = self.find_by_tmdb_id(user_id, id).await?
+        {
+            duplicates.push(movie);
+            return Ok(duplicates); // TMDB ID match is definitive
         }
 
         // Check by title (less reliable, might have false positives)
@@ -477,14 +463,15 @@ impl MovieService {
             let mut group = vec![movie.clone()];
 
             // Find duplicates by barcode
-            if let Some(ref barcode) = movie.barcode {
-                if !barcode.is_empty() {
-                    for other in &movies {
-                        if other.id != movie.id && other.barcode.as_ref() == Some(barcode) {
-                            if !group.iter().any(|m| m.id == other.id) {
-                                group.push(other.clone());
-                            }
-                        }
+            if let Some(ref barcode) = movie.barcode
+                && !barcode.is_empty()
+            {
+                for other in &movies {
+                    if other.id != movie.id
+                        && other.barcode.as_ref() == Some(barcode)
+                        && !group.iter().any(|m| m.id == other.id)
+                    {
+                        group.push(other.clone());
                     }
                 }
             }
@@ -492,21 +479,22 @@ impl MovieService {
             // Find duplicates by TMDB ID
             if let Some(tmdb_id) = movie.tmdb_id {
                 for other in &movies {
-                    if other.id != movie.id && other.tmdb_id == Some(tmdb_id) {
-                        if !group.iter().any(|m| m.id == other.id) {
-                            group.push(other.clone());
-                        }
+                    if other.id != movie.id
+                        && other.tmdb_id == Some(tmdb_id)
+                        && !group.iter().any(|m| m.id == other.id)
+                    {
+                        group.push(other.clone());
                     }
                 }
             }
 
             // Find duplicates by exact title match
             for other in &movies {
-                if other.id != movie.id && other.title.to_lowercase() == movie.title.to_lowercase()
+                if other.id != movie.id
+                    && other.title.to_lowercase() == movie.title.to_lowercase()
+                    && !group.iter().any(|m| m.id == other.id)
                 {
-                    if !group.iter().any(|m| m.id == other.id) {
-                        group.push(other.clone());
-                    }
+                    group.push(other.clone());
                 }
             }
 

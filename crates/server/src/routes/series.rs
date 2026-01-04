@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
 };
 use serde_json::json;
 use uuid::Uuid;

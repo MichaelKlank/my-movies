@@ -42,14 +42,12 @@ impl CollectionService {
     }
 
     pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> Result<Collection> {
-        sqlx::query_as::<_, Collection>(
-            "SELECT * FROM collections WHERE id = ? AND user_id = ?",
-        )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(Error::NotFound)
+        sqlx::query_as::<_, Collection>("SELECT * FROM collections WHERE id = ? AND user_id = ?")
+            .bind(id.to_string())
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::NotFound)
     }
 
     pub async fn list(&self, user_id: Uuid, filter: CollectionFilter) -> Result<Vec<Collection>> {
@@ -137,16 +135,18 @@ impl CollectionService {
         .execute(&self.pool)
         .await?;
 
-        sqlx::query_as::<_, CollectionItem>(
-            "SELECT * FROM collection_items WHERE id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| e.into())
+        sqlx::query_as::<_, CollectionItem>("SELECT * FROM collection_items WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| e.into())
     }
 
-    pub async fn get_items(&self, user_id: Uuid, collection_id: Uuid) -> Result<Vec<CollectionItem>> {
+    pub async fn get_items(
+        &self,
+        user_id: Uuid,
+        collection_id: Uuid,
+    ) -> Result<Vec<CollectionItem>> {
         // Verify collection ownership
         let _ = self.get_by_id(user_id, collection_id).await?;
 
@@ -160,17 +160,20 @@ impl CollectionService {
         Ok(items)
     }
 
-    pub async fn remove_item(&self, user_id: Uuid, collection_id: Uuid, item_id: Uuid) -> Result<()> {
+    pub async fn remove_item(
+        &self,
+        user_id: Uuid,
+        collection_id: Uuid,
+        item_id: Uuid,
+    ) -> Result<()> {
         // Verify collection ownership
         let _ = self.get_by_id(user_id, collection_id).await?;
 
-        let result = sqlx::query(
-            "DELETE FROM collection_items WHERE id = ? AND collection_id = ?",
-        )
-        .bind(item_id.to_string())
-        .bind(collection_id.to_string())
-        .execute(&self.pool)
-        .await?;
+        let result = sqlx::query("DELETE FROM collection_items WHERE id = ? AND collection_id = ?")
+            .bind(item_id.to_string())
+            .bind(collection_id.to_string())
+            .execute(&self.pool)
+            .await?;
 
         if result.rows_affected() == 0 {
             return Err(Error::NotFound);

@@ -2,17 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[derive(Default)]
 pub enum DiscType {
     Dvd,
+    #[default]
     BluRay,
     UhdBluRay,
     Hddvd,
-}
-
-impl Default for DiscType {
-    fn default() -> Self {
-        Self::BluRay
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
@@ -25,18 +21,14 @@ pub enum MediaType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[derive(Default)]
 pub enum Condition {
     Mint,
     Excellent,
+    #[default]
     Good,
     Fair,
     Poor,
-}
-
-impl Default for Condition {
-    fn default() -> Self {
-        Self::Good
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]

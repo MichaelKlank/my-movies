@@ -1,14 +1,17 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::error::{Error, Result};
-use crate::models::{AuthResponse, Claims, CreateUser, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest, User, UserPublic, UserRole, UserRow};
+use crate::models::{
+    AuthResponse, Claims, CreateUser, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest,
+    User, UserPublic, UserRole, UserRow,
+};
 
 pub struct AuthService {
     pool: DbPool,
@@ -49,7 +52,7 @@ impl AuthService {
         let user_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
             .fetch_one(&self.pool)
             .await?;
-        
+
         let role = if user_count == 0 {
             UserRole::Admin
         } else {
@@ -98,20 +101,22 @@ impl AuthService {
     }
 
     pub async fn login(&self, input: LoginRequest) -> Result<AuthResponse> {
-        let row = sqlx::query_as::<_, UserRow>(
-            "SELECT * FROM users WHERE username = ?",
-        )
-        .bind(&input.username)
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(Error::InvalidCredentials)?;
-        
-        let user: User = row.try_into().map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))?;
+        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE username = ?")
+            .bind(&input.username)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::InvalidCredentials)?;
+
+        let user: User =
+            row.try_into()
+                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                    Error::Internal(e.to_string())
+                })?;
 
         // Verify password
-        let parsed_hash = PasswordHash::new(&user.password_hash)
-            .map_err(|e| Error::Internal(e.to_string()))?;
-        
+        let parsed_hash =
+            PasswordHash::new(&user.password_hash).map_err(|e| Error::Internal(e.to_string()))?;
+
         Argon2::default()
             .verify_password(input.password.as_bytes(), &parsed_hash)
             .map_err(|_| Error::InvalidCredentials)?;
@@ -158,41 +163,44 @@ impl AuthService {
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<UserPublic> {
-        let row = sqlx::query_as::<_, UserRow>(
-            "SELECT * FROM users WHERE id = ?",
-        )
-        .bind(user_id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(Error::UserNotFound)?;
+        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE id = ?")
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::UserNotFound)?;
 
-        let user: User = row.try_into().map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))?;
+        let user: User =
+            row.try_into()
+                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                    Error::Internal(e.to_string())
+                })?;
         Ok(user.into())
     }
 
     pub async fn get_user_by_username(&self, username: &str) -> Result<User> {
-        let row = sqlx::query_as::<_, UserRow>(
-            "SELECT * FROM users WHERE username = ?",
-        )
-        .bind(username)
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(Error::UserNotFound)?;
+        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE username = ?")
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::UserNotFound)?;
 
-        row.try_into().map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))
+        row.try_into()
+            .map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))
     }
 
     pub async fn request_password_reset(&self, input: ForgotPasswordRequest) -> Result<String> {
         // Find user by email
-        let row = sqlx::query_as::<_, UserRow>(
-            "SELECT * FROM users WHERE email = ?",
-        )
-        .bind(&input.email)
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| Error::Validation("E-Mail-Adresse nicht gefunden".to_string()))?;
+        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE email = ?")
+            .bind(&input.email)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| Error::Validation("E-Mail-Adresse nicht gefunden".to_string()))?;
 
-        let user: User = row.try_into().map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))?;
+        let user: User =
+            row.try_into()
+                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                    Error::Internal(e.to_string())
+                })?;
 
         // Generate reset token
         let reset_token = Uuid::new_v4().to_string();
@@ -240,11 +248,15 @@ impl AuthService {
         // Find the user whose token matches
         let mut found_user: Option<User> = None;
         for row in rows {
-            let user: User = row.try_into().map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))?;
+            let user: User =
+                row.try_into()
+                    .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                        Error::Internal(e.to_string())
+                    })?;
             if let Some(ref token_hash) = user.reset_token {
-                let parsed_hash = PasswordHash::new(token_hash)
-                    .map_err(|e| Error::Internal(e.to_string()))?;
-                
+                let parsed_hash =
+                    PasswordHash::new(token_hash).map_err(|e| Error::Internal(e.to_string()))?;
+
                 if Argon2::default()
                     .verify_password(input.token.as_bytes(), &parsed_hash)
                     .is_ok()

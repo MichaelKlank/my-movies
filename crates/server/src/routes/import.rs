@@ -142,7 +142,7 @@ pub async fn enrich_movies_tmdb(
                         .ok(),
                     _ => {
                         // Fallback to title search
-                        let year = movie.production_year.map(|y| y as i32);
+                        let year = movie.production_year;
                         match state_clone
                             .tmdb_service
                             .search_movies(&movie.title, year)
@@ -159,7 +159,7 @@ pub async fn enrich_movies_tmdb(
                 }
             } else {
                 // Search by title
-                let year = movie.production_year.map(|y| y as i32);
+                let year = movie.production_year;
                 match state_clone
                     .tmdb_service
                     .search_movies(&movie.title, year)

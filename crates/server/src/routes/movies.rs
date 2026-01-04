@@ -31,8 +31,8 @@ pub async fn list(
         }
     };
 
-    let limit = filter.limit.unwrap_or(50) as i64;
-    let offset = filter.offset.unwrap_or(0) as i64;
+    let limit = filter.limit.unwrap_or(50);
+    let offset = filter.offset.unwrap_or(0);
 
     match state.movie_service.list(claims.sub, filter).await {
         Ok(movies) => (
@@ -164,7 +164,7 @@ pub async fn refresh_tmdb(
         state.tmdb_service.get_movie_details(tmdb_id).await.ok()
     } else {
         // Search by title
-        let year = movie.production_year.map(|y| y as i32);
+        let year = movie.production_year;
         match state.tmdb_service.search_movies(&movie.title, year).await {
             Ok(results) if !results.is_empty() => {
                 let first = &results[0];

@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use axum::{
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
 };
 use serde_json::json;
 use uuid::Uuid;
 
-use my_movies_core::models::{AddCollectionItem, Claims, CollectionFilter, CreateCollection, UpdateCollection};
+use my_movies_core::models::{
+    AddCollectionItem, Claims, CollectionFilter, CreateCollection, UpdateCollection,
+};
 
 use crate::AppState;
 
@@ -110,7 +112,11 @@ pub async fn add_item(
     Path(id): Path<Uuid>,
     Json(input): Json<AddCollectionItem>,
 ) -> impl IntoResponse {
-    match state.collection_service.add_item(claims.sub, id, input).await {
+    match state
+        .collection_service
+        .add_item(claims.sub, id, input)
+        .await
+    {
         Ok(item) => (StatusCode::CREATED, Json(json!(item))).into_response(),
         Err(e) => (
             StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -125,7 +131,11 @@ pub async fn remove_item(
     Extension(claims): Extension<Claims>,
     Path((id, item_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
-    match state.collection_service.remove_item(claims.sub, id, item_id).await {
+    match state
+        .collection_service
+        .remove_item(claims.sub, id, item_id)
+        .await
+    {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => (
             StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
