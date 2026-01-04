@@ -19,29 +19,10 @@ fn start_embedded_server() {
     runtime.spawn(async {
         tracing::info!("Starting embedded server...");
 
-        // Get the path to bundled frontend assets
-        // In production, Tauri bundles the frontend into the app
-        let static_dir = if cfg!(debug_assertions) {
-            None // In dev mode, Vite serves the frontend
-        } else {
-            // In production, serve bundled frontend from the server
-            // This avoids CORS issues since everything comes from same origin
-            std::env::current_exe()
-                .ok()
-                .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
-                .map(|p| {
-                    #[cfg(target_os = "macos")]
-                    let frontend_path = p.join("../Resources/frontend");
-                    #[cfg(not(target_os = "macos"))]
-                    let frontend_path = p.join("frontend");
-                    frontend_path.to_string_lossy().to_string()
-                })
-        };
-
         let config = my_movies_server::ServerConfig {
             host: "127.0.0.1".to_string(),
             port: 3000,
-            static_dir,
+            static_dir: None, // Tauri WebView serves frontend, server is API-only
         };
 
         if let Err(e) = my_movies_server::start_server(config).await {
@@ -71,7 +52,7 @@ pub fn run() {
     std::thread::sleep(std::time::Duration::from_millis(500));
 
     #[allow(unused_mut)]
-    let mut builder = tauri::Builder::default();
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
 
     // Add barcode scanner plugin on mobile platforms
     #[cfg(any(target_os = "android", target_os = "ios"))]

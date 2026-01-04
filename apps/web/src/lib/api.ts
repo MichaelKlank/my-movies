@@ -1,7 +1,36 @@
-// API base URL - always relative since:
-// - Dev mode: Vite proxy handles /api/* -> localhost:3000
-// - Production: Server serves both frontend and API from same origin
-const API_BASE = '/api/v1'
+// Check if running in Tauri
+const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
+
+// API base URL configuration:
+// - In Tauri: Use absolute URL to localhost (embedded server)
+// - In web dev: Use relative URL (Vite proxy)
+// - In web prod: Use relative URL (same-origin server)
+const API_BASE = isTauri
+  ? 'http://127.0.0.1:3000/api/v1'
+  : '/api/v1'
+
+// Cache for Tauri fetch function
+let tauriFetchFn: typeof fetch | null = null
+
+// Use Tauri's fetch in Tauri production (bypasses WebView CORS restrictions)
+// Falls back to regular fetch in browser or if plugin not available
+async function tauriFetch(url: string, options?: RequestInit): Promise<Response> {
+  // Only try Tauri fetch in Tauri production mode
+  if (isTauri && import.meta.env.PROD) {
+    try {
+      // Cache the Tauri fetch function
+      if (!tauriFetchFn) {
+        const module = await import('@tauri-apps/plugin-http')
+        tauriFetchFn = module.fetch as typeof fetch
+      }
+      return tauriFetchFn(url, options)
+    } catch {
+      // Plugin not available, fall back to regular fetch
+      console.warn('Tauri HTTP plugin not available, using regular fetch')
+    }
+  }
+  return fetch(url, options)
+}
 
 type RequestOptions = {
   method?: string
@@ -44,7 +73,7 @@ class ApiClient {
       requestHeaders['Authorization'] = `Bearer ${token}`
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await tauriFetch(`${API_BASE}${endpoint}`, {
       method,
       headers: requestHeaders,
       body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
@@ -137,7 +166,7 @@ class ApiClient {
     formData.append('file', file)
     
     const token = this.getToken()
-    const response = await fetch(`${API_BASE}/movies/${id}/upload-poster`, {
+    const response = await tauriFetch(`${API_BASE}/movies/${id}/upload-poster`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
