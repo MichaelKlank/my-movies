@@ -94,7 +94,12 @@ pub struct Movie {
     pub budget: Option<i64>,
     pub revenue: Option<i64>,
     pub spoken_languages: Option<String>,
-    pub poster_path: Option<String>,
+
+    // Poster image stored as BLOB in database
+    // Skip serialization to avoid sending large BLOBs in JSON responses
+    #[serde(skip)]
+    #[sqlx(skip)]
+    pub poster_data: Option<Vec<u8>>,
 
     // Timestamps
     pub added_date: Option<NaiveDate>,
@@ -110,7 +115,6 @@ pub struct CreateMovie {
     pub original_title: Option<String>,
     pub disc_type: Option<String>,
     pub production_year: Option<i32>,
-    pub poster_path: Option<String>,
     // ... other optional fields can be added via update
 }
 
@@ -173,7 +177,6 @@ pub struct UpdateMovie {
     pub budget: Option<i64>,
     pub revenue: Option<i64>,
     pub spoken_languages: Option<String>,
-    pub poster_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]

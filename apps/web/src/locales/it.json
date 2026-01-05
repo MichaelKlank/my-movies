@@ -84,7 +84,10 @@
     "runningTime": "Durata",
     "minutes": "min",
     "director": "Regista",
-    "location": "Posizione"
+    "location": "Posizione",
+    "refreshTmdb": "Aggiorna dati TMDB",
+    "refreshTmdbMissing": "Carica dati mancanti",
+    "refreshTmdbAll": "Ricarica tutti i dati"
   },
   "scan": {
     "title": "Aggiungi Film",
@@ -171,5 +174,36 @@
     "title": "Elimina Utente",
     "confirm": "Sei sicuro di voler eliminare",
     "warning": "Tutti i film, le serie e le collezioni di questo utente verranno anche eliminati. Questa azione non può essere annullata."
+  },
+  "import": {
+    "title": "Importa",
+    "csvImport": "Importa CSV",
+    "csvImportDesc": "Importa film da un file CSV. Il file deve contenere colonne: title, barcode, production_year, ecc.",
+    "selectFile": "Seleziona file CSV",
+    "noFileSelected": "Nessun file selezionato",
+    "importing": "Importazione...",
+    "importSuccess": "Importazione riuscita!",
+    "importFailed": "Importazione fallita",
+    "loadTmdbData": "Carica dati TMDB",
+    "loadTmdbDataDesc": "Recupera locandine, descrizioni, attori e altri dettagli da TMDB per tutti i film senza immagini. Questo può richiedere del tempo per molti film.",
+    "loadingTmdbData": "Caricamento dati TMDB...",
+    "loadMissingData": "Carica dati mancanti",
+    "reloadAllData": "Ricarica tutti i dati",
+    "tmdbEnrichComplete": "Dati TMDB caricati!",
+    "enriched": "Arricchito",
+    "errors": "Errori",
+    "progress": "Progresso",
+    "moviesProcessed": "di",
+    "updated": "aggiornato",
+    "notFound": "non trovato",
+    "moviesUpdated": "film aggiornati su",
+    "moviesNotFound": "film non sono stati trovati",
+    "andMore": "e",
+    "more": "altri",
+    "errorLoadingTmdb": "Errore nel caricamento dei dati TMDB",
+    "imported": "importato",
+    "supportedFormats": "Formati supportati",
+    "csvColumnsDesc": "Il file CSV deve contenere le seguenti colonne (come nell'export di My Movies Pro):",
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, e molti altri..."
   }
 }

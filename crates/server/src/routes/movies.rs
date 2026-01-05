@@ -179,10 +179,17 @@ pub async fn delete(
     }
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct RefreshTmdbQuery {
+    #[serde(default)]
+    pub force: bool, // If true, reload all data even if already present
+}
+
 pub async fn refresh_tmdb(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
+    Query(params): Query<RefreshTmdbQuery>,
 ) -> impl IntoResponse {
     // Get the movie first
     let movie = match state.movie_service.get_by_id(claims.sub, id).await {
@@ -278,27 +285,58 @@ pub async fn refresh_tmdb(
     });
 
     // Download poster image if available
-    let poster_data = if let Some(ref poster_path) = details.poster_path {
-        download_poster_image(poster_path).await
+    // Download if:
+    // - force=true (always download)
+    // - OR poster_data is None (no poster stored in DB yet)
+    let should_download_poster = params.force || movie.poster_data.is_none();
+
+    let poster_data = if should_download_poster {
+        if let Some(ref poster_path) = details.poster_path {
+            download_poster_image(poster_path).await
+        } else {
+            None
+        }
     } else {
-        None
+        None // Skip download if poster already in DB and not forcing
     };
 
-    let update = my_movies_core::models::UpdateMovie {
+    // Build update - only include fields that are missing or if force=true
+    let mut update = my_movies_core::models::UpdateMovie {
         tmdb_id: Some(details.id),
-        imdb_id: details.imdb_id.clone(),
-        original_title: details.original_title.clone(),
-        description: details.overview.clone(),
-        tagline: details.tagline.clone(),
-        running_time: details.runtime,
-        poster_path: details.poster_path.clone(),
-        director,
-        actors,
-        genres,
-        budget: details.budget,
-        revenue: details.revenue,
         ..Default::default()
     };
+
+    // Only update fields if they're missing or force=true
+    if params.force || movie.imdb_id.is_none() {
+        update.imdb_id = details.imdb_id.clone();
+    }
+    if params.force || movie.original_title.is_none() {
+        update.original_title = details.original_title.clone();
+    }
+    if params.force || movie.description.is_none() {
+        update.description = details.overview.clone();
+    }
+    if params.force || movie.tagline.is_none() {
+        update.tagline = details.tagline.clone();
+    }
+    if params.force || movie.running_time.is_none() {
+        update.running_time = details.runtime;
+    }
+    if params.force || movie.director.is_none() {
+        update.director = director;
+    }
+    if params.force || movie.actors.is_none() {
+        update.actors = actors;
+    }
+    if params.force || movie.genres.is_none() {
+        update.genres = genres;
+    }
+    if params.force || movie.budget.is_none() {
+        update.budget = details.budget;
+    }
+    if params.force || movie.revenue.is_none() {
+        update.revenue = details.revenue;
+    }
 
     // First update the movie data
     let updated_movie = match state.movie_service.update(claims.sub, id, update).await {
@@ -493,6 +531,107 @@ pub async fn upload_poster(
         Json(json!({ "error": "No file provided" })),
     )
         .into_response()
+}
+
+/// Set poster from URL - downloads the image and stores it in the database
+#[derive(Debug, serde::Deserialize)]
+pub struct SetPosterUrlRequest {
+    pub url: String,
+}
+
+pub async fn set_poster_from_url(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<SetPosterUrlRequest>,
+) -> impl IntoResponse {
+    // Verify movie exists and belongs to user
+    if let Err(e) = state.movie_service.get_by_id(claims.sub, id).await {
+        return (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::NOT_FOUND),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response();
+    }
+
+    // Download the image from URL
+    let image_data = match reqwest::get(&input.url).await {
+        Ok(response) => {
+            if !response.status().is_success() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "error": format!("Failed to download image: HTTP {}", response.status()) })),
+                )
+                    .into_response();
+            }
+            match response.bytes().await {
+                Ok(bytes) => bytes.to_vec(),
+                Err(e) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": format!("Failed to read image data: {}", e) })),
+                    )
+                        .into_response();
+                }
+            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": format!("Failed to download image: {}", e) })),
+            )
+                .into_response();
+        }
+    };
+
+    // Validate it's actually an image (basic check)
+    if image_data.len() < 8 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Downloaded file too small to be a valid image" })),
+        )
+            .into_response();
+    }
+
+    // Validate file size (max 5MB)
+    let max_file_size: usize = 5 * 1024 * 1024; // 5MB
+    if image_data.len() > max_file_size {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": format!("Image too large. Maximum size is 5MB, got {} bytes", image_data.len()) })),
+        )
+            .into_response();
+    }
+
+    // Store image data directly in database
+    match state
+        .movie_service
+        .update_movie_poster_data(claims.sub, id, Some(image_data))
+        .await
+    {
+        Ok(movie) => {
+            // Broadcast to WebSocket clients
+            let msg = json!({
+                "type": "movie_updated",
+                "payload": movie
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "message": "Poster set successfully",
+                    "movie": movie
+                })),
+            )
+                .into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Failed to update movie: {}", e) })),
+        )
+            .into_response(),
+    }
 }
 
 /// Get poster image for a movie

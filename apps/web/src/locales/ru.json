@@ -84,7 +84,10 @@
     "runningTime": "Продолжительность",
     "minutes": "мин",
     "director": "Режиссер",
-    "location": "Местоположение"
+    "location": "Местоположение",
+    "refreshTmdb": "Обновить данные TMDB",
+    "refreshTmdbMissing": "Загрузить отсутствующие данные",
+    "refreshTmdbAll": "Перезагрузить все данные"
   },
   "scan": {
     "title": "Добавить фильм",
@@ -171,5 +174,36 @@
     "title": "Удалить пользователя",
     "confirm": "Вы уверены, что хотите удалить",
     "warning": "Все фильмы, сериалы и коллекции этого пользователя также будут удалены. Это действие нельзя отменить."
+  },
+  "import": {
+    "title": "Импорт",
+    "csvImport": "Импорт CSV",
+    "csvImportDesc": "Импортируйте фильмы из CSV-файла. Файл должен содержать столбцы: title, barcode, production_year и т.д.",
+    "selectFile": "Выбрать CSV-файл",
+    "noFileSelected": "Файл не выбран",
+    "importing": "Импорт...",
+    "importSuccess": "Импорт успешен!",
+    "importFailed": "Ошибка импорта",
+    "loadTmdbData": "Загрузить данные TMDB",
+    "loadTmdbDataDesc": "Получает постеры, описания, актеров и другие детали из TMDB для всех фильмов без изображений. Это может занять некоторое время для многих фильмов.",
+    "loadingTmdbData": "Загрузка данных TMDB...",
+    "loadMissingData": "Загрузить отсутствующие данные",
+    "reloadAllData": "Перезагрузить все данные",
+    "tmdbEnrichComplete": "Данные TMDB загружены!",
+    "enriched": "Обогащено",
+    "errors": "Ошибки",
+    "progress": "Прогресс",
+    "moviesProcessed": "из",
+    "updated": "обновлено",
+    "notFound": "не найдено",
+    "moviesUpdated": "фильмов обновлено из",
+    "moviesNotFound": "фильмов не найдено",
+    "andMore": "и",
+    "more": "еще",
+    "errorLoadingTmdb": "Ошибка загрузки данных TMDB",
+    "imported": "импортировано",
+    "supportedFormats": "Поддерживаемые форматы",
+    "csvColumnsDesc": "CSV-файл должен содержать следующие столбцы (как в экспорте My Movies Pro):",
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, и многое другое..."
   }
 }

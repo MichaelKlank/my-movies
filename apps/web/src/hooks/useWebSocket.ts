@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { wsClient, WsMessage } from '@/lib/ws'
 import { useAuth } from './useAuth'
+import { imageQueue } from '@/lib/imageQueue'
 
 export function useWebSocketSync() {
   const queryClient = useQueryClient()
@@ -24,6 +25,11 @@ export function useWebSocketSync() {
             queryClient.invalidateQueries({ queryKey: ['movie', movieData.id] })
             // Update query data immediately for instant UI update
             queryClient.setQueryData(['movie', movieData.id], movieData)
+            
+            // Invalidate image cache for this movie to force reload
+            if (message.type === 'movie_updated' && movieData.id) {
+              imageQueue.invalidateMoviePoster(movieData.id)
+            }
           }
           break
 

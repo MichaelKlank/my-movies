@@ -157,8 +157,11 @@ class ApiClient {
     return this.request<void>(`/movies/${id}`, { method: 'DELETE' })
   }
 
-  async refreshMovieTmdb(id: string) {
-    return this.request<Movie>(`/movies/${id}/refresh-tmdb`, { method: 'POST' })
+  async refreshMovieTmdb(id: string, force: boolean = false) {
+    const url = force 
+      ? `/movies/${id}/refresh-tmdb?force=true`
+      : `/movies/${id}/refresh-tmdb`
+    return this.request<Movie>(url, { method: 'POST' })
   }
 
   async uploadMoviePoster(id: string, file: File) {
@@ -179,7 +182,14 @@ class ApiClient {
       throw new Error(error.error || 'Upload failed')
     }
     
-    return response.json() as Promise<{ message: string; poster_path: string }>
+    return response.json() as Promise<{ message: string; movie: Movie }>
+  }
+
+  async setPosterFromUrl(id: string, url: string) {
+    return this.request<{ message: string; movie: Movie }>(`/movies/${id}/set-poster-url`, {
+      method: 'POST',
+      body: { url },
+    })
   }
 
   async checkMovieDuplicates(title: string, barcode?: string, tmdb_id?: number) {
@@ -245,8 +255,9 @@ class ApiClient {
     return this.request<ImportResult>('/import/csv', { method: 'POST', body: formData })
   }
 
-  async enrichMoviesTmdb() {
-    return this.request<EnrichResult>('/import/enrich-tmdb', { method: 'POST' })
+  async enrichMoviesTmdb(force: boolean = false) {
+    const query = force ? '?force=true' : ''
+    return this.request<EnrichResult>(`/import/enrich-tmdb${query}`, { method: 'POST' })
   }
 
   // Settings (admin only)

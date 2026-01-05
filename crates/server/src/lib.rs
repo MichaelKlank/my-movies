@@ -158,6 +158,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         )
         .route("/movies/:id/refresh-tmdb", post(movies::refresh_tmdb))
         .route("/movies/:id/upload-poster", post(movies::upload_poster))
+        .route(
+            "/movies/:id/set-poster-url",
+            post(movies::set_poster_from_url),
+        )
         .route("/movies/:id/poster", axum::routing::get(movies::get_poster))
         // Series
         .route("/series", get(series::list).post(series::create))

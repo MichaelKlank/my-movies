@@ -85,7 +85,10 @@
     "runningTime": "Laufzeit",
     "minutes": "min",
     "director": "Regie",
-    "location": "Standort"
+    "location": "Standort",
+    "refreshTmdb": "TMDB Daten aktualisieren",
+    "refreshTmdbMissing": "Fehlende Daten laden",
+    "refreshTmdbAll": "Alle Daten neu laden"
   },
   "scan": {
     "title": "Film hinzufügen",
@@ -172,5 +175,36 @@
     "title": "Benutzer löschen",
     "confirm": "Bist du sicher, dass du",
     "warning": "Alle Filme, Serien und Sammlungen dieses Benutzers werden ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  },
+  "import": {
+    "title": "Import",
+    "csvImport": "CSV Import",
+    "csvImportDesc": "Importiere Filme aus einer CSV-Datei. Die Datei sollte Spalten enthalten: title, barcode, production_year, etc.",
+    "selectFile": "CSV-Datei auswählen",
+    "noFileSelected": "Keine Datei ausgewählt",
+    "importing": "Importiere...",
+    "importSuccess": "Import erfolgreich!",
+    "importFailed": "Import fehlgeschlagen",
+    "loadTmdbData": "TMDB Daten laden",
+    "loadTmdbDataDesc": "Holt Poster, Beschreibungen, Schauspieler und weitere Details von TMDB für alle Filme ohne Bild. Dies kann bei vielen Filmen einige Zeit dauern.",
+    "loadingTmdbData": "Lade TMDB Daten...",
+    "loadMissingData": "Fehlende Daten laden",
+    "reloadAllData": "Alle Daten neu laden",
+    "tmdbEnrichComplete": "TMDB Daten geladen!",
+    "enriched": "Angereichert",
+    "errors": "Fehler",
+    "progress": "Fortschritt",
+    "moviesProcessed": "Filme verarbeitet",
+    "updated": "aktualisiert",
+    "notFound": "nicht gefunden",
+    "moviesUpdated": "Filme aktualisiert",
+    "moviesNotFound": "Filme konnten nicht gefunden werden",
+    "andMore": "und",
+    "more": "weitere",
+    "errorLoadingTmdb": "Fehler beim Laden der TMDB Daten",
+    "imported": "importiert",
+    "supportedFormats": "Unterstützte Formate",
+    "csvColumnsDesc": "Die CSV-Datei sollte folgende Spalten enthalten (wie beim My Movies Pro Export):",
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, und viele mehr..."
   }
 }

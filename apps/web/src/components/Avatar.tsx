@@ -63,6 +63,8 @@ export function Avatar({ user, size = 'md', className = '' }: AvatarProps) {
   const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
+    let blobUrl: string | null = null
+
     if (!avatarPath) {
       setImageUrl(null)
       setImageError(false)
@@ -79,8 +81,14 @@ export function Avatar({ user, size = 'md', className = '' }: AvatarProps) {
     // For authenticated images, load with fetch
     loadAuthenticatedImage(avatarPath)
       .then(url => {
-        setImageUrl(url)
-        setImageError(!url)
+        if (url) {
+          blobUrl = url
+          setImageUrl(url)
+          setImageError(false)
+        } else {
+          setImageUrl(null)
+          setImageError(true)
+        }
       })
       .catch(() => {
         setImageUrl(null)
@@ -89,8 +97,8 @@ export function Avatar({ user, size = 'md', className = '' }: AvatarProps) {
 
     // Cleanup blob URL on unmount or path change
     return () => {
-      if (imageUrl && imageUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(imageUrl)
+      if (blobUrl && blobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrl)
       }
     }
   }, [avatarPath])

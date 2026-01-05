@@ -1,9 +1,10 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { Film, ArrowLeft, Check, Trash2, RefreshCw, Star, Clock, Calendar, MapPin, Disc } from 'lucide-react'
-import { api } from '@/lib/api'
-import { useI18n } from '@/hooks/useI18n'
 import { PosterImage } from '@/components/PosterImage'
+import { useI18n } from '@/hooks/useI18n'
+import { api } from '@/lib/api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, Calendar, Check, ChevronDown, Clock, Disc, MapPin, RefreshCw, Star, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/movies/$movieId')({
   beforeLoad: ({ context }) => {
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/movies/$movieId')({
 function MovieDetailPage() {
   const { movieId } = Route.useParams()
   const navigate = useNavigate()
+  const [showRefreshMenu, setShowRefreshMenu] = useState(false)
 
   const { data: movie, isLoading } = useQuery({
     queryKey: ['movie', movieId],
@@ -37,7 +39,7 @@ function MovieDetailPage() {
   })
 
   const refreshTmdbMutation = useMutation({
-    mutationFn: () => api.refreshMovieTmdb(movieId),
+    mutationFn: (force: boolean) => api.refreshMovieTmdb(movieId, force),
     // WebSocket event will handle cache invalidation
   })
 
@@ -75,17 +77,14 @@ function MovieDetailPage() {
         {/* Poster */}
         <div className="space-y-4">
           <div className="aspect-[2/3] rounded-lg bg-muted flex items-center justify-center overflow-hidden shadow-lg">
-            {movie.poster_path ? (
-              <PosterImage
-                posterPath={movie.poster_path}
-                movieId={movie.id}
-                size="w500"
-                alt={movie.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Film className="h-20 w-20 text-muted-foreground" />
-            )}
+            <PosterImage
+              posterPath={null}
+              movieId={movie.id}
+              size="w500"
+              alt={movie.title}
+              className="w-full h-full object-cover"
+              updatedAt={movie.updated_at}
+            />
           </div>
 
           {/* Quick Info Cards */}
@@ -258,14 +257,41 @@ function MovieDetailPage() {
               {movie.watched ? 'Gesehen' : 'Als gesehen markieren'}
             </button>
             
-            <button
-              onClick={() => refreshTmdbMutation.mutate()}
-              disabled={refreshTmdbMutation.isPending}
-              className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-              TMDB aktualisieren
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowRefreshMenu(!showRefreshMenu)}
+                disabled={refreshTmdbMutation.isPending}
+                className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
+                {t('movies.refreshTmdb')}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {showRefreshMenu && (
+                <div className="absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg z-10 min-w-[200px]">
+                  <button
+                    onClick={() => {
+                      refreshTmdbMutation.mutate(false)
+                      setShowRefreshMenu(false)
+                    }}
+                    disabled={refreshTmdbMutation.isPending}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                  >
+                    {t('movies.refreshTmdbMissing')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      refreshTmdbMutation.mutate(true)
+                      setShowRefreshMenu(false)
+                    }}
+                    disabled={refreshTmdbMutation.isPending}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors border-t"
+                  >
+                    {t('movies.refreshTmdbAll')}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => {

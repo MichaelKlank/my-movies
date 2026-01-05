@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::extract::Multipart;
+use axum::extract::{Multipart, Query};
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde_json::json;
 use tokio::time::{Duration, sleep};
@@ -105,13 +105,20 @@ pub async fn import_csv(
         .into_response()
 }
 
-/// Enrich all movies that don't have a poster_path with TMDB data
+#[derive(Debug, serde::Deserialize)]
+pub struct EnrichTmdbQuery {
+    #[serde(default)]
+    pub force: bool, // If true, reload all movies even if they already have data
+}
+
+/// Enrich all movies with TMDB data
 /// This runs asynchronously and sends progress via WebSocket
 pub async fn enrich_movies_tmdb(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
+    Query(params): Query<EnrichTmdbQuery>,
 ) -> impl IntoResponse {
-    // Get ALL movies without poster_path (no limit)
+    // Get ALL movies (no limit)
     let filter = MovieFilter {
         limit: Some(10000), // High limit to get all
         ..Default::default()
@@ -128,12 +135,20 @@ pub async fn enrich_movies_tmdb(
         }
     };
 
-    let movies_without_poster: Vec<_> = movies
-        .into_iter()
-        .filter(|m| m.poster_path.is_none())
-        .collect();
+    // Filter movies based on force parameter
+    let movies_to_enrich: Vec<_> = if params.force {
+        // If force=true, process all movies
+        movies
+    } else {
+        // Otherwise, process movies without tmdb_id OR without poster_data
+        // (meaning they need TMDB data or poster image)
+        movies
+            .into_iter()
+            .filter(|m| m.tmdb_id.is_none() || m.poster_data.is_none())
+            .collect()
+    };
 
-    let total = movies_without_poster.len();
+    let total = movies_to_enrich.len();
 
     if total == 0 {
         return (
@@ -171,13 +186,14 @@ pub async fn enrich_movies_tmdb(
     let state_clone = state.clone();
     let user_id = claims.sub;
     let language_clone = language.clone();
+    let force_clone = params.force;
 
     tokio::spawn(async move {
         let mut enriched = 0;
         let mut errors: Vec<String> = Vec::new();
         let lang = language_clone.as_deref();
 
-        for (index, movie) in movies_without_poster.iter().enumerate() {
+        for (index, movie) in movies_to_enrich.iter().enumerate() {
             // Try to get TMDB details - priority: tmdb_id > imdb_id > title search
             let tmdb_details = if let Some(tmdb_id) = movie.tmdb_id {
                 // Use existing TMDB ID
@@ -186,7 +202,7 @@ pub async fn enrich_movies_tmdb(
                     .get_movie_details(tmdb_id, lang)
                     .await
                     .ok()
-            } else if let Some(ref imdb_id) = movie.imdb_id {
+            } else if let Some(imdb_id) = &movie.imdb_id {
                 // Try to find by IMDB ID
                 match state_clone.tmdb_service.find_by_imdb_id(imdb_id).await {
                     Ok(Some(found)) => state_clone
@@ -263,10 +279,19 @@ pub async fn enrich_movies_tmdb(
                 });
 
                 // Download poster image if available
-                let poster_data = if let Some(ref poster_path) = details.poster_path {
-                    download_poster_image(poster_path).await
+                // Download if:
+                // - force=true (always download)
+                // - OR poster_data is None (no poster stored in DB yet)
+                let should_download_poster = force_clone || movie.poster_data.is_none();
+
+                let poster_data = if should_download_poster {
+                    if let Some(ref poster_path) = details.poster_path {
+                        download_poster_image(poster_path).await
+                    } else {
+                        None
+                    }
                 } else {
-                    None
+                    None // Skip download if poster already in DB and not forcing
                 };
 
                 let update = UpdateMovie {
@@ -276,7 +301,6 @@ pub async fn enrich_movies_tmdb(
                     description: details.overview.clone(),
                     tagline: details.tagline.clone(),
                     running_time: details.runtime,
-                    poster_path: details.poster_path.clone(),
                     director,
                     actors,
                     genres,

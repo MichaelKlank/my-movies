@@ -84,7 +84,10 @@
     "runningTime": "上映時間",
     "minutes": "分",
     "director": "監督",
-    "location": "場所"
+    "location": "場所",
+    "refreshTmdb": "TMDBデータを更新",
+    "refreshTmdbMissing": "不足データを読み込む",
+    "refreshTmdbAll": "すべてのデータを再読み込み"
   },
   "scan": {
     "title": "映画を追加",
@@ -171,5 +174,36 @@
     "title": "ユーザーを削除",
     "confirm": "削除してもよろしいですか",
     "warning": "このユーザーのすべての映画、シリーズ、コレクションも削除されます。この操作は元に戻せません。"
+  },
+  "import": {
+    "title": "インポート",
+    "csvImport": "CSVインポート",
+    "csvImportDesc": "CSVファイルから映画をインポートします。ファイルには title、barcode、production_year などの列を含める必要があります。",
+    "selectFile": "CSVファイルを選択",
+    "noFileSelected": "ファイルが選択されていません",
+    "importing": "インポート中...",
+    "importSuccess": "インポート成功！",
+    "importFailed": "インポート失敗",
+    "loadTmdbData": "TMDBデータを読み込む",
+    "loadTmdbDataDesc": "画像のないすべての映画について、TMDBからポスター、説明、俳優、その他の詳細を取得します。多くの映画がある場合、時間がかかる場合があります。",
+    "loadingTmdbData": "TMDBデータを読み込み中...",
+    "loadMissingData": "不足データを読み込む",
+    "reloadAllData": "すべてのデータを再読み込み",
+    "tmdbEnrichComplete": "TMDBデータが読み込まれました！",
+    "enriched": "強化済み",
+    "errors": "エラー",
+    "progress": "進捗",
+    "moviesProcessed": "の",
+    "updated": "更新済み",
+    "notFound": "見つかりませんでした",
+    "moviesUpdated": "映画が更新されました（合計",
+    "moviesNotFound": "映画が見つかりませんでした",
+    "andMore": "と",
+    "more": "件以上",
+    "errorLoadingTmdb": "TMDBデータの読み込みエラー",
+    "imported": "インポート済み",
+    "supportedFormats": "サポートされている形式",
+    "csvColumnsDesc": "CSVファイルには、次の列を含める必要があります（My Movies Proエクスポートと同様）：",
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, など..."
   }
 }

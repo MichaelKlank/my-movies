@@ -5,6 +5,7 @@ import { Upload, FileUp, Check, AlertCircle, RefreshCw, Image, Copy, Trash2, Fil
 import { api, ImportResult, Movie } from '@/lib/api'
 import { wsClient, WsMessage } from '@/lib/ws'
 import { PosterImage } from '@/components/PosterImage'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/import')({
   beforeLoad: ({ context }) => {
@@ -29,6 +30,7 @@ interface TmdbEnrichComplete {
 }
 
 function ImportPage() {
+  const { t } = useI18n()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [enrichProgress, setEnrichProgress] = useState<TmdbEnrichProgress | null>(null)
@@ -73,7 +75,7 @@ function ImportPage() {
   })
 
   const enrichMutation = useMutation({
-    mutationFn: () => api.enrichMoviesTmdb(),
+    mutationFn: (force: boolean) => api.enrichMoviesTmdb(force),
     onSuccess: () => {
       // Status wird über WebSocket aktualisiert
     },
@@ -108,14 +110,14 @@ function ImportPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">Import</h1>
+      <h1 className="text-2xl font-bold">{t('import.title')}</h1>
 
       <div className="rounded-lg border bg-card p-6 space-y-4">
         <div className="text-center">
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h2 className="mt-4 font-semibold">CSV Import</h2>
+          <h2 className="mt-4 font-semibold">{t('import.csvImport')}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Importiere deine Sammlung aus einer CSV-Datei (kompatibel mit My Movies Pro Export)
+            {t('import.csvImportDesc')}
           </p>
         </div>
 
@@ -133,7 +135,7 @@ function ImportPage() {
             className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-8 text-sm hover:border-primary hover:bg-accent"
           >
             <FileUp className="h-5 w-5" />
-            {selectedFile ? selectedFile.name : 'CSV-Datei auswählen'}
+            {selectedFile ? selectedFile.name : t('import.selectFile')}
           </button>
 
           {selectedFile && (
@@ -142,7 +144,7 @@ function ImportPage() {
               disabled={importMutation.isPending}
               className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {importMutation.isPending ? 'Importiere...' : 'Importieren'}
+              {importMutation.isPending ? t('import.importing') : t('import.title')}
             </button>
           )}
         </div>
@@ -150,7 +152,7 @@ function ImportPage() {
         {importMutation.isError && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>{importMutation.error instanceof Error ? importMutation.error.message : 'Import fehlgeschlagen'}</span>
+            <span>{importMutation.error instanceof Error ? importMutation.error.message : t('import.importFailed')}</span>
           </div>
         )}
 
@@ -159,11 +161,11 @@ function ImportPage() {
             <div className="flex items-start gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-700">
               <Check className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium">Import erfolgreich!</p>
+                <p className="font-medium">{t('import.importSuccess')}</p>
                 <ul className="mt-1 text-muted-foreground">
-                  <li>{result.movies_imported} Filme importiert</li>
-                  <li>{result.series_imported} Serien importiert</li>
-                  <li>{result.collections_imported} Collections importiert</li>
+                  <li>{result.movies_imported} {t('movies.title')} {t('import.imported')}</li>
+                  <li>{result.series_imported} {t('series.title')} {t('import.imported')}</li>
+                  <li>{result.collections_imported} {t('collections.title', { defaultValue: 'Collections' })} {t('import.imported')}</li>
                 </ul>
               </div>
             </div>
@@ -171,14 +173,14 @@ function ImportPage() {
             {result.errors.length > 0 && (
               <div className="rounded-md bg-yellow-500/10 p-3 text-sm">
                 <p className="font-medium text-yellow-700">
-                  {result.errors.length} Fehler beim Import:
+                  {result.errors.length} {t('import.errors')}:
                 </p>
                 <ul className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
                   {result.errors.slice(0, 10).map((error, i) => (
                     <li key={i}>{error}</li>
                   ))}
                   {result.errors.length > 10 && (
-                    <li>... und {result.errors.length - 10} weitere</li>
+                    <li>... {t('import.andMore')} {result.errors.length - 10} {t('import.more')}</li>
                   )}
                 </ul>
               </div>
@@ -192,21 +194,20 @@ function ImportPage() {
         <div className="flex items-start gap-4">
           <Image className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
           <div className="flex-1">
-            <h2 className="font-semibold">TMDB Daten laden</h2>
+            <h2 className="font-semibold">{t('import.loadTmdbData')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Holt Poster, Beschreibungen, Schauspieler und weitere Details von TMDB für alle Filme ohne Bild.
-              Dies kann bei vielen Filmen einige Zeit dauern.
+              {t('import.loadTmdbDataDesc')}
             </p>
           </div>
         </div>
 
         <button
-          onClick={handleEnrich}
+          onClick={() => enrichMutation.mutate(false)}
           disabled={isEnriching || enrichMutation.isPending}
           className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${isEnriching ? 'animate-spin' : ''}`} />
-          {isEnriching ? 'Lade TMDB Daten...' : 'TMDB Daten für alle Filme laden'}
+          {isEnriching ? t('import.loadingTmdbData') : t('import.loadTmdbData')}
         </button>
 
         {/* Progress Bar */}
@@ -214,7 +215,7 @@ function ImportPage() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                {enrichProgress.current} von {enrichProgress.total} Filmen
+                {enrichProgress.current} {t('import.moviesProcessed')} {enrichProgress.total}
               </span>
               <span className="font-medium">{progressPercent}%</span>
             </div>
@@ -225,9 +226,9 @@ function ImportPage() {
               />
             </div>
             <div className="flex gap-4 text-xs text-muted-foreground">
-              <span className="text-green-600">{enrichProgress.enriched} aktualisiert</span>
+              <span className="text-green-600">{enrichProgress.enriched} {t('import.updated')}</span>
               {enrichProgress.errors_count > 0 && (
-                <span className="text-yellow-600">{enrichProgress.errors_count} nicht gefunden</span>
+                <span className="text-yellow-600">{enrichProgress.errors_count} {t('import.notFound')}</span>
               )}
             </div>
           </div>
@@ -236,7 +237,7 @@ function ImportPage() {
         {enrichMutation.isError && !isEnriching && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>{enrichMutation.error instanceof Error ? enrichMutation.error.message : 'Fehler beim Laden der TMDB Daten'}</span>
+            <span>{enrichMutation.error instanceof Error ? enrichMutation.error.message : t('import.errorLoadingTmdb')}</span>
           </div>
         )}
 
@@ -245,9 +246,9 @@ function ImportPage() {
             <div className="flex items-start gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-700">
               <Check className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium">TMDB Daten geladen!</p>
+                <p className="font-medium">{t('import.tmdbEnrichComplete')}</p>
                 <p className="text-muted-foreground">
-                  {enrichComplete.enriched} von {enrichComplete.total} Filmen aktualisiert
+                  {enrichComplete.enriched} {t('import.moviesUpdated')} {enrichComplete.total}
                 </p>
               </div>
             </div>
@@ -255,14 +256,14 @@ function ImportPage() {
             {enrichComplete.errors.length > 0 && (
               <div className="rounded-md bg-yellow-500/10 p-3 text-sm">
                 <p className="font-medium text-yellow-700">
-                  {enrichComplete.errors.length} Filme konnten nicht gefunden werden:
+                  {enrichComplete.errors.length} {t('import.moviesNotFound')}:
                 </p>
                 <ul className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
                   {enrichComplete.errors.slice(0, 20).map((error, i) => (
                     <li key={i}>{error}</li>
                   ))}
                   {enrichComplete.errors.length > 20 && (
-                    <li>... und {enrichComplete.errors.length - 20} weitere</li>
+                    <li>... {t('import.andMore')} {enrichComplete.errors.length - 20} {t('import.more')}</li>
                   )}
                 </ul>
               </div>
@@ -275,16 +276,12 @@ function ImportPage() {
       <DuplicatesSection />
 
       <div className="rounded-lg border bg-card p-6">
-        <h3 className="font-semibold">Unterstützte Formate</h3>
+        <h3 className="font-semibold">{t('import.supportedFormats')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          Die CSV-Datei sollte folgende Spalten enthalten (wie beim My Movies Pro Export):
+          {t('import.csvColumnsDesc')}
         </p>
         <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
-          <li>Title, Original Title, Barcode</li>
-          <li>Production Year, Running Time</li>
-          <li>Director, Actors, Genres</li>
-          <li>Disc Type (DVD, Blu-ray, 4K UHD)</li>
-          <li>Location, Notes, und viele mehr...</li>
+          <li>{t('import.csvColumns')}</li>
         </ul>
       </div>
     </div>
@@ -519,19 +516,14 @@ function DuplicatesSection() {
                               </div>
                             )}
                             <div className="w-10 h-14 rounded overflow-hidden bg-muted flex-shrink-0">
-                              {movie.poster_path ? (
-                                <PosterImage
-                                  posterPath={movie.poster_path}
-                                  movieId={movie.id}
-                                  size="w92"
-                                  alt={movie.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Film className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                              )}
+                              <PosterImage
+                                posterPath={null}
+                                movieId={movie.id}
+                                size="w92"
+                                alt={movie.title}
+                                className="w-full h-full object-cover"
+                                updatedAt={movie.updated_at}
+                              />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">

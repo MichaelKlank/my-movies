@@ -22,9 +22,9 @@ impl MovieService {
             r#"
             INSERT INTO movies (
                 id, user_id, barcode, tmdb_id, title, original_title, 
-                disc_type, production_year, poster_path, created_at, updated_at
+                disc_type, production_year, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(id)
@@ -35,7 +35,6 @@ impl MovieService {
         .bind(&input.original_title)
         .bind(&input.disc_type)
         .bind(input.production_year)
-        .bind(&input.poster_path)
         .bind(now.to_rfc3339())
         .bind(now.to_rfc3339())
         .execute(&self.pool)
@@ -121,7 +120,18 @@ impl MovieService {
         let sort_order = filter.sort_order.unwrap_or_else(|| "asc".to_string());
 
         // Build dynamic query string first
-        let mut query = String::from("SELECT * FROM movies WHERE user_id = ?");
+        // Exclude poster_data from list queries for performance (it's large BLOB data)
+        let mut query = String::from(
+            "SELECT id, user_id, collection_number, barcode, tmdb_id, imdb_id, title, original_title, \
+            sort_title, personal_title, personal_sort_title, description, tagline, production_year, \
+            release_date, running_time, director, actors, production_companies, production_countries, \
+            studios, rating, personal_rating, disc_type, media_type, discs, region_codes, video_standard, \
+            aspect_ratio, audio_tracks, subtitles, is_3d, mastered_in_4k, genres, categories, tags, \
+            movie_group, watched, digital_copies, status, condition, slip_cover, cover_type, edition, \
+            extra_features, purchase_date, price, currency, purchase_place, value_date, value_price, \
+            value_currency, lent_to, lent_due, location, notes, budget, revenue, spoken_languages, \
+            added_date, created_at, updated_at FROM movies WHERE user_id = ?",
+        );
 
         if filter.search.is_some() {
             query.push_str(" AND (title LIKE ? OR original_title LIKE ? OR director LIKE ?)");
@@ -265,15 +275,6 @@ impl MovieService {
                 .await?;
         }
 
-        if let Some(ref poster_path) = input.poster_path {
-            sqlx::query("UPDATE movies SET poster_path = ? WHERE id = ? AND user_id = ?")
-                .bind(poster_path)
-                .bind(id)
-                .bind(user_id)
-                .execute(&self.pool)
-                .await?;
-        }
-
         if let Some(tmdb_id) = input.tmdb_id {
             sqlx::query("UPDATE movies SET tmdb_id = ? WHERE id = ? AND user_id = ?")
                 .bind(tmdb_id)
@@ -381,21 +382,15 @@ impl MovieService {
         id: Uuid,
         poster_data: Option<Vec<u8>>,
     ) -> Result<Movie> {
-        // Set poster_path to "db" to indicate it's stored in database
-        let poster_path = if poster_data.is_some() {
-            Some("db".to_string())
-        } else {
-            None
-        };
-
-        sqlx::query("UPDATE movies SET poster_path = ?, poster_data = ?, updated_at = ? WHERE id = ? AND user_id = ?")
-            .bind(&poster_path)
-            .bind(&poster_data)
-            .bind(Utc::now().to_rfc3339())
-            .bind(id)
-            .bind(user_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE movies SET poster_data = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+        )
+        .bind(&poster_data)
+        .bind(Utc::now().to_rfc3339())
+        .bind(id)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
 
         self.get_by_id(user_id, id).await
     }

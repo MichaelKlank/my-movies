@@ -84,7 +84,10 @@
     "runningTime": "Durée",
     "minutes": "min",
     "director": "Réalisateur",
-    "location": "Emplacement"
+    "location": "Emplacement",
+    "refreshTmdb": "Actualiser les données TMDB",
+    "refreshTmdbMissing": "Charger les données manquantes",
+    "refreshTmdbAll": "Recharger toutes les données"
   },
   "scan": {
     "title": "Ajouter un Film",
@@ -171,5 +174,36 @@
     "title": "Supprimer l'Utilisateur",
     "confirm": "Êtes-vous sûr de vouloir supprimer",
     "warning": "Tous les films, séries et collections de cet utilisateur seront également supprimés. Cette action ne peut pas être annulée."
+  },
+  "import": {
+    "title": "Import",
+    "csvImport": "Import CSV",
+    "csvImportDesc": "Importer des films depuis un fichier CSV. Le fichier doit contenir les colonnes : title, barcode, production_year, etc.",
+    "selectFile": "Sélectionner un fichier CSV",
+    "noFileSelected": "Aucun fichier sélectionné",
+    "importing": "Importation...",
+    "importSuccess": "Importation réussie !",
+    "importFailed": "Échec de l'importation",
+    "loadTmdbData": "Charger les données TMDB",
+    "loadTmdbDataDesc": "Récupère les affiches, descriptions, acteurs et autres détails de TMDB pour tous les films sans images. Cela peut prendre du temps pour de nombreux films.",
+    "loadingTmdbData": "Chargement des données TMDB...",
+    "loadMissingData": "Charger les données manquantes",
+    "reloadAllData": "Recharger toutes les données",
+    "tmdbEnrichComplete": "Données TMDB chargées !",
+    "enriched": "Enrichi",
+    "errors": "Erreurs",
+    "progress": "Progression",
+    "moviesProcessed": "de",
+    "updated": "mis à jour",
+    "notFound": "non trouvé",
+    "moviesUpdated": "films mis à jour sur",
+    "moviesNotFound": "films n'ont pas pu être trouvés",
+    "andMore": "et",
+    "more": "de plus",
+    "errorLoadingTmdb": "Erreur lors du chargement des données TMDB",
+    "imported": "importé",
+    "supportedFormats": "Formats pris en charge",
+    "csvColumnsDesc": "Le fichier CSV doit contenir les colonnes suivantes (comme dans l'export My Movies Pro) :",
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, et bien plus..."
   }
 }

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload } from 'lucide-react'
+import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload, ChevronDown } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { PosterImage } from '@/components/PosterImage'
@@ -285,17 +285,14 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
       className="group rounded-lg border bg-card overflow-hidden hover:border-primary text-left transition-all hover:shadow-lg"
     >
       <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
-        {movie.poster_path ? (
-          <PosterImage
-            posterPath={movie.poster_path}
-            movieId={movie.id}
-            size="w342"
-            alt={movie.title}
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-          />
-        ) : (
-          <Film className="h-8 w-8 text-muted-foreground" />
-        )}
+        <PosterImage
+          posterPath={null}
+          movieId={movie.id}
+          size="w342"
+          alt={movie.title}
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          updatedAt={movie.updated_at}
+        />
         {movie.watched && (
           <div className="absolute top-2 right-2 rounded-full bg-green-500 p-1">
             <Check className="h-3 w-3 text-white" />
@@ -329,6 +326,7 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
 function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () => void }) {
   const { t } = useI18n()
   const [showPosterDialog, setShowPosterDialog] = useState(false)
+  const [showRefreshMenu, setShowRefreshMenu] = useState(false)
 
   const { data: movie, isLoading } = useQuery({
     queryKey: ['movie', movieId],
@@ -349,7 +347,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
   })
 
   const refreshTmdbMutation = useMutation({
-    mutationFn: () => api.refreshMovieTmdb(movieId),
+    mutationFn: (force: boolean) => api.refreshMovieTmdb(movieId, force),
     // WebSocket event will handle cache invalidation
   })
 
@@ -418,19 +416,14 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
               {/* Poster Section */}
               <div className="w-40 shrink-0 space-y-3">
                 <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted shadow-lg relative group/poster">
-                  {movie?.poster_path ? (
-                    <PosterImage
-                      posterPath={movie.poster_path}
-                      movieId={movie?.id}
-                      size="w500"
-                      alt={movie.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Film className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                  )}
+                  <PosterImage
+                    posterPath={null}
+                    movieId={movie?.id}
+                    size="w500"
+                    alt={movie.title}
+                    className="w-full h-full object-cover"
+                    updatedAt={movie?.updated_at}
+                  />
                   {/* Edit poster overlay */}
                   <button
                     onClick={() => setShowPosterDialog(true)}
@@ -609,7 +602,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
             </div>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30">
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30 relative">
               <button
                 onClick={() => {
                   if (confirm('Film wirklich löschen?')) {
@@ -623,14 +616,41 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 Löschen
               </button>
               
-              <button
-                onClick={() => refreshTmdbMutation.mutate()}
-                disabled={refreshTmdbMutation.isPending}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                Aktualisieren
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowRefreshMenu(!showRefreshMenu)}
+                  disabled={refreshTmdbMutation.isPending}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
+                  {t('movies.refreshTmdb')}
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {showRefreshMenu && (
+                  <div className="absolute bottom-full right-0 mb-1 bg-card border rounded-md shadow-lg z-50 min-w-[200px]">
+                    <button
+                      onClick={() => {
+                        refreshTmdbMutation.mutate(false)
+                        setShowRefreshMenu(false)
+                      }}
+                      disabled={refreshTmdbMutation.isPending}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                    >
+                      {t('movies.refreshTmdbMissing')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        refreshTmdbMutation.mutate(true)
+                        setShowRefreshMenu(false)
+                      }}
+                      disabled={refreshTmdbMutation.isPending}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors border-t"
+                    >
+                      {t('movies.refreshTmdbAll')}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <Link
                 to="/movies/$movieId"
@@ -713,8 +733,8 @@ function PosterUploadDialog({
         return
       }
       if (customPosterUrl.trim()) {
-        // Set URL
-        await api.updateMovie(movieId, { poster_path: customPosterUrl.trim() })
+        // Download image from URL and store in database
+        await api.setPosterFromUrl(movieId, customPosterUrl.trim())
         onSuccess()
         return
       }
