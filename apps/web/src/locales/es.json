@@ -55,6 +55,7 @@
     "supportedFormats": "Formatos compatibles: JPG, PNG, GIF, WebP. Tamaño máx.: 5MB",
     "language": "Configuración de Idioma",
     "languageDesc": "Elige el idioma para los datos de TMDB (títulos, descripciones, etc.)",
+    "systemLanguage": "Idioma del Sistema",
     "contentSettings": "Configuración de Contenido",
     "includeAdult": "Mostrar Contenido para Adultos",
     "includeAdultDesc": "Permitir la visualización de películas con contenido para adultos en los resultados de búsqueda"

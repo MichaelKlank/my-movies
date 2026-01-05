@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
-import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus } from 'lucide-react'
+import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus, ChevronDown } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { useAuth } from '@/hooks/useAuth'
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/me')({
 
 // Common TMDB language codes
 const LANGUAGES = [
-  { code: null, label: 'Systemsprache', flag: '🌐' },
+  { code: null, labelKey: 'profile.systemLanguage', flag: '🌐' },
   { code: 'de-DE', label: 'Deutsch', flag: '🇩🇪' },
   { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
   { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
@@ -30,7 +30,7 @@ const LANGUAGES = [
   { code: 'ja-JP', label: '日本語', flag: '🇯🇵' },
   { code: 'ko-KR', label: '한국어', flag: '🇰🇷' },
   { code: 'zh-CN', label: '中文 (简体)', flag: '🇨🇳' },
-]
+] as const
 
 function ProfilePage() {
   const { t } = useI18n()
@@ -39,7 +39,9 @@ function ProfilePage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [includeAdult, setIncludeAdult] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const languageDropdownRef = useRef<HTMLDivElement>(null)
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
@@ -67,6 +69,19 @@ function ProfilePage() {
       }
     }
   }, [user, selectedLanguage])
+
+  // Close language dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+        setShowLanguageDropdown(false)
+      }
+    }
+    if (showLanguageDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showLanguageDropdown])
 
   const updateLanguageMutation = useMutation({
     mutationFn: (language: string | null) => api.updateLanguage(language),
@@ -129,7 +144,7 @@ function ProfilePage() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Bitte wähle eine Bilddatei')
+      alert(t('poster.invalidFileType'))
       return
     }
 
@@ -326,18 +341,47 @@ function ProfilePage() {
           <p className="text-sm text-muted-foreground mb-4">
             {t('profile.languageDesc')}
           </p>
-          <select
-            value={selectedLanguage || ''}
-            onChange={(e) => handleLanguageChange(e.target.value || null)}
-            disabled={updateLanguageMutation.isPending}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {LANGUAGES.map((lang) => (
-              <option key={lang.code || 'system'} value={lang.code || ''}>
-                {lang.flag} {lang.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative" ref={languageDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+              disabled={updateLanguageMutation.isPending}
+              className="w-full flex items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            >
+              <span className="flex items-center gap-2">
+                {(() => {
+                  const currentLang = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0]
+                  return (
+                    <>
+                      <span className="text-lg">{currentLang.flag}</span>
+                      <span>{'labelKey' in currentLang ? t(currentLang.labelKey) : currentLang.label}</span>
+                    </>
+                  )
+                })()}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            {showLanguageDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-card border rounded-md shadow-lg max-h-60 overflow-auto">
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code || 'system'}
+                    type="button"
+                    onClick={() => {
+                      handleLanguageChange(lang.code)
+                      setShowLanguageDropdown(false)
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted transition-colors ${
+                      selectedLanguage === lang.code ? 'bg-muted' : ''
+                    }`}
+                  >
+                    <span className="text-lg">{lang.flag}</span>
+                    <span>{'labelKey' in lang ? t(lang.labelKey) : lang.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {updateLanguageMutation.isPending && (
             <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

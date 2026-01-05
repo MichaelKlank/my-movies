@@ -55,6 +55,7 @@
     "supportedFormats": "支持的格式：JPG、PNG、GIF、WebP。最大大小：5MB",
     "language": "语言设置",
     "languageDesc": "选择TMDB数据的语言（标题、描述等）",
+    "systemLanguage": "系统语言",
     "contentSettings": "内容设置",
     "includeAdult": "显示成人内容",
     "includeAdultDesc": "允许在搜索结果中显示包含成人内容的电影"
