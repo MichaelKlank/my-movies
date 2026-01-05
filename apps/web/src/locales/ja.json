@@ -52,6 +52,7 @@
     "avatar": "プロフィール写真",
     "uploadAvatar": "画像をアップロード",
     "deleteAvatar": "アバターを削除",
+    "supportedFormats": "サポート形式: JPG, PNG, GIF, WebP. 最大サイズ: 5MB",
     "language": "言語設定",
     "languageDesc": "TMDBデータの言語を選択（タイトル、説明など）",
     "contentSettings": "コンテンツ設定",
@@ -87,7 +88,15 @@
     "location": "場所",
     "refreshTmdb": "TMDBデータを更新",
     "refreshTmdbMissing": "不足データを読み込む",
-    "refreshTmdbAll": "すべてのデータを再読み込み"
+    "refreshTmdbAll": "すべてのデータを再読み込み",
+    "year": "年",
+    "rating": "評価",
+    "format": "フォーマット",
+    "plot": "あらすじ",
+    "cast": "キャスト",
+    "notes": "メモ",
+    "edition": "エディション",
+    "moreDetails": "詳細を見る"
   },
   "scan": {
     "title": "映画を追加",
@@ -148,7 +157,9 @@
     "tip": "ヒント：",
     "tipCopy": "で映画を検索し、画像のURLをコピーしてください。",
     "preview": "プレビュー",
-    "pleaseSelect": "ファイルを選択するか、URLを入力してください"
+    "pleaseSelect": "ファイルを選択するか、URLを入力してください",
+    "invalidFileType": "画像ファイルを選択してください",
+    "fileTooLarge": "ファイルが大きすぎます（最大10MB）"
   },
   "series": {
     "title": "シリーズ",

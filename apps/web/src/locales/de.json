@@ -88,7 +88,15 @@
     "location": "Standort",
     "refreshTmdb": "TMDB Daten aktualisieren",
     "refreshTmdbMissing": "Fehlende Daten laden",
-    "refreshTmdbAll": "Alle Daten neu laden"
+    "refreshTmdbAll": "Alle Daten neu laden",
+    "year": "Jahr",
+    "rating": "Bewertung",
+    "format": "Format",
+    "plot": "Handlung",
+    "cast": "Darsteller",
+    "notes": "Notizen",
+    "edition": "Edition",
+    "moreDetails": "Mehr Details"
   },
   "scan": {
     "title": "Film hinzufügen",
@@ -149,7 +157,9 @@
     "tip": "Tipp: Suche auf",
     "tipCopy": "nach dem Film und kopiere die Bild-URL.",
     "preview": "Vorschau",
-    "pleaseSelect": "Bitte wähle eine Datei oder gib eine URL ein"
+    "pleaseSelect": "Bitte wähle eine Datei oder gib eine URL ein",
+    "invalidFileType": "Bitte wähle eine Bilddatei aus",
+    "fileTooLarge": "Die Datei ist zu groß (max. 10MB)"
   },
   "series": {
     "title": "Serien",

@@ -70,7 +70,7 @@ function MovieDetailPage() {
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Zurück zur Übersicht
+        {t('common.back')} {t('nav.movies')}
       </button>
 
       <div className="grid gap-8 lg:grid-cols-[350px_1fr]">
@@ -93,28 +93,28 @@ function MovieDetailPage() {
               <div className="rounded-lg bg-card border p-3 text-center">
                 <Calendar className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
                 <p className="text-sm font-medium">{movie.production_year}</p>
-                <p className="text-xs text-muted-foreground">Jahr</p>
+                <p className="text-xs text-muted-foreground">{t('movies.year')}</p>
               </div>
             )}
             {movie.running_time && (
               <div className="rounded-lg bg-card border p-3 text-center">
                 <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-sm font-medium">{movie.running_time} min</p>
-                <p className="text-xs text-muted-foreground">Laufzeit</p>
+                <p className="text-sm font-medium">{movie.running_time} {t('movies.minutes')}</p>
+                <p className="text-xs text-muted-foreground">{t('movies.runningTime')}</p>
               </div>
             )}
             {movie.personal_rating && (
               <div className="rounded-lg bg-card border p-3 text-center">
                 <Star className="h-4 w-4 mx-auto mb-1 text-yellow-500" />
                 <p className="text-sm font-medium">{movie.personal_rating}/10</p>
-                <p className="text-xs text-muted-foreground">Bewertung</p>
+                <p className="text-xs text-muted-foreground">{t('movies.rating')}</p>
               </div>
             )}
             {movie.disc_type && (
               <div className="rounded-lg bg-card border p-3 text-center">
                 <Disc className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
                 <p className="text-sm font-medium">{discTypeLabel(movie.disc_type)}</p>
-                <p className="text-xs text-muted-foreground">Format</p>
+                <p className="text-xs text-muted-foreground">{t('movies.format')}</p>
               </div>
             )}
           </div>
@@ -134,7 +134,7 @@ function MovieDetailPage() {
               {movie.watched && (
                 <div className="flex items-center gap-1 rounded-full bg-green-500 px-3 py-1 text-sm text-white">
                   <Check className="h-4 w-4" />
-                  Gesehen
+                  {t('movies.watched')}
                 </div>
               )}
             </div>
@@ -161,7 +161,7 @@ function MovieDetailPage() {
           {/* Description */}
           {movie.description && (
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold">Handlung</h2>
+              <h2 className="text-lg font-semibold">{t('movies.plot')}</h2>
               <p className="text-muted-foreground leading-relaxed">{movie.description}</p>
             </div>
           )}
@@ -170,14 +170,14 @@ function MovieDetailPage() {
           <div className="grid gap-6 sm:grid-cols-2">
             {movie.director && (
               <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Regie</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.director')}</h2>
                 <p>{movie.director}</p>
               </div>
             )}
 
             {movie.actors && (
               <div className="sm:col-span-2">
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Darsteller</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.cast')}</h2>
                 <p className="leading-relaxed">{movie.actors}</p>
               </div>
             )}
@@ -187,7 +187,7 @@ function MovieDetailPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-4 border-t">
             {movie.barcode && (
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase">Barcode</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.barcode')}</h3>
                 <p className="text-sm font-mono">{movie.barcode}</p>
               </div>
             )}
@@ -219,7 +219,7 @@ function MovieDetailPage() {
             )}
             {movie.location && (
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase">Standort</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.location')}</h3>
                 <p className="text-sm flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
                   {movie.location}
@@ -228,7 +228,7 @@ function MovieDetailPage() {
             )}
             {movie.edition && (
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase">Edition</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.edition')}</h3>
                 <p className="text-sm">{movie.edition}</p>
               </div>
             )}
@@ -237,7 +237,7 @@ function MovieDetailPage() {
           {/* Notes */}
           {movie.notes && (
             <div className="rounded-lg bg-muted/50 p-4">
-              <h2 className="text-sm font-semibold mb-2">Notizen</h2>
+              <h2 className="text-sm font-semibold mb-2">{t('movies.notes')}</h2>
               <p className="text-sm text-muted-foreground">{movie.notes}</p>
             </div>
           )}
@@ -254,7 +254,7 @@ function MovieDetailPage() {
               }`}
             >
               <Check className="h-4 w-4" />
-              {movie.watched ? 'Gesehen' : 'Als gesehen markieren'}
+              {movie.watched ? t('movies.watched') : t('movies.markAsWatched')}
             </button>
             
             <div className="relative">
@@ -295,7 +295,7 @@ function MovieDetailPage() {
 
             <button
               onClick={() => {
-                if (confirm('Film wirklich löschen?')) {
+                if (confirm(t('movies.deleteConfirm'))) {
                   deleteMutation.mutate()
                 }
               }}
@@ -303,7 +303,7 @@ function MovieDetailPage() {
               className="flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 ml-auto"
             >
               <Trash2 className="h-4 w-4" />
-              Löschen
+              {t('movies.delete')}
             </button>
           </div>
         </div>

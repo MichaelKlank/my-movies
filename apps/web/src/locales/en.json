@@ -85,7 +85,18 @@
     "runningTime": "Running Time",
     "minutes": "min",
     "director": "Director",
-    "location": "Location"
+    "location": "Location",
+    "refreshTmdb": "Refresh TMDB Data",
+    "refreshTmdbMissing": "Load Missing Data",
+    "refreshTmdbAll": "Reload All Data",
+    "year": "Year",
+    "rating": "Rating",
+    "format": "Format",
+    "plot": "Plot",
+    "cast": "Cast",
+    "notes": "Notes",
+    "edition": "Edition",
+    "moreDetails": "More Details"
   },
   "scan": {
     "title": "Add Movie",
@@ -146,7 +157,9 @@
     "tip": "Tip: Search on",
     "tipCopy": "for the movie and copy the image URL.",
     "preview": "Preview",
-    "pleaseSelect": "Please select a file or enter a URL"
+    "pleaseSelect": "Please select a file or enter a URL",
+    "invalidFileType": "Please select an image file",
+    "fileTooLarge": "File is too large (max. 10MB)"
   },
   "series": {
     "title": "Series",

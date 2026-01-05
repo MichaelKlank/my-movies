@@ -52,6 +52,7 @@
     "avatar": "Foto de Perfil",
     "uploadAvatar": "Subir Imagen",
     "deleteAvatar": "Eliminar Avatar",
+    "supportedFormats": "Formatos compatibles: JPG, PNG, GIF, WebP. Tamaño máx.: 5MB",
     "language": "Configuración de Idioma",
     "languageDesc": "Elige el idioma para los datos de TMDB (títulos, descripciones, etc.)",
     "contentSettings": "Configuración de Contenido",
@@ -87,7 +88,15 @@
     "location": "Ubicación",
     "refreshTmdb": "Actualizar datos de TMDB",
     "refreshTmdbMissing": "Cargar datos faltantes",
-    "refreshTmdbAll": "Recargar todos los datos"
+    "refreshTmdbAll": "Recargar todos los datos",
+    "year": "Año",
+    "rating": "Calificación",
+    "format": "Formato",
+    "plot": "Trama",
+    "cast": "Reparto",
+    "notes": "Notas",
+    "edition": "Edición",
+    "moreDetails": "Más Detalles"
   },
   "scan": {
     "title": "Añadir Película",
@@ -148,7 +157,9 @@
     "tip": "Consejo: Busca en",
     "tipCopy": "la película y copia la URL de la imagen.",
     "preview": "Vista Previa",
-    "pleaseSelect": "Por favor selecciona un archivo o introduce una URL"
+    "pleaseSelect": "Por favor selecciona un archivo o introduce una URL",
+    "invalidFileType": "Por favor selecciona un archivo de imagen",
+    "fileTooLarge": "El archivo es demasiado grande (máx. 10MB)"
   },
   "series": {
     "title": "Series",

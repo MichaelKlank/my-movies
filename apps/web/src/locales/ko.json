@@ -52,6 +52,7 @@
     "avatar": "프로필 사진",
     "uploadAvatar": "이미지 업로드",
     "deleteAvatar": "아바타 삭제",
+    "supportedFormats": "지원 형식: JPG, PNG, GIF, WebP. 최대 크기: 5MB",
     "language": "언어 설정",
     "languageDesc": "TMDB 데이터의 언어를 선택하세요 (제목, 설명 등)",
     "contentSettings": "콘텐츠 설정",
@@ -87,7 +88,15 @@
     "location": "위치",
     "refreshTmdb": "TMDB 데이터 새로고침",
     "refreshTmdbMissing": "누락된 데이터 로드",
-    "refreshTmdbAll": "모든 데이터 다시 로드"
+    "refreshTmdbAll": "모든 데이터 다시 로드",
+    "year": "연도",
+    "rating": "평점",
+    "format": "형식",
+    "plot": "줄거리",
+    "cast": "출연진",
+    "notes": "메모",
+    "edition": "에디션",
+    "moreDetails": "자세히 보기"
   },
   "scan": {
     "title": "영화 추가",
@@ -148,7 +157,9 @@
     "tip": "팁:",
     "tipCopy": "에서 영화를 검색하고 이미지 URL을 복사하세요.",
     "preview": "미리보기",
-    "pleaseSelect": "파일을 선택하거나 URL을 입력하세요"
+    "pleaseSelect": "파일을 선택하거나 URL을 입력하세요",
+    "invalidFileType": "이미지 파일을 선택하세요",
+    "fileTooLarge": "파일이 너무 큽니다 (최대 10MB)"
   },
   "series": {
     "title": "시리즈",

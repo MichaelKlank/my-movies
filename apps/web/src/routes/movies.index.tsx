@@ -573,7 +573,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 {movie.actors && (
                   <div className="mt-4">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Darsteller
+                      {t('movies.cast')}
                     </h4>
                     <p className="text-sm">{movie.actors}</p>
                   </div>
@@ -583,7 +583,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 {movie.description && (
                   <div className="mt-4">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Beschreibung
+                      {t('movies.plot')}
                     </h4>
                     <p className="text-sm leading-relaxed">{movie.description}</p>
                   </div>
@@ -593,7 +593,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 {movie.notes && (
                   <div className="mt-4">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Notizen
+                      {t('movies.notes')}
                     </h4>
                     <p className="text-sm text-muted-foreground">{movie.notes}</p>
                   </div>
@@ -605,7 +605,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
             <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30 relative">
               <button
                 onClick={() => {
-                  if (confirm('Film wirklich löschen?')) {
+                  if (confirm(t('movies.deleteConfirm'))) {
                     deleteMutation.mutate()
                   }
                 }}
@@ -613,7 +613,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 className="flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
-                Löschen
+                {t('movies.delete')}
               </button>
               
               <div className="relative">
@@ -658,7 +658,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 onClick={onClose}
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
               >
-                Mehr Details
+                {t('movies.moreDetails')}
               </Link>
             </div>
           </>
@@ -701,12 +701,12 @@ function PosterUploadDialog({
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Bitte wähle eine Bilddatei aus')
+        setError(t('poster.invalidFileType'))
         return
       }
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setError('Die Datei ist zu groß (max. 10MB)')
+        setError(t('poster.fileTooLarge'))
         return
       }
       setSelectedFile(file)
