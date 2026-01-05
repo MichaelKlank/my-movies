@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Film, Tv, Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
+import { PosterImage } from '@/components/PosterImage'
 
 export const Route = createFileRoute('/')({
   beforeLoad: ({ context }) => {
@@ -76,15 +77,14 @@ function Dashboard() {
               className="group rounded-lg border bg-card overflow-hidden hover:border-primary"
             >
               <div className="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
-                {movie.poster_path ? (
-                  <img
-                    src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`}
-                    alt={movie.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Film className="h-8 w-8 text-muted-foreground" />
-                )}
+                <PosterImage
+                  posterPath={null}
+                  movieId={movie.id}
+                  size="w342"
+                  alt={movie.title}
+                  className="w-full h-full object-cover"
+                  updatedAt={movie.updated_at}
+                />
               </div>
               <div className="p-3">
                 <h3 className="font-medium truncate group-hover:text-primary">{movie.title}</h3>

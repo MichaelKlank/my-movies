@@ -23,6 +23,24 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
   useEffect(() => {
     if (!containerRef.current) return
 
+    // Check if element is already visible (e.g., when navigating back to page)
+    const checkVisibility = () => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (rect) {
+        const isVisible = rect.top < window.innerHeight + 1000 && rect.bottom > -1000
+        if (isVisible) {
+          setShouldLoad(true)
+          return true
+        }
+      }
+      return false
+    }
+
+    // Check immediately if already visible
+    if (checkVisibility()) {
+      return
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -58,18 +76,14 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
       setImageUrl(null)
       setImageError(false)
       
-      // Cleanup previous blob URL
-      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-        URL.revokeObjectURL(blobUrlRef.current)
-        blobUrlRef.current = null
-      }
+      // Reset blob URL reference (URL is cached in imageQueue)
+      blobUrlRef.current = null
     }
 
     mountedRef.current = true
 
-    // Cleanup previous blob URL if not already done
-    if (!wasUpdated && blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(blobUrlRef.current)
+    // Reset blob URL reference if not already done (URL is cached in imageQueue)
+    if (!wasUpdated && blobUrlRef.current) {
       blobUrlRef.current = null
     }
 
@@ -95,8 +109,8 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
               handlePosterPathFallback()
             }
           } else if (url) {
-            // Cleanup if component unmounted or movieId changed
-            URL.revokeObjectURL(url)
+            // Don't revoke - URL is cached in imageQueue and may be reused
+            // The cache manages blob URL lifecycle
           }
         })
         .catch(() => {
@@ -143,12 +157,12 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
     }
 
     // Cleanup on unmount
+    // Note: We don't revoke blob URLs here because they're cached in imageQueue
+    // and may be reused by other components. The cache manages blob URL lifecycle.
     return () => {
       mountedRef.current = false
-      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-        URL.revokeObjectURL(blobUrlRef.current)
-        blobUrlRef.current = null
-      }
+      // Don't revoke blob URLs - they're managed by the imageQueue cache
+      blobUrlRef.current = null
     }
   }, [shouldLoad, posterPath, movieId, size, updatedAt])
 
