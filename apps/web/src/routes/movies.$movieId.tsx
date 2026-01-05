@@ -3,6 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Film, ArrowLeft, Check, Trash2, RefreshCw, Star, Clock, Calendar, MapPin, Disc } from 'lucide-react'
 import { api } from '@/lib/api'
 
+// Helper to get poster URL - supports TMDB paths, full URLs, and local uploads
+function getPosterUrl(posterPath: string | undefined | null, size: 'w92' | 'w342' | 'w500' = 'w342'): string | null {
+  if (!posterPath) return null
+  // If it starts with http, it's a full URL
+  if (posterPath.startsWith('http')) return posterPath
+  // If it starts with /uploads, it's a local file
+  if (posterPath.startsWith('/uploads')) return posterPath
+  // Otherwise it's a TMDB path
+  return `https://image.tmdb.org/t/p/${size}${posterPath}`
+}
+
 export const Route = createFileRoute('/movies/$movieId')({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated) {
@@ -77,9 +88,9 @@ function MovieDetailPage() {
         {/* Poster */}
         <div className="space-y-4">
           <div className="aspect-[2/3] rounded-lg bg-muted flex items-center justify-center overflow-hidden shadow-lg">
-            {movie.poster_path ? (
+            {getPosterUrl(movie.poster_path, 'w500') ? (
               <img
-                src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                src={getPosterUrl(movie.poster_path, 'w500')!}
                 alt={movie.title}
                 className="w-full h-full object-cover"
               />

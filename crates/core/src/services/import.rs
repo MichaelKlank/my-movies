@@ -220,8 +220,8 @@ impl ImportService {
             )
             "#,
         )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
+        .bind(id)
+        .bind(user_id)
         .bind(&record.collection_number)
         .bind(&record.barcode)
         .bind(title)
@@ -313,8 +313,8 @@ impl ImportService {
             )
             "#,
         )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
+        .bind(id)
+        .bind(user_id)
         .bind(&record.collection_number)
         .bind(&record.barcode)
         .bind(title)
@@ -396,8 +396,8 @@ impl ImportService {
             )
             "#,
         )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
+        .bind(id)
+        .bind(user_id)
         .bind(&record.collection_number)
         .bind(&record.barcode)
         .bind(title)

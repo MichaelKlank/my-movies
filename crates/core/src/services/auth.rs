@@ -70,7 +70,7 @@ impl AuthService {
             VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
         )
-        .bind(id.to_string())
+        .bind(id)
         .bind(&input.username)
         .bind(&input.email)
         .bind(&password_hash)
@@ -164,7 +164,7 @@ impl AuthService {
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<UserPublic> {
         let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(Error::UserNotFound)?;
@@ -221,7 +221,7 @@ impl AuthService {
         .bind(&token_hash)
         .bind(expires.to_rfc3339())
         .bind(Utc::now().to_rfc3339())
-        .bind(user.id.to_string())
+        .bind(user.id)
         .execute(&self.pool)
         .await?;
 
@@ -283,7 +283,7 @@ impl AuthService {
         )
         .bind(&password_hash)
         .bind(Utc::now().to_rfc3339())
-        .bind(user.id.to_string())
+        .bind(user.id)
         .execute(&self.pool)
         .await?;
 
@@ -322,7 +322,7 @@ impl AuthService {
         let result = sqlx::query("UPDATE users SET role = ?, updated_at = ? WHERE id = ?")
             .bind(role_str)
             .bind(Utc::now().to_rfc3339())
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
@@ -337,30 +337,30 @@ impl AuthService {
     pub async fn delete_user(&self, user_id: Uuid) -> Result<()> {
         // Delete user's movies
         sqlx::query("DELETE FROM movies WHERE user_id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
         // Delete user's series
         sqlx::query("DELETE FROM series WHERE user_id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
         // Delete user's collections
         sqlx::query("DELETE FROM collection_items WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?)")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
         sqlx::query("DELETE FROM collections WHERE user_id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
         // Delete the user
         let result = sqlx::query("DELETE FROM users WHERE id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 

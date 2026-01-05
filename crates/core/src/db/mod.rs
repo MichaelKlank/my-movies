@@ -14,6 +14,15 @@ pub async fn create_pool(database_url: &str) -> Result<DbPool, sqlx::Error> {
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_secs(3))
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                // Enable foreign keys for each connection (required for SQLite)
+                sqlx::query("PRAGMA foreign_keys = ON")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
         .connect(database_url)
         .await?;
 

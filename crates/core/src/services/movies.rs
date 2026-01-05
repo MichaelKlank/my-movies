@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::error::{Error, Result};
-use crate::models::{CreateMovie, Movie, MovieFilter, MovieRow, UpdateMovie};
+use crate::models::{CreateMovie, Movie, MovieFilter, UpdateMovie};
 
 pub struct MovieService {
     pool: DbPool,
@@ -27,8 +27,8 @@ impl MovieService {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
+        .bind(id)
+        .bind(user_id)
         .bind(&input.barcode)
         .bind(input.tmdb_id)
         .bind(&input.title)
@@ -45,60 +45,69 @@ impl MovieService {
     }
 
     pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> Result<Movie> {
-        let row =
-            sqlx::query_as::<_, MovieRow>("SELECT * FROM movies WHERE id = ? AND user_id = ?")
-                .bind(id.to_string())
-                .bind(user_id.to_string())
-                .fetch_optional(&self.pool)
-                .await?
-                .ok_or(Error::NotFound)?;
-        Ok(row.into())
+        sqlx::query_as::<_, Movie>("SELECT * FROM movies WHERE id = ? AND user_id = ?")
+            .bind(id)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(Error::NotFound)
     }
 
     pub async fn count(&self, user_id: Uuid, filter: &MovieFilter) -> Result<i64> {
         let mut query = String::from("SELECT COUNT(*) as count FROM movies WHERE user_id = ?");
-        let mut params: Vec<String> = vec![user_id.to_string()];
+
+        if let Some(_) = filter.search {
+            query.push_str(" AND (title LIKE ? OR original_title LIKE ? OR director LIKE ?)");
+        }
+
+        if filter.genre.is_some() {
+            query.push_str(" AND genres LIKE ?");
+        }
+
+        if filter.disc_type.is_some() {
+            query.push_str(" AND disc_type = ?");
+        }
+
+        if filter.watched.is_some() {
+            query.push_str(" AND watched = ?");
+        }
+
+        if filter.year_from.is_some() {
+            query.push_str(" AND production_year >= ?");
+        }
+
+        if filter.year_to.is_some() {
+            query.push_str(" AND production_year <= ?");
+        }
+
+        let mut q = sqlx::query_scalar::<_, i64>(&query).bind(user_id);
 
         if let Some(ref search) = filter.search {
-            query.push_str(" AND (title LIKE ? OR original_title LIKE ? OR director LIKE ?)");
             let search_pattern = format!("%{}%", search);
-            params.push(search_pattern.clone());
-            params.push(search_pattern.clone());
-            params.push(search_pattern);
+            q = q
+                .bind(search_pattern.clone())
+                .bind(search_pattern.clone())
+                .bind(search_pattern);
         }
 
         if let Some(ref genre) = filter.genre {
-            query.push_str(" AND genres LIKE ?");
-            params.push(format!("%{}%", genre));
+            q = q.bind(format!("%{}%", genre));
         }
 
         if let Some(ref disc_type) = filter.disc_type {
-            query.push_str(" AND disc_type = ?");
-            params.push(disc_type.clone());
+            q = q.bind(disc_type);
         }
 
         if let Some(watched) = filter.watched {
-            query.push_str(" AND watched = ?");
-            params.push(if watched {
-                "1".to_string()
-            } else {
-                "0".to_string()
-            });
+            q = q.bind(watched);
         }
 
         if let Some(year_from) = filter.year_from {
-            query.push_str(" AND production_year >= ?");
-            params.push(year_from.to_string());
+            q = q.bind(year_from);
         }
 
         if let Some(year_to) = filter.year_to {
-            query.push_str(" AND production_year <= ?");
-            params.push(year_to.to_string());
-        }
-
-        let mut q = sqlx::query_scalar::<_, i64>(&query);
-        for param in params {
-            q = q.bind(param);
+            q = q.bind(year_to);
         }
 
         let count = q.fetch_one(&self.pool).await?;
@@ -111,45 +120,31 @@ impl MovieService {
         let sort_by = filter.sort_by.unwrap_or_else(|| "title".to_string());
         let sort_order = filter.sort_order.unwrap_or_else(|| "asc".to_string());
 
-        // Build dynamic query
+        // Build dynamic query string first
         let mut query = String::from("SELECT * FROM movies WHERE user_id = ?");
-        let mut params: Vec<String> = vec![user_id.to_string()];
 
-        if let Some(ref search) = filter.search {
+        if filter.search.is_some() {
             query.push_str(" AND (title LIKE ? OR original_title LIKE ? OR director LIKE ?)");
-            let search_pattern = format!("%{}%", search);
-            params.push(search_pattern.clone());
-            params.push(search_pattern.clone());
-            params.push(search_pattern);
         }
 
-        if let Some(ref genre) = filter.genre {
+        if filter.genre.is_some() {
             query.push_str(" AND genres LIKE ?");
-            params.push(format!("%{}%", genre));
         }
 
-        if let Some(ref disc_type) = filter.disc_type {
+        if filter.disc_type.is_some() {
             query.push_str(" AND disc_type = ?");
-            params.push(disc_type.clone());
         }
 
-        if let Some(watched) = filter.watched {
+        if filter.watched.is_some() {
             query.push_str(" AND watched = ?");
-            params.push(if watched {
-                "1".to_string()
-            } else {
-                "0".to_string()
-            });
         }
 
-        if let Some(year_from) = filter.year_from {
+        if filter.year_from.is_some() {
             query.push_str(" AND production_year >= ?");
-            params.push(year_from.to_string());
         }
 
-        if let Some(year_to) = filter.year_to {
+        if filter.year_to.is_some() {
             query.push_str(" AND production_year <= ?");
-            params.push(year_to.to_string());
         }
 
         // Whitelist allowed sort columns
@@ -176,15 +171,39 @@ impl MovieService {
             sort_column, order
         ));
 
-        // Execute with dynamic params
-        let mut q = sqlx::query_as::<_, MovieRow>(&query);
-        for param in params {
-            q = q.bind(param);
-        }
-        q = q.bind(limit).bind(offset);
+        // Now bind all parameters in the correct order
+        let mut q = sqlx::query_as::<_, Movie>(&query).bind(user_id);
 
-        let rows = q.fetch_all(&self.pool).await?;
-        Ok(rows.into_iter().map(|r| r.into()).collect())
+        if let Some(ref search) = filter.search {
+            let search_pattern = format!("%{}%", search);
+            q = q
+                .bind(search_pattern.clone())
+                .bind(search_pattern.clone())
+                .bind(search_pattern);
+        }
+
+        if let Some(ref genre) = filter.genre {
+            q = q.bind(format!("%{}%", genre));
+        }
+
+        if let Some(ref disc_type) = filter.disc_type {
+            q = q.bind(disc_type);
+        }
+
+        if let Some(watched) = filter.watched {
+            q = q.bind(watched);
+        }
+
+        if let Some(year_from) = filter.year_from {
+            q = q.bind(year_from);
+        }
+
+        if let Some(year_to) = filter.year_to {
+            q = q.bind(year_to);
+        }
+
+        let rows = q.bind(limit).bind(offset).fetch_all(&self.pool).await?;
+        Ok(rows)
     }
 
     pub async fn update(&self, user_id: Uuid, id: Uuid, input: UpdateMovie) -> Result<Movie> {
@@ -195,8 +214,8 @@ impl MovieService {
         if let Some(ref title) = input.title {
             sqlx::query("UPDATE movies SET title = ? WHERE id = ? AND user_id = ?")
                 .bind(title)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -204,8 +223,8 @@ impl MovieService {
         if let Some(ref description) = input.description {
             sqlx::query("UPDATE movies SET description = ? WHERE id = ? AND user_id = ?")
                 .bind(description)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -213,8 +232,8 @@ impl MovieService {
         if let Some(watched) = input.watched {
             sqlx::query("UPDATE movies SET watched = ? WHERE id = ? AND user_id = ?")
                 .bind(watched)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -222,8 +241,8 @@ impl MovieService {
         if let Some(rating) = input.personal_rating {
             sqlx::query("UPDATE movies SET personal_rating = ? WHERE id = ? AND user_id = ?")
                 .bind(rating)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -231,8 +250,8 @@ impl MovieService {
         if let Some(ref location) = input.location {
             sqlx::query("UPDATE movies SET location = ? WHERE id = ? AND user_id = ?")
                 .bind(location)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -240,8 +259,8 @@ impl MovieService {
         if let Some(ref notes) = input.notes {
             sqlx::query("UPDATE movies SET notes = ? WHERE id = ? AND user_id = ?")
                 .bind(notes)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -249,8 +268,8 @@ impl MovieService {
         if let Some(ref poster_path) = input.poster_path {
             sqlx::query("UPDATE movies SET poster_path = ? WHERE id = ? AND user_id = ?")
                 .bind(poster_path)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -258,8 +277,8 @@ impl MovieService {
         if let Some(tmdb_id) = input.tmdb_id {
             sqlx::query("UPDATE movies SET tmdb_id = ? WHERE id = ? AND user_id = ?")
                 .bind(tmdb_id)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -267,8 +286,8 @@ impl MovieService {
         if let Some(ref imdb_id) = input.imdb_id {
             sqlx::query("UPDATE movies SET imdb_id = ? WHERE id = ? AND user_id = ?")
                 .bind(imdb_id)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -276,8 +295,8 @@ impl MovieService {
         if let Some(ref original_title) = input.original_title {
             sqlx::query("UPDATE movies SET original_title = ? WHERE id = ? AND user_id = ?")
                 .bind(original_title)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -285,8 +304,8 @@ impl MovieService {
         if let Some(ref tagline) = input.tagline {
             sqlx::query("UPDATE movies SET tagline = ? WHERE id = ? AND user_id = ?")
                 .bind(tagline)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -294,8 +313,8 @@ impl MovieService {
         if let Some(running_time) = input.running_time {
             sqlx::query("UPDATE movies SET running_time = ? WHERE id = ? AND user_id = ?")
                 .bind(running_time)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -303,8 +322,8 @@ impl MovieService {
         if let Some(ref director) = input.director {
             sqlx::query("UPDATE movies SET director = ? WHERE id = ? AND user_id = ?")
                 .bind(director)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -312,8 +331,8 @@ impl MovieService {
         if let Some(ref actors) = input.actors {
             sqlx::query("UPDATE movies SET actors = ? WHERE id = ? AND user_id = ?")
                 .bind(actors)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -321,8 +340,8 @@ impl MovieService {
         if let Some(ref genres) = input.genres {
             sqlx::query("UPDATE movies SET genres = ? WHERE id = ? AND user_id = ?")
                 .bind(genres)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -330,8 +349,8 @@ impl MovieService {
         if let Some(budget) = input.budget {
             sqlx::query("UPDATE movies SET budget = ? WHERE id = ? AND user_id = ?")
                 .bind(budget)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -339,8 +358,8 @@ impl MovieService {
         if let Some(revenue) = input.revenue {
             sqlx::query("UPDATE movies SET revenue = ? WHERE id = ? AND user_id = ?")
                 .bind(revenue)
-                .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(id)
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -348,8 +367,8 @@ impl MovieService {
         // Update timestamp
         sqlx::query("UPDATE movies SET updated_at = ? WHERE id = ? AND user_id = ?")
             .bind(chrono::Utc::now().to_rfc3339())
-            .bind(id.to_string())
-            .bind(user_id.to_string())
+            .bind(id)
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
@@ -358,8 +377,8 @@ impl MovieService {
 
     pub async fn delete(&self, user_id: Uuid, id: Uuid) -> Result<()> {
         let result = sqlx::query("DELETE FROM movies WHERE id = ? AND user_id = ?")
-            .bind(id.to_string())
-            .bind(user_id.to_string())
+            .bind(id)
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
@@ -371,38 +390,33 @@ impl MovieService {
     }
 
     pub async fn find_by_barcode(&self, user_id: Uuid, barcode: &str) -> Result<Option<Movie>> {
-        let row =
-            sqlx::query_as::<_, MovieRow>("SELECT * FROM movies WHERE barcode = ? AND user_id = ?")
-                .bind(barcode)
-                .bind(user_id.to_string())
-                .fetch_optional(&self.pool)
-                .await?;
-
-        Ok(row.map(|r| r.into()))
+        sqlx::query_as::<_, Movie>("SELECT * FROM movies WHERE barcode = ? AND user_id = ?")
+            .bind(barcode)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn find_by_tmdb_id(&self, user_id: Uuid, tmdb_id: i64) -> Result<Option<Movie>> {
-        let row =
-            sqlx::query_as::<_, MovieRow>("SELECT * FROM movies WHERE tmdb_id = ? AND user_id = ?")
-                .bind(tmdb_id)
-                .bind(user_id.to_string())
-                .fetch_optional(&self.pool)
-                .await?;
-
-        Ok(row.map(|r| r.into()))
+        sqlx::query_as::<_, Movie>("SELECT * FROM movies WHERE tmdb_id = ? AND user_id = ?")
+            .bind(tmdb_id)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn find_by_title(&self, user_id: Uuid, title: &str) -> Result<Vec<Movie>> {
-        let rows = sqlx::query_as::<_, MovieRow>(
+        sqlx::query_as::<_, Movie>(
             "SELECT * FROM movies WHERE (title = ? OR original_title = ?) AND user_id = ?",
         )
         .bind(title)
         .bind(title)
-        .bind(user_id.to_string())
+        .bind(user_id)
         .fetch_all(&self.pool)
-        .await?;
-
-        Ok(rows.into_iter().map(|r| r.into()).collect())
+        .await
+        .map_err(Into::into)
     }
 
     /// Check for potential duplicates before adding

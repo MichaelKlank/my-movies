@@ -14,7 +14,7 @@ pub enum UserRole {
 /// Database row representation
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct UserRow {
-    pub id: String,
+    pub id: Uuid,
     pub username: String,
     pub email: String,
     pub password_hash: String,
@@ -52,7 +52,7 @@ impl TryFrom<UserRow> for User {
             .map(|dt| dt.with_timezone(&Utc));
 
         Ok(User {
-            id: Uuid::parse_str(&row.id)?,
+            id: row.id,
             username: row.username,
             email: row.email,
             password_hash: row.password_hash,

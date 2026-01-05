@@ -24,8 +24,8 @@ impl SeriesService {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
-        .bind(id.to_string())
-        .bind(user_id.to_string())
+        .bind(id)
+        .bind(user_id)
         .bind(&input.barcode)
         .bind(input.tmdb_id)
         .bind(&input.title)
@@ -40,8 +40,8 @@ impl SeriesService {
 
     pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> Result<Series> {
         sqlx::query_as::<_, Series>("SELECT * FROM series WHERE id = ? AND user_id = ?")
-            .bind(id.to_string())
-            .bind(user_id.to_string())
+            .bind(id)
+            .bind(user_id)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(Error::NotFound)
@@ -54,7 +54,7 @@ impl SeriesService {
         let series = sqlx::query_as::<_, Series>(
             "SELECT * FROM series WHERE user_id = ? ORDER BY title LIMIT ? OFFSET ?",
         )
-        .bind(user_id.to_string())
+        .bind(user_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
@@ -72,7 +72,7 @@ impl SeriesService {
             sqlx::query("UPDATE series SET title = ? WHERE id = ? AND user_id = ?")
                 .bind(title)
                 .bind(id.to_string())
-                .bind(user_id.to_string())
+                .bind(user_id)
                 .execute(&self.pool)
                 .await?;
         }
@@ -82,8 +82,8 @@ impl SeriesService {
 
     pub async fn delete(&self, user_id: Uuid, id: Uuid) -> Result<()> {
         let result = sqlx::query("DELETE FROM series WHERE id = ? AND user_id = ?")
-            .bind(id.to_string())
-            .bind(user_id.to_string())
+            .bind(id)
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 
@@ -96,7 +96,7 @@ impl SeriesService {
 
     pub async fn count(&self, user_id: Uuid) -> Result<i64> {
         let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM series WHERE user_id = ?")
-            .bind(user_id.to_string())
+            .bind(user_id)
             .fetch_one(&self.pool)
             .await?;
 

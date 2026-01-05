@@ -1,7 +1,7 @@
 -- Series table
 CREATE TABLE IF NOT EXISTS series (
-    id TEXT PRIMARY KEY NOT NULL,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id BLOB PRIMARY KEY NOT NULL,
+    user_id BLOB NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
     -- Identifiers
     collection_number TEXT,

@@ -1,7 +1,7 @@
 -- Collections table (for box sets)
 CREATE TABLE IF NOT EXISTS collections (
-    id TEXT PRIMARY KEY NOT NULL,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id BLOB PRIMARY KEY NOT NULL,
+    user_id BLOB NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
     -- Identifiers
     collection_number TEXT,
@@ -58,11 +58,11 @@ CREATE TABLE IF NOT EXISTS collections (
 
 -- Collection items (links movies/series to collections)
 CREATE TABLE IF NOT EXISTS collection_items (
-    id TEXT PRIMARY KEY NOT NULL,
-    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    id BLOB PRIMARY KEY NOT NULL,
+    collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     item_type TEXT NOT NULL CHECK (item_type IN ('movie', 'series')),
-    movie_id TEXT REFERENCES movies(id) ON DELETE CASCADE,
-    series_id TEXT REFERENCES series(id) ON DELETE CASCADE,
+    movie_id BLOB REFERENCES movies(id) ON DELETE CASCADE,
+    series_id BLOB REFERENCES series(id) ON DELETE CASCADE,
     position INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     

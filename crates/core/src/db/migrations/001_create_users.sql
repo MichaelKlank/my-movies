@@ -1,6 +1,6 @@
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY NOT NULL,
+    id BLOB PRIMARY KEY NOT NULL,
     username TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
