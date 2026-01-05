@@ -6,8 +6,46 @@ use serde_json::json;
 use tokio::time::{Duration, sleep};
 
 use my_movies_core::models::{Claims, MovieFilter, UpdateMovie};
+use my_movies_core::services::TmdbService;
 
 use crate::AppState;
+
+/// Download poster image from TMDB URL and return as bytes
+async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
+    // Build full TMDB image URL (use w500 for good quality)
+    let image_url = TmdbService::poster_url(poster_path, "w500");
+
+    // Download the image
+    match reqwest::get(&image_url).await {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.bytes().await {
+                    Ok(bytes) => {
+                        let data = bytes.to_vec();
+                        // Validate it's actually an image (basic check)
+                        if data.len() >= 8 {
+                            Some(data)
+                        } else {
+                            tracing::warn!("Downloaded poster too small: {} bytes", data.len());
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to read poster bytes: {}", e);
+                        None
+                    }
+                }
+            } else {
+                tracing::warn!("Failed to download poster: HTTP {}", response.status());
+                None
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to download poster from {}: {}", image_url, e);
+            None
+        }
+    }
+}
 
 pub async fn import_csv(
     State(state): State<Arc<AppState>>,
@@ -224,6 +262,13 @@ pub async fn enrich_movies_tmdb(
                         .join(", ")
                 });
 
+                // Download poster image if available
+                let poster_data = if let Some(ref poster_path) = details.poster_path {
+                    download_poster_image(poster_path).await
+                } else {
+                    None
+                };
+
                 let update = UpdateMovie {
                     tmdb_id: Some(details.id),
                     imdb_id: details.imdb_id.clone(),
@@ -240,12 +285,25 @@ pub async fn enrich_movies_tmdb(
                     ..Default::default()
                 };
 
+                // First update the movie data
                 if state_clone
                     .movie_service
                     .update(user_id, movie.id, update)
                     .await
                     .is_ok()
                 {
+                    // Then update poster data if we downloaded it
+                    #[allow(clippy::collapsible_if)]
+                    if let Some(data) = poster_data {
+                        if state_clone
+                            .movie_service
+                            .update_movie_poster_data(user_id, movie.id, Some(data))
+                            .await
+                            .is_err()
+                        {
+                            tracing::warn!("Failed to save poster data for: {}", movie.title);
+                        }
+                    }
                     enriched += 1;
                 } else {
                     errors.push(format!("Failed to update: {}", movie.title));

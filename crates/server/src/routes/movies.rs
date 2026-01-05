@@ -1,18 +1,56 @@
 use std::sync::Arc;
 
+use axum::body::Body;
 use axum::{
     Extension, Json,
     extract::{Multipart, Path, Query, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
 };
 use serde_json::json;
-use tokio::fs;
 use uuid::Uuid;
 
 use my_movies_core::models::{Claims, CreateMovie, MovieFilter, UpdateMovie};
+use my_movies_core::services::TmdbService;
 
 use crate::AppState;
+
+/// Download poster image from TMDB URL and return as bytes
+async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
+    // Build full TMDB image URL (use w500 for good quality)
+    let image_url = TmdbService::poster_url(poster_path, "w500");
+
+    // Download the image
+    match reqwest::get(&image_url).await {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.bytes().await {
+                    Ok(bytes) => {
+                        let data = bytes.to_vec();
+                        // Validate it's actually an image (basic check)
+                        if data.len() >= 8 {
+                            Some(data)
+                        } else {
+                            tracing::warn!("Downloaded poster too small: {} bytes", data.len());
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to read poster bytes: {}", e);
+                        None
+                    }
+                }
+            } else {
+                tracing::warn!("Failed to download poster: HTTP {}", response.status());
+                None
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to download poster from {}: {}", image_url, e);
+            None
+        }
+    }
+}
 
 pub async fn list(
     State(state): State<Arc<AppState>>,
@@ -239,6 +277,13 @@ pub async fn refresh_tmdb(
             .join(", ")
     });
 
+    // Download poster image if available
+    let poster_data = if let Some(ref poster_path) = details.poster_path {
+        download_poster_image(poster_path).await
+    } else {
+        None
+    };
+
     let update = my_movies_core::models::UpdateMovie {
         tmdb_id: Some(details.id),
         imdb_id: details.imdb_id.clone(),
@@ -255,23 +300,43 @@ pub async fn refresh_tmdb(
         ..Default::default()
     };
 
-    match state.movie_service.update(claims.sub, id, update).await {
-        Ok(updated_movie) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_updated",
-                "payload": updated_movie
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
-
-            (StatusCode::OK, Json(json!(updated_movie))).into_response()
+    // First update the movie data
+    let updated_movie = match state.movie_service.update(claims.sub, id, update).await {
+        Ok(m) => m,
+        Err(e) => {
+            return (
+                StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(json!({ "error": e.to_string() })),
+            )
+                .into_response();
         }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    };
+
+    // Then update poster data if we downloaded it
+    let final_movie = if let Some(data) = poster_data {
+        match state
+            .movie_service
+            .update_movie_poster_data(claims.sub, id, Some(data))
+            .await
+        {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!("Failed to save poster data: {}", e);
+                updated_movie
+            }
+        }
+    } else {
+        updated_movie
+    };
+
+    // Broadcast to WebSocket clients
+    let msg = json!({
+        "type": "movie_updated",
+        "payload": final_movie
+    });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    (StatusCode::OK, Json(json!(final_movie))).into_response()
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -351,32 +416,16 @@ pub async fn upload_poster(
             .into_response();
     }
 
-    // Create uploads directory if it doesn't exist
-    let uploads_dir = std::path::PathBuf::from("uploads/posters");
-    if let Err(e) = fs::create_dir_all(&uploads_dir).await {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("Failed to create uploads directory: {}", e) })),
-        )
-            .into_response();
-    }
-
     // Process multipart upload
     while let Some(field) = multipart.next_field().await.unwrap_or(None) {
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            // Get content type to determine extension
-            let content_type = field.content_type().unwrap_or("image/jpeg").to_string();
-            let extension = match content_type.as_str() {
-                "image/png" => "png",
-                "image/gif" => "gif",
-                "image/webp" => "webp",
-                _ => "jpg", // Default to jpg for jpeg and unknown types
-            };
+            // Get content type (extension not needed anymore since we store in DB)
+            let _content_type = field.content_type().unwrap_or("image/jpeg").to_string();
 
             let data = match field.bytes().await {
-                Ok(bytes) => bytes,
+                Ok(bytes) => bytes.to_vec(),
                 Err(e) => {
                     return (
                         StatusCode::BAD_REQUEST,
@@ -395,44 +444,47 @@ pub async fn upload_poster(
                     .into_response();
             }
 
-            // Generate unique filename
-            let filename = format!("{}.{}", id, extension);
-            let file_path = uploads_dir.join(&filename);
-
-            // Save file
-            if let Err(e) = fs::write(&file_path, &data).await {
+            // Validate file size (max 5MB)
+            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
+            if data.len() > MAX_FILE_SIZE {
                 return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("Failed to save file: {}", e) })),
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "error": format!("File too large. Maximum size is 5MB, got {} bytes", data.len()) })),
                 )
                     .into_response();
             }
 
-            // Update movie with local poster path (use special prefix to indicate local file)
-            let poster_url = format!("/uploads/posters/{}", filename);
-            let update = UpdateMovie {
-                poster_path: Some(poster_url.clone()),
-                ..Default::default()
-            };
+            // Store image data directly in database
+            match state
+                .movie_service
+                .update_movie_poster_data(claims.sub, id, Some(data))
+                .await
+            {
+                Ok(movie) => {
+                    // Broadcast to WebSocket clients
+                    let msg = json!({
+                        "type": "movie_updated",
+                        "payload": movie
+                    });
+                    let _ = state.ws_broadcast.send(msg.to_string());
 
-            if let Err(e) = state.movie_service.update(claims.sub, id, update).await {
-                // Try to clean up the uploaded file
-                let _ = fs::remove_file(&file_path).await;
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("Failed to update movie: {}", e) })),
-                )
-                    .into_response();
+                    return (
+                        StatusCode::OK,
+                        Json(json!({
+                            "message": "Poster uploaded successfully",
+                            "movie": movie
+                        })),
+                    )
+                        .into_response();
+                }
+                Err(e) => {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": format!("Failed to update movie: {}", e) })),
+                    )
+                        .into_response();
+                }
             }
-
-            return (
-                StatusCode::OK,
-                Json(json!({
-                    "message": "Poster uploaded successfully",
-                    "poster_path": poster_url
-                })),
-            )
-                .into_response();
         }
     }
 
@@ -441,4 +493,73 @@ pub async fn upload_poster(
         Json(json!({ "error": "No file provided" })),
     )
         .into_response()
+}
+
+/// Get poster image for a movie
+pub async fn get_poster(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    // Verify movie belongs to user
+    if state.movie_service.get_by_id(claims.sub, id).await.is_err() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Movie not found" })),
+        )
+            .into_response();
+    }
+    match state
+        .movie_service
+        .get_movie_poster_data(claims.sub, id)
+        .await
+    {
+        Ok(Some(data)) => {
+            // Determine content type from first few bytes (magic numbers)
+            let content_type = if data.len() >= 8 {
+                if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
+                    "image/png"
+                } else if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
+                    "image/jpeg"
+                } else if data.len() >= 6
+                    && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
+                        || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+                {
+                    "image/gif"
+                } else if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
+                    "image/webp"
+                } else {
+                    "image/jpeg" // Default fallback
+                }
+            } else {
+                "image/jpeg"
+            };
+
+            match Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, content_type)
+                .body(Body::from(data))
+            {
+                Ok(response) => response.into_response(),
+                Err(e) => {
+                    tracing::error!("Failed to build response: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": "Failed to build response" })),
+                    )
+                        .into_response()
+                }
+            }
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Poster not found" })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
 }

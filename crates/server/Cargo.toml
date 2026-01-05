@@ -43,3 +43,6 @@ tempfile = "3.12"
 # WebSocket
 futures = "0.3"
 tokio-stream = "0.1"
+
+# HTTP client (for downloading poster images)
+reqwest = { workspace = true }

@@ -4,14 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Upload, FileUp, Check, AlertCircle, RefreshCw, Image, Copy, Trash2, Film } from 'lucide-react'
 import { api, ImportResult, Movie } from '@/lib/api'
 import { wsClient, WsMessage } from '@/lib/ws'
-
-// Helper to get poster URL - supports TMDB paths, full URLs, and local uploads
-function getPosterUrl(posterPath: string | undefined | null, size: 'w92' | 'w342' | 'w500' = 'w342'): string | null {
-  if (!posterPath) return null
-  if (posterPath.startsWith('http')) return posterPath
-  if (posterPath.startsWith('/uploads')) return posterPath
-  return `https://image.tmdb.org/t/p/${size}${posterPath}`
-}
+import { PosterImage } from '@/components/PosterImage'
 
 export const Route = createFileRoute('/import')({
   beforeLoad: ({ context }) => {
@@ -526,9 +519,11 @@ function DuplicatesSection() {
                               </div>
                             )}
                             <div className="w-10 h-14 rounded overflow-hidden bg-muted flex-shrink-0">
-                              {getPosterUrl(movie.poster_path, 'w92') ? (
-                                <img
-                                  src={getPosterUrl(movie.poster_path, 'w92')!}
+                              {movie.poster_path ? (
+                                <PosterImage
+                                  posterPath={movie.poster_path}
+                                  movieId={movie.id}
+                                  size="w92"
                                   alt={movie.title}
                                   className="w-full h-full object-cover"
                                 />

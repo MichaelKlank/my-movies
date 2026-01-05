@@ -62,7 +62,7 @@ pub async fn forgot_password(
     State(state): State<Arc<AppState>>,
     Json(input): Json<ForgotPasswordRequest>,
 ) -> impl IntoResponse {
-    match state.auth_service.request_password_reset(input).await {
+    match state.auth_service.forgot_password(input).await {
         Ok(_) => (
             StatusCode::OK,
             Json(json!({ "message": "Password reset email sent" })),
@@ -184,10 +184,10 @@ pub async fn upload_avatar(
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            // Get content type
+            // Get content type to determine extension
             let content_type = field.content_type().unwrap_or("image/jpeg").to_string();
 
-            let _extension = match content_type.as_str() {
+            let extension = match content_type.as_str() {
                 "image/png" => "png",
                 "image/gif" => "gif",
                 "image/webp" => "webp",
@@ -320,16 +320,16 @@ pub async fn get_avatar(
         Ok(Some(data)) => {
             // Determine content type from first few bytes (magic numbers)
             let content_type = if data.len() >= 8 {
-                if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
+                if &data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
                     "image/png"
-                } else if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
+                } else if data.len() >= 3 && &data[0..3] == [0xFF, 0xD8, 0xFF] {
                     "image/jpeg"
                 } else if data.len() >= 6
-                    && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
-                        || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+                    && (&data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
+                        || &data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
                 {
                     "image/gif"
-                } else if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
+                } else if data.len() >= 12 && &data[8..12] == [0x57, 0x45, 0x42, 0x50] {
                     "image/webp"
                 } else {
                     "image/jpeg" // Default fallback
@@ -338,21 +338,12 @@ pub async fn get_avatar(
                 "image/jpeg"
             };
 
-            match Response::builder()
+            Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, content_type)
                 .body(Body::from(data))
-            {
-                Ok(response) => response.into_response(),
-                Err(e) => {
-                    tracing::error!("Failed to build response: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": "Failed to build response" })),
-                    )
-                        .into_response()
-                }
-            }
+                .unwrap()
+                .into_response()
         }
         Ok(None) => (
             StatusCode::NOT_FOUND,
@@ -366,3 +357,4 @@ pub async fn get_avatar(
             .into_response(),
     }
 }
+

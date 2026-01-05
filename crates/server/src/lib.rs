@@ -111,8 +111,6 @@ pub fn create_router(state: Arc<AppState>, static_dir: Option<&str>) -> Router {
         )
         // WebSocket
         .route("/ws", get(ws::websocket_handler))
-        // Serve uploaded files (posters, etc.)
-        .nest_service("/uploads", ServeDir::new("uploads"))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -149,6 +147,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         // Avatar upload
         .route("/auth/avatar", axum::routing::post(auth::upload_avatar))
         .route("/auth/avatar", axum::routing::delete(auth::delete_avatar))
+        .route("/auth/avatar/:id", axum::routing::get(auth::get_avatar))
         // Movies
         .route("/movies", get(movies::list).post(movies::create))
         .route("/movies/check-duplicates", get(movies::check_duplicates))
@@ -159,6 +158,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         )
         .route("/movies/:id/refresh-tmdb", post(movies::refresh_tmdb))
         .route("/movies/:id/upload-poster", post(movies::upload_poster))
+        .route("/movies/:id/poster", axum::routing::get(movies::get_poster))
         // Series
         .route("/series", get(series::list).post(series::create))
         .route(

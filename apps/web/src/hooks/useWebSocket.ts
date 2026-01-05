@@ -18,9 +18,12 @@ export function useWebSocketSync() {
         case 'movies_enriched':
         case 'tmdb_enrich_complete':
           queryClient.invalidateQueries({ queryKey: ['movies'] })
-          // Also invalidate individual movie if ID is provided
+          // Also invalidate and update individual movie if ID is provided
           if (message.payload && typeof message.payload === 'object' && 'id' in message.payload) {
-            queryClient.invalidateQueries({ queryKey: ['movie', (message.payload as { id: string }).id] })
+            const movieData = message.payload as any
+            queryClient.invalidateQueries({ queryKey: ['movie', movieData.id] })
+            // Update query data immediately for instant UI update
+            queryClient.setQueryData(['movie', movieData.id], movieData)
           }
           break
 

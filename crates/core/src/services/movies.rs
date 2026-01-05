@@ -366,13 +366,64 @@ impl MovieService {
 
         // Update timestamp
         sqlx::query("UPDATE movies SET updated_at = ? WHERE id = ? AND user_id = ?")
-            .bind(chrono::Utc::now().to_rfc3339())
+            .bind(Utc::now().to_rfc3339())
             .bind(id)
             .bind(user_id)
             .execute(&self.pool)
             .await?;
 
         self.get_by_id(user_id, id).await
+    }
+
+    pub async fn update_movie_poster_data(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        poster_data: Option<Vec<u8>>,
+    ) -> Result<Movie> {
+        // Set poster_path to "db" to indicate it's stored in database
+        let poster_path = if poster_data.is_some() {
+            Some("db".to_string())
+        } else {
+            None
+        };
+
+        sqlx::query("UPDATE movies SET poster_path = ?, poster_data = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+            .bind(&poster_path)
+            .bind(&poster_data)
+            .bind(Utc::now().to_rfc3339())
+            .bind(id)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_by_id(user_id, id).await
+    }
+
+    pub async fn get_movie_poster_data(&self, user_id: Uuid, id: Uuid) -> Result<Option<Vec<u8>>> {
+        // Verify movie belongs to user
+        let _movie = self.get_by_id(user_id, id).await?;
+
+        let data = sqlx::query_scalar::<_, Option<Vec<u8>>>(
+            "SELECT poster_data FROM movies WHERE id = ? AND user_id = ?",
+        )
+        .bind(id)
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(data.flatten())
+    }
+
+    pub async fn get_movie_poster_data_public(&self, id: Uuid) -> Result<Option<Vec<u8>>> {
+        // Public method to get poster without user verification
+        let data =
+            sqlx::query_scalar::<_, Option<Vec<u8>>>("SELECT poster_data FROM movies WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        Ok(data.flatten())
     }
 
     pub async fn delete(&self, user_id: Uuid, id: Uuid) -> Result<()> {

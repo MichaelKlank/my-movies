@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { User } from '@/lib/api'
+import { loadAuthenticatedImage } from '@/lib/imageLoader'
 
 interface AvatarProps {
   user: User | null
@@ -39,42 +40,69 @@ export function Avatar({ user, size = 'md', className = '' }: AvatarProps) {
 
   const initials = getInitials(user.username)
 
-  // Get avatar URL with cache-busting based on updated_at timestamp
-  // This ensures the image reloads when the user is updated (e.g., after avatar upload)
-  const avatarUrl = useMemo(() => {
-    const avatarPath = user.avatar_path
-    if (!avatarPath) return null
-    // If it starts with http, it's a full URL
-    if (avatarPath.startsWith('http')) return avatarPath
-    // If it starts with /uploads, it's a local file
-    // Add cache-busting parameter based on updated_at to force reload when user is updated
-    if (avatarPath.startsWith('/uploads')) {
-      // Use updated_at timestamp if available, otherwise use current time
+  // Get avatar URL - for "db" images, we need to load with authentication
+  const avatarPath = useMemo(() => {
+    const path = user.avatar_path
+    if (!path) return null
+    // If it starts with http, it's a full URL (external)
+    if (path.startsWith('http')) return path
+    // If it's "db", the image is stored in the database and needs auth
+    if (path === 'db') {
       const timestamp = user.updated_at ? new Date(user.updated_at).getTime() : Date.now()
-      return `${avatarPath}?t=${timestamp}`
+      return `/api/v1/auth/avatar/${user.id}?t=${timestamp}`
+    }
+    // If it starts with /uploads, it's a local file (legacy)
+    if (path.startsWith('/uploads')) {
+      const timestamp = user.updated_at ? new Date(user.updated_at).getTime() : Date.now()
+      return `${path}?t=${timestamp}`
     }
     return null
-  }, [user.avatar_path, user.updated_at])
+  }, [user.avatar_path, user.updated_at, user.id])
 
-  if (avatarUrl) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    if (!avatarPath) {
+      setImageUrl(null)
+      setImageError(false)
+      return
+    }
+
+    // If it's an external URL, use it directly
+    if (avatarPath.startsWith('http')) {
+      setImageUrl(avatarPath)
+      setImageError(false)
+      return
+    }
+
+    // For authenticated images, load with fetch
+    loadAuthenticatedImage(avatarPath)
+      .then(url => {
+        setImageUrl(url)
+        setImageError(!url)
+      })
+      .catch(() => {
+        setImageUrl(null)
+        setImageError(true)
+      })
+
+    // Cleanup blob URL on unmount or path change
+    return () => {
+      if (imageUrl && imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imageUrl)
+      }
+    }
+  }, [avatarPath])
+
+  if (imageUrl && !imageError) {
     return (
       <div className={`${sizeClasses[size]} rounded-full bg-transparent overflow-hidden ${className}`}>
         <img
-          src={avatarUrl}
+          src={imageUrl}
           alt={user.username}
           className="h-full w-full rounded-full object-cover"
-          onError={(e) => {
-            // Fallback to initials if image fails to load
-            const target = e.target as HTMLImageElement
-            target.style.display = 'none'
-            const parent = target.parentElement
-            if (parent) {
-              const fallback = document.createElement('div')
-              fallback.className = `${sizeClasses[size]} rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium`
-              fallback.textContent = initials
-              parent.appendChild(fallback)
-            }
-          }}
+          onError={() => setImageError(true)}
         />
       </div>
     )

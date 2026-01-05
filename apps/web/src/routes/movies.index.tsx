@@ -4,17 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
-
-// Helper to get poster URL - supports TMDB paths, full URLs, and local uploads
-function getPosterUrl(posterPath: string | undefined | null, size: 'w92' | 'w342' | 'w500' = 'w342'): string | null {
-  if (!posterPath) return null
-  // If it starts with http, it's a full URL
-  if (posterPath.startsWith('http')) return posterPath
-  // If it starts with /uploads, it's a local file
-  if (posterPath.startsWith('/uploads')) return posterPath
-  // Otherwise it's a TMDB path
-  return `https://image.tmdb.org/t/p/${size}${posterPath}`
-}
+import { PosterImage } from '@/components/PosterImage'
 
 export const Route = createFileRoute('/movies/')({
   beforeLoad: ({ context }) => {
@@ -289,20 +279,19 @@ function MoviesPage() {
 }
 
 function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
-  const posterUrl = getPosterUrl(movie.poster_path)
-  
   return (
     <button
       onClick={onClick}
       className="group rounded-lg border bg-card overflow-hidden hover:border-primary text-left transition-all hover:shadow-lg"
     >
       <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
-        {posterUrl ? (
-          <img
-            src={posterUrl}
+        {movie.poster_path ? (
+          <PosterImage
+            posterPath={movie.poster_path}
+            movieId={movie.id}
+            size="w342"
             alt={movie.title}
             className="w-full h-full object-cover transition-transform group-hover:scale-105"
-            loading="lazy"
           />
         ) : (
           <Film className="h-8 w-8 text-muted-foreground" />
@@ -374,7 +363,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
     }
   }
 
-  const posterUrl = getPosterUrl(movie?.poster_path)
+  // posterUrl is now handled by PosterImage component
 
   // Star rating component
   const StarRating = ({ rating }: { rating?: number }) => {
@@ -429,9 +418,11 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
               {/* Poster Section */}
               <div className="w-40 shrink-0 space-y-3">
                 <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted shadow-lg relative group/poster">
-                  {posterUrl ? (
-                    <img
-                      src={posterUrl}
+                  {movie?.poster_path ? (
+                    <PosterImage
+                      posterPath={movie.poster_path}
+                      movieId={movie?.id}
+                      size="w500"
                       alt={movie.title}
                       className="w-full h-full object-cover"
                     />

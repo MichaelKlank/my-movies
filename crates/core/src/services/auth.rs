@@ -385,6 +385,41 @@ impl AuthService {
         self.get_user(user_id).await
     }
 
+    pub async fn update_user_avatar_data(
+        &self,
+        user_id: Uuid,
+        avatar_data: Option<Vec<u8>>,
+    ) -> Result<UserPublic> {
+        // Set avatar_path to "db" to indicate it's stored in database
+        let avatar_path = if avatar_data.is_some() {
+            Some("db".to_string())
+        } else {
+            None
+        };
+
+        sqlx::query(
+            "UPDATE users SET avatar_path = ?, avatar_data = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(&avatar_path)
+        .bind(&avatar_data)
+        .bind(Utc::now().to_rfc3339())
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+
+        self.get_user(user_id).await
+    }
+
+    pub async fn get_user_avatar_data(&self, user_id: Uuid) -> Result<Option<Vec<u8>>> {
+        let data =
+            sqlx::query_scalar::<_, Option<Vec<u8>>>("SELECT avatar_data FROM users WHERE id = ?")
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        Ok(data.flatten())
+    }
+
     pub async fn admin_set_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
         // Hash new password
         let salt = SaltString::generate(&mut OsRng);
