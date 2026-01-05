@@ -56,7 +56,7 @@ impl MovieService {
     pub async fn count(&self, user_id: Uuid, filter: &MovieFilter) -> Result<i64> {
         let mut query = String::from("SELECT COUNT(*) as count FROM movies WHERE user_id = ?");
 
-        if let Some(_) = filter.search {
+        if filter.search.is_some() {
             query.push_str(" AND (title LIKE ? OR original_title LIKE ? OR director LIKE ?)");
         }
 
