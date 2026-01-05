@@ -223,9 +223,9 @@ function MoviesPage() {
             className="rounded-full border bg-background px-3 py-1 text-xs"
           >
             <option value="">{t('movies.allFormats')}</option>
-            <option value="BluRay">Blu-ray</option>
-            <option value="Dvd">DVD</option>
-            <option value="UhdBluRay">4K UHD</option>
+            <option value="Blu-ray">Blu-ray</option>
+            <option value="DVD">DVD</option>
+            <option value="uhdbluray">4K UHD</option>
           </select>
         </div>
 
@@ -321,7 +321,14 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
           {movie.production_year && <span>{movie.production_year}</span>}
           {movie.disc_type && (
             <span className="rounded bg-secondary px-1">
-              {movie.disc_type === 'BluRay' ? 'BD' : movie.disc_type === 'UhdBluRay' ? '4K' : 'DVD'}
+              {(() => {
+                const type = movie.disc_type.toLowerCase()
+                if (type === 'bluray') return 'BD'
+                if (type === 'uhdbluray') return '4K'
+                if (type === 'dvd') return 'DVD'
+                if (type === 'hddvd') return 'HD DVD'
+                return movie.disc_type
+              })()}
             </span>
           )}
         </div>
@@ -358,11 +365,12 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
   })
 
   const discTypeLabel = (type?: string) => {
-    switch (type) {
-      case 'BluRay': return 'Blu-ray'
-      case 'UhdBluRay': return '4K UHD'
-      case 'Dvd': return 'DVD'
-      default: return type
+    switch (type?.toLowerCase()) {
+      case 'bluray': return 'Blu-ray'
+      case 'uhdbluray': return '4K UHD'
+      case 'dvd': return 'DVD'
+      case 'hddvd': return 'HD DVD'
+      default: return type || ''
     }
   }
 

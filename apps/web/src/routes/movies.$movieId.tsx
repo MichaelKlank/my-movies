@@ -62,11 +62,12 @@ function MovieDetailPage() {
   }
 
   const discTypeLabel = (type?: string) => {
-    switch (type) {
-      case 'BluRay': return 'Blu-ray'
-      case 'UhdBluRay': return '4K UHD Blu-ray'
-      case 'Dvd': return 'DVD'
-      default: return type
+    switch (type?.toLowerCase()) {
+      case 'bluray': return 'Blu-ray'
+      case 'uhdbluray': return '4K UHD Blu-ray'
+      case 'dvd': return 'DVD'
+      case 'hddvd': return 'HD DVD'
+      default: return type || ''
     }
   }
 

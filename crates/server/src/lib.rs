@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     routing::{delete, get, post},
 };
 use tower_http::{
     cors::CorsLayer,
+    limit::RequestBodyLimitLayer,
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
@@ -100,8 +102,13 @@ pub fn create_router(state: Arc<AppState>, static_dir: Option<&str>) -> Router {
         .route("/api/v1/auth/forgot-password", post(auth::forgot_password))
         .route("/api/v1/auth/reset-password", post(auth::reset_password))
         .route("/health", get(health_check))
-        // Protected routes
-        .nest("/api/v1", protected_routes(state.clone()))
+        // Protected routes with increased body limit for file uploads
+        .nest(
+            "/api/v1",
+            protected_routes(state.clone())
+                .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+                .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024)),
+        )
         // WebSocket
         .route("/ws", get(ws::websocket_handler))
         // Serve uploaded files (posters, etc.)
@@ -139,6 +146,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             "/auth/include-adult",
             axum::routing::put(auth::update_include_adult),
         )
+        // Avatar upload
         .route("/auth/avatar", axum::routing::post(auth::upload_avatar))
         .route("/auth/avatar", axum::routing::delete(auth::delete_avatar))
         // Movies

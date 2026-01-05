@@ -170,21 +170,45 @@ pub async fn upload_avatar(
     }
 
     // Process multipart upload
-    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+    loop {
+        let field_result = multipart.next_field().await;
+        let field = match field_result {
+            Ok(Some(field)) => field,
+            Ok(None) => break, // No more fields
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "error": format!("Failed to parse multipart form: {}", e) })),
+                )
+                    .into_response();
+            }
+        };
+
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
             // Get content type to determine extension
             let content_type = field.content_type().unwrap_or("image/jpeg").to_string();
+
             let extension = match content_type.as_str() {
                 "image/png" => "png",
                 "image/gif" => "gif",
                 "image/webp" => "webp",
-                _ => "jpg", // Default to jpg for jpeg and unknown types
+                "image/jpeg" | "image/jpg" => "jpg",
+                _ => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({
+                            "error": format!("Unsupported content type: {}. Supported types: image/png, image/jpeg, image/gif, image/webp", content_type)
+                        })),
+                    )
+                        .into_response();
+                }
             };
 
+            // Read file data using bytes() - same approach as upload_poster
             let data = match field.bytes().await {
-                Ok(bytes) => bytes,
+                Ok(bytes) => bytes.to_vec(),
                 Err(e) => {
                     return (
                         StatusCode::BAD_REQUEST,
@@ -193,6 +217,16 @@ pub async fn upload_avatar(
                         .into_response();
                 }
             };
+
+            // Validate file size (max 5MB)
+            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
+            if data.len() > MAX_FILE_SIZE {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "error": format!("File too large. Maximum size is 5MB, got {} bytes", data.len()) })),
+                )
+                    .into_response();
+            }
 
             // Validate it's actually an image (basic check)
             if data.len() < 8 {
