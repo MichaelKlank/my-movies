@@ -110,3 +110,4 @@ coverage/
 *.temp
 .cache/
 
+apps/web/.tanstack/tmp/

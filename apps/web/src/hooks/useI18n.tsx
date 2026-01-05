@@ -12,7 +12,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     queryKey: ['me'],
     queryFn: () => api.me(),
     retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: Infinity, // Cache invalidation happens via WebSocket events
   })
 
   // Update locale when user language changes

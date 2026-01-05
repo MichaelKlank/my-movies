@@ -104,22 +104,19 @@ function UserRow({ userData, currentUserId }: { userData: UserWithDate; currentU
   const { t } = useI18n()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const queryClient = useQueryClient()
 
   const isCurrentUser = userData.id === currentUserId
 
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'user' }) =>
       api.updateUserRole(userId, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
+    // WebSocket event will handle cache invalidation
   })
 
   const deleteMutation = useMutation({
     mutationFn: (userId: string) => api.deleteUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      // WebSocket event will handle cache invalidation
       setShowDeleteModal(false)
     },
   })

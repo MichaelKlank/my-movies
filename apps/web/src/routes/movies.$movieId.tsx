@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Film, ArrowLeft, Check, Trash2, RefreshCw, Star, Clock, Calendar, MapPin, Disc } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
@@ -27,7 +27,6 @@ export const Route = createFileRoute('/movies/$movieId')({
 function MovieDetailPage() {
   const { movieId } = Route.useParams()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const { data: movie, isLoading } = useQuery({
     queryKey: ['movie', movieId],
@@ -36,26 +35,20 @@ function MovieDetailPage() {
 
   const toggleWatchedMutation = useMutation({
     mutationFn: () => api.updateMovie(movieId, { watched: !movie?.watched }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movie', movieId] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
-    },
+    // WebSocket event will handle cache invalidation
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteMovie(movieId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
+      // WebSocket event will handle cache invalidation
       navigate({ to: '/movies' })
     },
   })
 
   const refreshTmdbMutation = useMutation({
     mutationFn: () => api.refreshMovieTmdb(movieId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movie', movieId] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
-    },
+    // WebSocket event will handle cache invalidation
   })
 
   const { t } = useI18n()

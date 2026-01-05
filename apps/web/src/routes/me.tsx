@@ -71,20 +71,20 @@ function ProfilePage() {
   const updateLanguageMutation = useMutation({
     mutationFn: (language: string | null) => api.updateLanguage(language),
     onSuccess: (updatedUser) => {
+      // Optimistic update - WebSocket event will handle invalidation
       queryClient.setQueryData(['me'], updatedUser)
       queryClient.setQueryData(['user'], updatedUser)
       updateUser(updatedUser)
-      queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 
   const updateIncludeAdultMutation = useMutation({
     mutationFn: (includeAdult: boolean) => api.updateIncludeAdult(includeAdult),
     onSuccess: (updatedUser) => {
+      // Optimistic update - WebSocket event will handle invalidation
       queryClient.setQueryData(['me'], updatedUser)
       queryClient.setQueryData(['user'], updatedUser)
       updateUser(updatedUser)
-      queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 
@@ -101,14 +101,12 @@ function ProfilePage() {
   const uploadAvatarMutation = useMutation({
     mutationFn: (file: File) => api.uploadAvatar(file),
     onSuccess: (data) => {
-      // Use the user object returned from the API
+      // Optimistic update - WebSocket event will handle invalidation
       if (data.user) {
         queryClient.setQueryData(['me'], data.user)
         queryClient.setQueryData(['user'], data.user)
         updateUser(data.user)
       }
-      queryClient.invalidateQueries({ queryKey: ['me'] })
-      queryClient.invalidateQueries({ queryKey: ['user'] })
       setAvatarPreview(null)
     },
   })
@@ -116,14 +114,12 @@ function ProfilePage() {
   const deleteAvatarMutation = useMutation({
     mutationFn: () => api.deleteAvatar(),
     onSuccess: (data) => {
-      // Use the user object returned from the API
+      // Optimistic update - WebSocket event will handle invalidation
       if (data.user) {
         queryClient.setQueryData(['me'], data.user)
         queryClient.setQueryData(['user'], data.user)
         updateUser(data.user)
       }
-      queryClient.invalidateQueries({ queryKey: ['me'] })
-      queryClient.invalidateQueries({ queryKey: ['user'] })
       setAvatarPreview(null)
     },
   })

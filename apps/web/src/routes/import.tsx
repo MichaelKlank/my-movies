@@ -75,8 +75,7 @@ function ImportPage() {
       setSelectedFile(null)
       setEnrichComplete(null)
       setEnrichProgress(null)
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
-      queryClient.invalidateQueries({ queryKey: ['series'] })
+      // WebSocket event (collection_imported) will handle cache invalidation
     },
   })
 
@@ -315,8 +314,9 @@ function DuplicatesSection() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteMovie(id),
     onSuccess: () => {
+      // WebSocket event (movie_deleted) will handle cache invalidation for ['movies']
+      // Duplicates query needs manual invalidation as it's not handled by WebSocket
       queryClient.invalidateQueries({ queryKey: ['duplicates'] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
     },
   })
 
@@ -360,8 +360,9 @@ function DuplicatesSection() {
         await api.deleteMovie(id)
       }
       setSelectedIds(new Set())
+      // WebSocket events (movie_deleted) will handle cache invalidation for ['movies']
+      // Duplicates query needs manual invalidation as it's not handled by WebSocket
       queryClient.invalidateQueries({ queryKey: ['duplicates'] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
     } finally {
       setIsDeleting(false)
     }
@@ -379,8 +380,9 @@ function DuplicatesSection() {
         await api.deleteMovie(id)
       }
       setSelectedIds(new Set())
+      // WebSocket events (movie_deleted) will handle cache invalidation for ['movies']
+      // Duplicates query needs manual invalidation as it's not handled by WebSocket
       queryClient.invalidateQueries({ queryKey: ['duplicates'] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
     } finally {
       setIsDeleting(false)
     }

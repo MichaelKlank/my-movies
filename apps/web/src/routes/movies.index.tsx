@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
@@ -332,7 +332,6 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
 
 function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () => void }) {
   const { t } = useI18n()
-  const queryClient = useQueryClient()
   const [showPosterDialog, setShowPosterDialog] = useState(false)
 
   const { data: movie, isLoading } = useQuery({
@@ -342,26 +341,20 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
 
   const toggleWatchedMutation = useMutation({
     mutationFn: () => api.updateMovie(movieId, { watched: !movie?.watched }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movie', movieId] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
-    },
+    // WebSocket event will handle cache invalidation
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteMovie(movieId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
+      // WebSocket event will handle cache invalidation
       onClose()
     },
   })
 
   const refreshTmdbMutation = useMutation({
     mutationFn: () => api.refreshMovieTmdb(movieId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movie', movieId] })
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
-    },
+    // WebSocket event will handle cache invalidation
   })
 
   const discTypeLabel = (type?: string) => {
@@ -483,8 +476,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   movieId={movieId}
                   onClose={() => setShowPosterDialog(false)}
                   onSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ['movie', movieId] })
-                    queryClient.invalidateQueries({ queryKey: ['movies'] })
+                    // WebSocket event will handle cache invalidation
                     setShowPosterDialog(false)
                   }}
                 />

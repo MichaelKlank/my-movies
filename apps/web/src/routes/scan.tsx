@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { ScanLine, Keyboard, Search, Plus, X } from 'lucide-react'
 import { api, BarcodeResult, TmdbSearchResult } from '@/lib/api'
 import { browserScanner, isTauri, tauriScanner } from '@/lib/scanner'
@@ -28,7 +28,6 @@ function ScanPage() {
   const [error, setError] = useState('')
   const scannerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   // Barcode lookup mutation
   const lookupMutation = useMutation({
@@ -65,7 +64,7 @@ function ScanPage() {
         poster_path: tmdbResult.poster_path,
       }),
     onSuccess: (movie) => {
-      queryClient.invalidateQueries({ queryKey: ['movies'] })
+      // WebSocket event will handle cache invalidation
       navigate({ to: '/movies/$movieId', params: { movieId: movie.id } })
     },
     onError: (err) => {
