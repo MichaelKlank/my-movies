@@ -162,12 +162,21 @@ impl TmdbService {
         self.api_key.read().map(|k| k.clone()).unwrap_or_default()
     }
 
-    pub async fn search_movies(&self, query: &str, year: Option<i32>) -> Result<Vec<TmdbMovie>> {
+    pub async fn search_movies(
+        &self,
+        query: &str,
+        year: Option<i32>,
+        language: Option<&str>,
+        include_adult: bool,
+    ) -> Result<Vec<TmdbMovie>> {
+        let lang = language.unwrap_or("de-DE");
         let mut url = format!(
-            "{}/search/movie?api_key={}&query={}&language=de-DE",
+            "{}/search/movie?api_key={}&query={}&language={}&include_adult={}",
             TMDB_BASE_URL,
             self.get_api_key(),
-            urlencoding::encode(query)
+            urlencoding::encode(query),
+            lang,
+            include_adult
         );
 
         if let Some(y) = year {
@@ -232,12 +241,18 @@ impl TmdbService {
         Ok(result.movie_results.into_iter().next())
     }
 
-    pub async fn get_movie_details(&self, tmdb_id: i64) -> Result<TmdbMovieDetails> {
+    pub async fn get_movie_details(
+        &self,
+        tmdb_id: i64,
+        language: Option<&str>,
+    ) -> Result<TmdbMovieDetails> {
+        let lang = language.unwrap_or("de-DE");
         let url = format!(
-            "{}/movie/{}?api_key={}&language=de-DE",
+            "{}/movie/{}?api_key={}&language={}",
             TMDB_BASE_URL,
             tmdb_id,
-            self.get_api_key()
+            self.get_api_key(),
+            lang
         );
 
         let response = self
@@ -260,12 +275,18 @@ impl TmdbService {
             .map_err(|e| Error::ExternalApi(e.to_string()))
     }
 
-    pub async fn get_movie_credits(&self, tmdb_id: i64) -> Result<TmdbCredits> {
+    pub async fn get_movie_credits(
+        &self,
+        tmdb_id: i64,
+        language: Option<&str>,
+    ) -> Result<TmdbCredits> {
+        let lang = language.unwrap_or("de-DE");
         let url = format!(
-            "{}/movie/{}/credits?api_key={}&language=de-DE",
+            "{}/movie/{}/credits?api_key={}&language={}",
             TMDB_BASE_URL,
             tmdb_id,
-            self.get_api_key()
+            self.get_api_key(),
+            lang
         );
 
         let response = self
@@ -281,12 +302,14 @@ impl TmdbService {
             .map_err(|e| Error::ExternalApi(e.to_string()))
     }
 
-    pub async fn search_tv(&self, query: &str) -> Result<Vec<TmdbTvShow>> {
+    pub async fn search_tv(&self, query: &str, language: Option<&str>) -> Result<Vec<TmdbTvShow>> {
+        let lang = language.unwrap_or("de-DE");
         let url = format!(
-            "{}/search/tv?api_key={}&query={}&language=de-DE",
+            "{}/search/tv?api_key={}&query={}&language={}",
             TMDB_BASE_URL,
             self.get_api_key(),
-            urlencoding::encode(query)
+            urlencoding::encode(query),
+            lang
         );
 
         let response = self
@@ -304,12 +327,18 @@ impl TmdbService {
         Ok(result.results)
     }
 
-    pub async fn get_tv_details(&self, tmdb_id: i64) -> Result<TmdbTvDetails> {
+    pub async fn get_tv_details(
+        &self,
+        tmdb_id: i64,
+        language: Option<&str>,
+    ) -> Result<TmdbTvDetails> {
+        let lang = language.unwrap_or("de-DE");
         let url = format!(
-            "{}/tv/{}?api_key={}&language=de-DE",
+            "{}/tv/{}?api_key={}&language={}",
             TMDB_BASE_URL,
             tmdb_id,
-            self.get_api_key()
+            self.get_api_key(),
+            lang
         );
 
         let response = self

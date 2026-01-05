@@ -2,12 +2,14 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Film, ArrowLeft, Check } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/reset-password')({
   component: ResetPasswordPage,
 })
 
 function ResetPasswordPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const searchParams = new URLSearchParams(window.location.search)
   const token = searchParams.get('token') || ''
@@ -23,12 +25,12 @@ function ResetPasswordPage() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwörter stimmen nicht überein')
+      setError(t('resetPassword.passwordsDontMatch'))
       return
     }
 
     if (password.length < 6) {
-      setError('Passwort muss mindestens 6 Zeichen lang sein')
+      setError(t('resetPassword.passwordTooShort'))
       return
     }
 
@@ -42,7 +44,7 @@ function ResetPasswordPage() {
         navigate({ to: '/login' })
       }, 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      setError(err instanceof Error ? err.message : t('settings.unknownError'))
     } finally {
       setIsLoading(false)
     }
@@ -55,15 +57,15 @@ function ResetPasswordPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <Film className="h-6 w-6 text-destructive" />
           </div>
-          <h1 className="text-2xl font-bold">Ungültiger Link</h1>
+          <h1 className="text-2xl font-bold">{t('resetPassword.invalidLink')}</h1>
           <p className="text-muted-foreground">
-            Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen.
+            {t('resetPassword.invalidLinkDesc')}
           </p>
           <Link
             to="/forgot-password"
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
           >
-            Neuen Link anfordern
+            {t('resetPassword.requestNewLink')}
           </Link>
         </div>
       </div>
@@ -77,9 +79,9 @@ function ResetPasswordPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary">
             <Film className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold">Neues Passwort setzen</h1>
+          <h1 className="mt-4 text-2xl font-bold">{t('resetPassword.title')}</h1>
           <p className="text-muted-foreground">
-            Gib dein neues Passwort ein.
+            {t('resetPassword.subtitle')}
           </p>
         </div>
 
@@ -88,10 +90,10 @@ function ResetPasswordPage() {
             <div className="rounded-md bg-green-500/10 p-4 text-sm text-green-600">
               <div className="flex items-center gap-2">
                 <Check className="h-5 w-5" />
-                <p className="font-medium">Passwort erfolgreich geändert!</p>
+                <p className="font-medium">{t('resetPassword.passwordChanged')}</p>
               </div>
               <p className="mt-1">
-                Du wirst in Kürze zur Anmeldung weitergeleitet...
+                {t('resetPassword.redirecting')}
               </p>
             </div>
           </div>
@@ -105,7 +107,7 @@ function ResetPasswordPage() {
 
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
-                Neues Passwort
+                {t('resetPassword.newPassword')}
               </label>
               <input
                 id="password"
@@ -121,7 +123,7 @@ function ResetPasswordPage() {
 
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Passwort bestätigen
+                {t('resetPassword.confirmPassword')}
               </label>
               <input
                 id="confirmPassword"
@@ -140,7 +142,7 @@ function ResetPasswordPage() {
               disabled={isLoading}
               className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {isLoading ? 'Speichern...' : 'Passwort ändern'}
+              {isLoading ? t('settings.saving') : t('auth.changePassword')}
             </button>
 
             <Link
@@ -148,7 +150,7 @@ function ResetPasswordPage() {
               className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
-              Zurück zur Anmeldung
+              {t('resetPassword.backToLogin')}
             </Link>
           </form>
         )}

@@ -24,6 +24,9 @@ pub struct User {
     pub role: UserRole,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub language: Option<String>,
+    pub include_adult: bool,
+    pub avatar_path: Option<String>,
     #[serde(skip_serializing)]
     pub reset_token: Option<String>,
     #[serde(skip_serializing)]
@@ -55,7 +58,11 @@ pub struct UserPublic {
     pub username: String,
     pub email: String,
     pub role: UserRole,
+    pub language: Option<String>,
+    pub include_adult: bool,
+    pub avatar_path: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl From<User> for UserPublic {
@@ -65,7 +72,11 @@ impl From<User> for UserPublic {
             username: user.username,
             email: user.email,
             role: user.role,
+            language: user.language,
+            include_adult: user.include_adult,
+            avatar_path: user.avatar_path,
             created_at: user.created_at,
+            updated_at: user.updated_at,
         }
     }
 }

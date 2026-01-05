@@ -1,6 +1,7 @@
 use axum::{Extension, Json, extract::State};
 use std::sync::Arc;
 use uuid::Uuid;
+use serde_json::json;
 
 use my_movies_core::models::{Claims, UserPublic, UserRole};
 
@@ -58,6 +59,14 @@ pub async fn update_user_role(
         .auth_service
         .update_user_role(user_id, new_role)
         .await?;
+    
+    // Broadcast update to WebSocket clients
+    let msg = json!({
+        "type": "user_updated",
+        "payload": user
+    });
+    let _ = state.ws_broadcast.send(msg.to_string());
+    
     Ok(Json(user))
 }
 

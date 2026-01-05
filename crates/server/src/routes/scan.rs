@@ -45,9 +45,9 @@ pub async fn lookup_barcode(
         _ => None,
     };
 
-    // If we found a title, search TMDB
+    // If we found a title, search TMDB (use default language and no adult content for barcode lookup)
     let tmdb_results = if let Some(ref t) = title {
-        match state.tmdb_service.search_movies(t, None).await {
+        match state.tmdb_service.search_movies(t, None, None, false).await {
             Ok(results) => results
                 .into_iter()
                 .take(5)
@@ -92,7 +92,7 @@ pub async fn search_tmdb_movies(
 ) -> impl IntoResponse {
     match state
         .tmdb_service
-        .search_movies(&params.query, params.year)
+        .search_movies(&params.query, params.year, None, false)
         .await
     {
         Ok(results) => {
@@ -126,7 +126,7 @@ pub async fn search_tmdb_tv(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TmdbSearchQuery>,
 ) -> impl IntoResponse {
-    match state.tmdb_service.search_tv(&params.query).await {
+    match state.tmdb_service.search_tv(&params.query, None).await {
         Ok(results) => {
             let results: Vec<TmdbSearchResult> = results
                 .into_iter()
@@ -158,7 +158,7 @@ pub async fn get_tmdb_movie(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> impl IntoResponse {
-    match state.tmdb_service.get_movie_details(id).await {
+    match state.tmdb_service.get_movie_details(id, None).await {
         Ok(details) => (StatusCode::OK, Json(json!(details))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -172,7 +172,7 @@ pub async fn get_tmdb_tv(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> impl IntoResponse {
-    match state.tmdb_service.get_tv_details(id).await {
+    match state.tmdb_service.get_tv_details(id, None).await {
         Ok(details) => (StatusCode::OK, Json(json!(details))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

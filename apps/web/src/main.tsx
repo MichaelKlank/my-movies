@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { routeTree } from './routeTree.gen'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { I18nProvider } from './hooks/useI18n'
+import { LoadingScreen } from './components/LoadingScreen'
+import './lib/i18n' // Initialize i18n
 import './styles/globals.css'
 
 // Create router instance
@@ -44,11 +47,7 @@ function InnerApp() {
   
   // Wait for auth to finish loading before rendering router
   if (auth.isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Laden...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
   
   return <RouterProvider router={router} context={{ auth }} />
@@ -58,7 +57,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <InnerApp />
+        <I18nProvider>
+          <InnerApp />
+        </I18nProvider>
       </AuthProvider>
     </QueryClientProvider>
   )

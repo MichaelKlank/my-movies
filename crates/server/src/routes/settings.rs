@@ -71,7 +71,11 @@ pub async fn test_tmdb(
     }
 
     // Try to make a simple TMDB API call (uses current key from TmdbService)
-    match state.tmdb_service.search_movies("test", None).await {
+    match state
+        .tmdb_service
+        .search_movies("test", None, None, false)
+        .await
+    {
         Ok(_) => Ok(Json(TmdbTestResult {
             success: true,
             message: "TMDB API key is valid".to_string(),

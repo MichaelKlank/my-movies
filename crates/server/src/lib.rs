@@ -134,6 +134,13 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
         // Auth
         .route("/auth/me", get(auth::me))
+        .route("/auth/language", axum::routing::put(auth::update_language))
+        .route(
+            "/auth/include-adult",
+            axum::routing::put(auth::update_include_adult),
+        )
+        .route("/auth/avatar", axum::routing::post(auth::upload_avatar))
+        .route("/auth/avatar", axum::routing::delete(auth::delete_avatar))
         // Movies
         .route("/movies", get(movies::list).post(movies::create))
         .route("/movies/check-duplicates", get(movies::check_duplicates))

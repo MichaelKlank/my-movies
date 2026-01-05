@@ -158,17 +158,43 @@ pub async fn refresh_tmdb(
         }
     };
 
+    // Get user's preferences
+    let user = match state.auth_service.get_user(claims.sub).await {
+        Ok(u) => u,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to get user" })),
+            )
+                .into_response();
+        }
+    };
+    let language = user.language.as_deref();
+    let include_adult = user.include_adult;
+
     // Try to get TMDB details
     let tmdb_details = if let Some(tmdb_id) = movie.tmdb_id {
         // Use existing TMDB ID
-        state.tmdb_service.get_movie_details(tmdb_id).await.ok()
+        state
+            .tmdb_service
+            .get_movie_details(tmdb_id, language)
+            .await
+            .ok()
     } else {
         // Search by title
         let year = movie.production_year;
-        match state.tmdb_service.search_movies(&movie.title, year).await {
+        match state
+            .tmdb_service
+            .search_movies(&movie.title, year, language, include_adult)
+            .await
+        {
             Ok(results) if !results.is_empty() => {
                 let first = &results[0];
-                state.tmdb_service.get_movie_details(first.id).await.ok()
+                state
+                    .tmdb_service
+                    .get_movie_details(first.id, language)
+                    .await
+                    .ok()
             }
             _ => None,
         }
@@ -183,7 +209,11 @@ pub async fn refresh_tmdb(
     };
 
     // Get credits for director and actors
-    let credits = state.tmdb_service.get_movie_credits(details.id).await.ok();
+    let credits = state
+        .tmdb_service
+        .get_movie_credits(details.id, language)
+        .await
+        .ok();
 
     // Build update
     let director = credits.as_ref().and_then(|c| {

@@ -115,13 +115,29 @@ pub async fn enrich_movies_tmdb(
     });
     let _ = state.ws_broadcast.send(msg.to_string());
 
+    // Get user's preferences
+    let user = match state.auth_service.get_user(claims.sub).await {
+        Ok(u) => u,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to get user" })),
+            )
+                .into_response();
+        }
+    };
+    let language = user.language.clone();
+    let include_adult = user.include_adult;
+
     // Spawn background task for enrichment
     let state_clone = state.clone();
     let user_id = claims.sub;
+    let language_clone = language.clone();
 
     tokio::spawn(async move {
         let mut enriched = 0;
         let mut errors: Vec<String> = Vec::new();
+        let lang = language_clone.as_deref();
 
         for (index, movie) in movies_without_poster.iter().enumerate() {
             // Try to get TMDB details - priority: tmdb_id > imdb_id > title search
@@ -129,7 +145,7 @@ pub async fn enrich_movies_tmdb(
                 // Use existing TMDB ID
                 state_clone
                     .tmdb_service
-                    .get_movie_details(tmdb_id)
+                    .get_movie_details(tmdb_id, lang)
                     .await
                     .ok()
             } else if let Some(ref imdb_id) = movie.imdb_id {
@@ -137,7 +153,7 @@ pub async fn enrich_movies_tmdb(
                 match state_clone.tmdb_service.find_by_imdb_id(imdb_id).await {
                     Ok(Some(found)) => state_clone
                         .tmdb_service
-                        .get_movie_details(found.id)
+                        .get_movie_details(found.id, lang)
                         .await
                         .ok(),
                     _ => {
@@ -145,12 +161,12 @@ pub async fn enrich_movies_tmdb(
                         let year = movie.production_year;
                         match state_clone
                             .tmdb_service
-                            .search_movies(&movie.title, year)
+                            .search_movies(&movie.title, year, lang, include_adult)
                             .await
                         {
                             Ok(results) if !results.is_empty() => state_clone
                                 .tmdb_service
-                                .get_movie_details(results[0].id)
+                                .get_movie_details(results[0].id, lang)
                                 .await
                                 .ok(),
                             _ => None,
@@ -162,14 +178,14 @@ pub async fn enrich_movies_tmdb(
                 let year = movie.production_year;
                 match state_clone
                     .tmdb_service
-                    .search_movies(&movie.title, year)
+                    .search_movies(&movie.title, year, lang, include_adult)
                     .await
                 {
                     Ok(results) if !results.is_empty() => {
                         let first = &results[0];
                         state_clone
                             .tmdb_service
-                            .get_movie_details(first.id)
+                            .get_movie_details(first.id, lang)
                             .await
                             .ok()
                     }
@@ -181,7 +197,7 @@ pub async fn enrich_movies_tmdb(
                 // Get credits
                 let credits = state_clone
                     .tmdb_service
-                    .get_movie_credits(details.id)
+                    .get_movie_credits(details.id, lang)
                     .await
                     .ok();
 

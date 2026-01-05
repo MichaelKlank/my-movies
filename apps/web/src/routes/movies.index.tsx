@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
+import { useI18n } from '@/hooks/useI18n'
 
 // Helper to get poster URL - supports TMDB paths, full URLs, and local uploads
 function getPosterUrl(posterPath: string | undefined | null, size: 'w92' | 'w342' | 'w500' = 'w342'): string | null {
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/movies/')({
 const ALPHABET = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 function MoviesPage() {
+  const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<MovieFilter>({})
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null)
@@ -155,10 +157,10 @@ function MoviesPage() {
       <div className="space-y-6 pr-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Filme</h1>
+            <h1 className="text-2xl font-bold">{t('movies.title')}</h1>
             {total > 0 && (
               <p className="text-sm text-muted-foreground">
-                {total} Filme in der Sammlung
+                {total} {t('movies.inCollection')}
               </p>
             )}
           </div>
@@ -167,7 +169,7 @@ function MoviesPage() {
             className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
-            Film hinzufügen
+            {t('movies.add')}
           </Link>
         </div>
 
@@ -177,7 +179,7 @@ function MoviesPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Filme durchsuchen..."
+              placeholder={t('movies.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full rounded-md border bg-background pl-9 pr-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -187,7 +189,7 @@ function MoviesPage() {
             type="submit"
             className="rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
           >
-            Suchen
+            {t('movies.search')}
           </button>
         </form>
 
@@ -202,7 +204,7 @@ function MoviesPage() {
             }`}
           >
             <Check className="h-3 w-3" />
-            Gesehen
+            {t('movies.watched')}
           </button>
           <button
             onClick={() => handleFilterChange({ watched: filter.watched === 'false' ? undefined : 'false' })}
@@ -213,14 +215,14 @@ function MoviesPage() {
             }`}
           >
             <X className="h-3 w-3" />
-            Nicht gesehen
+            {t('movies.notWatched')}
           </button>
           <select
             value={filter.disc_type || ''}
             onChange={e => handleFilterChange({ disc_type: e.target.value || undefined })}
             className="rounded-full border bg-background px-3 py-1 text-xs"
           >
-            <option value="">Alle Formate</option>
+            <option value="">{t('movies.allFormats')}</option>
             <option value="BluRay">Blu-ray</option>
             <option value="Dvd">DVD</option>
             <option value="UhdBluRay">4K UHD</option>
@@ -229,17 +231,17 @@ function MoviesPage() {
 
         {/* Movies grouped by letter */}
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Laden...</div>
+          <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>
         ) : movies.length === 0 ? (
           <div className="text-center py-12">
             <Film className="mx-auto h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Keine Filme gefunden</p>
+            <p className="mt-4 text-muted-foreground">{t('movies.notFound')}</p>
             <Link
               to="/scan"
               className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
-              Ersten Film hinzufügen
+              {t('movies.addFirstMovie')}
             </Link>
           </div>
         ) : search ? (
@@ -329,6 +331,7 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
 }
 
 function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () => void }) {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const [showPosterDialog, setShowPosterDialog] = useState(false)
 
@@ -400,7 +403,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <h2 className="font-semibold truncate pr-4">
-            {isLoading ? 'Laden...' : movie?.title || 'Film'}
+            {isLoading ? t('common.loading') : movie?.title || t('movies.movie')}
           </h2>
           <button
             onClick={onClose}
@@ -412,11 +415,11 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
 
         {isLoading ? (
           <div className="flex items-center justify-center h-80">
-            <div className="text-muted-foreground">Laden...</div>
+            <div className="text-muted-foreground">{t('common.loading')}</div>
           </div>
         ) : !movie ? (
           <div className="flex items-center justify-center h-80">
-            <div className="text-muted-foreground">Film nicht gefunden</div>
+            <div className="text-muted-foreground">{t('movies.notFound')}</div>
           </div>
         ) : (
           <>
@@ -440,7 +443,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   <button
                     onClick={() => setShowPosterDialog(true)}
                     className="absolute inset-0 bg-black/60 opacity-0 group-hover/poster:opacity-100 transition-opacity flex items-center justify-center"
-                    title="Poster ändern"
+                    title={t('movies.changePoster')}
                   >
                     <ImagePlus className="h-8 w-8 text-white" />
                   </button>
@@ -461,13 +464,13 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                         ? 'text-green-500 bg-green-500/10'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
-                    title={movie.watched ? 'Gesehen' : 'Als gesehen markieren'}
+                    title={movie.watched ? t('movies.watched') : t('movies.markAsWatched')}
                   >
                     <Eye className="h-5 w-5" />
                   </button>
                   <button
                     className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    title="Merken"
+                    title={t('movies.bookmark')}
                   >
                     <Bookmark className="h-5 w-5" />
                   </button>
@@ -507,12 +510,12 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 {/* Details Section */}
                 <div className="mt-4">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Details
+                    {t('movies.details')}
                   </h4>
                   <div className="space-y-2 text-sm">
                     {movie.barcode && (
                       <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0"># Barcode</span>
+                        <span className="text-muted-foreground w-32 shrink-0"># {t('movies.barcode')}</span>
                         <span className="font-mono">{movie.barcode}</span>
                       </div>
                     )}
@@ -544,19 +547,19 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                     )}
                     {movie.running_time && (
                       <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">Laufzeit</span>
-                        <span>{movie.running_time} min</span>
+                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.runningTime')}</span>
+                        <span>{movie.running_time} {t('movies.minutes')}</span>
                       </div>
                     )}
                     {movie.director && (
                       <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">Regie</span>
+                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.director')}</span>
                         <span>{movie.director}</span>
                       </div>
                     )}
                     {movie.location && (
                       <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">Standort</span>
+                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.location')}</span>
                         <span>{movie.location}</span>
                       </div>
                     )}
@@ -567,7 +570,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 {movie.genres && (
                   <div className="mt-4">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Genres
+                      {t('movies.genres')}
                     </h4>
                     <div className="flex flex-wrap gap-1">
                       {movie.genres.split(',').map(genre => (
@@ -664,6 +667,7 @@ function PosterUploadDialog({
   onClose: () => void
   onSuccess: () => void 
 }) {
+  const { t } = useI18n()
   const [customPosterUrl, setCustomPosterUrl] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -677,9 +681,8 @@ function PosterUploadDialog({
       const url = URL.createObjectURL(selectedFile)
       setPreviewUrl(url)
       return () => URL.revokeObjectURL(url)
-    } else {
-      setPreviewUrl(null)
     }
+    setPreviewUrl(null)
   }, [selectedFile])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -715,17 +718,19 @@ function PosterUploadDialog({
       if (selectedFile) {
         // Upload file
         await api.uploadMoviePoster(movieId, selectedFile)
-      } else if (customPosterUrl.trim()) {
-        // Set URL
-        await api.updateMovie(movieId, { poster_path: customPosterUrl.trim() })
-      } else {
-        setError('Bitte wähle eine Datei oder gib eine URL ein')
-        setIsUploading(false)
+        onSuccess()
         return
       }
-      onSuccess()
+      if (customPosterUrl.trim()) {
+        // Set URL
+        await api.updateMovie(movieId, { poster_path: customPosterUrl.trim() })
+        onSuccess()
+        return
+      }
+      setError(t('poster.pleaseSelect'))
+      setIsUploading(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      setError(err instanceof Error ? err.message : t('settings.unknownError'))
     } finally {
       setIsUploading(false)
     }
@@ -737,11 +742,11 @@ function PosterUploadDialog({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-card rounded-lg shadow-xl w-full max-w-md p-4 space-y-4">
-        <h3 className="font-semibold">Poster-Bild setzen</h3>
+        <h3 className="font-semibold">{t('poster.setPoster')}</h3>
         
         {/* File Upload Section */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Datei hochladen</label>
+          <label className="text-sm font-medium">{t('poster.uploadFile')}</label>
           <input
             ref={fileInputRef}
             type="file"
@@ -754,19 +759,19 @@ function PosterUploadDialog({
             className="w-full flex items-center justify-center gap-2 rounded-md border-2 border-dashed bg-background px-4 py-6 text-sm hover:border-primary hover:bg-accent transition-colors"
           >
             <Upload className="h-5 w-5" />
-            {selectedFile ? selectedFile.name : 'Bild auswählen'}
+            {selectedFile ? selectedFile.name : t('poster.selectImage')}
           </button>
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="h-px flex-1 bg-border" />
-          <span>oder</span>
+          <span>{t('poster.or')}</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
         {/* URL Input Section */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">URL eingeben</label>
+          <label className="text-sm font-medium">{t('poster.enterUrl')}</label>
           <input
             type="url"
             value={customPosterUrl}
@@ -775,11 +780,11 @@ function PosterUploadDialog({
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <p className="text-xs text-muted-foreground">
-            Tipp: Suche auf{' '}
+            {t('poster.tip')}{' '}
             <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
               themoviedb.org
             </a>
-            {' '}nach dem Film und kopiere die Bild-URL.
+            {' '}{t('poster.tipCopy')}
           </p>
         </div>
 
@@ -789,7 +794,7 @@ function PosterUploadDialog({
             <div className="w-24 aspect-[2/3] rounded overflow-hidden bg-muted shadow">
               <img
                 src={displayPreview}
-                alt="Vorschau"
+                alt={t('poster.preview')}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none'
@@ -812,14 +817,14 @@ function PosterUploadDialog({
             onClick={onClose}
             className="px-3 py-2 text-sm rounded-md hover:bg-muted"
           >
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={(!customPosterUrl.trim() && !selectedFile) || isUploading}
             className="px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {isUploading ? 'Wird gespeichert...' : 'Speichern'}
+            {isUploading ? t('settings.saving') : t('common.save')}
           </button>
         </div>
       </div>

@@ -1,30 +1,8 @@
 use crate::error::{Error, Result};
-use serde::Deserialize;
 
 /// Service for looking up product information from EAN/barcode
 pub struct EanService {
     client: reqwest::Client,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenGtinResponse {
-    error: Option<String>,
-    #[serde(default)]
-    products: Vec<OpenGtinProduct>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenGtinProduct {
-    #[serde(rename = "detailname")]
-    detail_name: Option<String>,
-    #[serde(rename = "mainname")]
-    main_name: Option<String>,
-    #[serde(rename = "vendor")]
-    vendor: Option<String>,
-    #[serde(rename = "subcat")]
-    category: Option<String>,
 }
 
 #[derive(Debug, Clone)]

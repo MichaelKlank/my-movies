@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Film, ArrowLeft, Check, Trash2, RefreshCw, Star, Clock, Calendar, MapPin, Disc } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/hooks/useI18n'
 
 // Helper to get poster URL - supports TMDB paths, full URLs, and local uploads
 function getPosterUrl(posterPath: string | undefined | null, size: 'w92' | 'w342' | 'w500' = 'w342'): string | null {
@@ -57,12 +58,14 @@ function MovieDetailPage() {
     },
   })
 
+  const { t } = useI18n()
+
   if (isLoading) {
-    return <div className="text-center py-12 text-muted-foreground">Laden...</div>
+    return <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>
   }
 
   if (!movie) {
-    return <div className="text-center py-12 text-muted-foreground">Film nicht gefunden</div>
+    return <div className="text-center py-12 text-muted-foreground">{t('movies.notFound')}</div>
   }
 
   const discTypeLabel = (type?: string) => {

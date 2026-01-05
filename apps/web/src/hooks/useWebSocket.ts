@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { wsClient, WsMessage } from '@/lib/ws'
+import { useAuth } from './useAuth'
 
 export function useWebSocketSync() {
   const queryClient = useQueryClient()
+  const { updateUser } = useAuth()
 
   useEffect(() => {
     const unsubscribe = wsClient.subscribe((message: WsMessage) => {
@@ -39,6 +41,19 @@ export function useWebSocketSync() {
           queryClient.invalidateQueries({ queryKey: ['collections'] })
           break
 
+        // User events
+        case 'user_updated':
+          queryClient.invalidateQueries({ queryKey: ['me'] })
+          queryClient.invalidateQueries({ queryKey: ['user'] })
+          // Update query data and auth context if payload contains user data
+          if (message.payload && typeof message.payload === 'object' && 'id' in message.payload) {
+            const userData = message.payload as any
+            queryClient.setQueryData(['me'], userData)
+            queryClient.setQueryData(['user'], userData)
+            updateUser(userData)
+          }
+          break
+
         // TMDB enrichment progress events - don't invalidate, just for UI updates
         case 'tmdb_enrich_started':
         case 'tmdb_enrich_progress':
@@ -52,5 +67,5 @@ export function useWebSocketSync() {
     })
 
     return unsubscribe
-  }, [queryClient])
+  }, [queryClient, updateUser])
 }

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useRouter, redirect, Link } from '@tansta
 import { useState, useEffect } from 'react'
 import { Film } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: ({ context }) => {
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
+  const { t } = useI18n()
   const [isRegister, setIsRegister] = useState(false)
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -45,7 +47,7 @@ function LoginPage() {
       await router.invalidate()
       await navigate({ to: '/' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      setError(err instanceof Error ? err.message : t('settings.unknownError'))
     } finally {
       setIsLoading(false)
     }
@@ -60,7 +62,7 @@ function LoginPage() {
           </div>
           <h1 className="mt-4 text-2xl font-bold">My Movies</h1>
           <p className="text-muted-foreground">
-            {isRegister ? 'Neues Konto erstellen' : 'Anmelden'}
+            {isRegister ? t('auth.register') : t('auth.login')}
           </p>
         </div>
 
@@ -73,7 +75,7 @@ function LoginPage() {
 
           <div className="space-y-2">
             <label htmlFor="username" className="text-sm font-medium">
-              Benutzername
+              {t('auth.username')}
             </label>
             <input
               id="username"
@@ -88,7 +90,7 @@ function LoginPage() {
           {isRegister && (
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
-                E-Mail
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -103,7 +105,7 @@ function LoginPage() {
 
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
-              Passwort
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -120,18 +122,18 @@ function LoginPage() {
             disabled={isLoading}
             className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {isLoading ? 'Laden...' : isRegister ? 'Registrieren' : 'Anmelden'}
+            {isLoading ? t('common.loading') : isRegister ? t('auth.register') : t('auth.login')}
           </button>
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
-          {isRegister ? 'Bereits ein Konto?' : 'Noch kein Konto?'}{' '}
+          {isRegister ? t('auth.alreadyHaveAccount') : t('auth.noAccountYet')}{' '}
           <button
             type="button"
             onClick={() => setIsRegister(!isRegister)}
             className="font-medium underline hover:text-foreground"
           >
-            {isRegister ? 'Anmelden' : 'Registrieren'}
+            {isRegister ? t('auth.login') : t('auth.register')}
           </button>
         </p>
 
@@ -141,7 +143,7 @@ function LoginPage() {
               to="/forgot-password"
               className="text-muted-foreground hover:text-foreground underline"
             >
-              Passwort vergessen?
+              {t('auth.forgotPassword')}
             </Link>
           </p>
         )}

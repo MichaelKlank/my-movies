@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { api, UserWithDate } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/users')({
   beforeLoad: ({ context }) => {
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/users')({
 
 function UsersPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
 
   // Only admins can access users
   if (user?.role !== 'admin') {
@@ -34,9 +36,9 @@ function UsersPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-          <h2 className="mt-4 text-xl font-semibold">Zugriff verweigert</h2>
+          <h2 className="mt-4 text-xl font-semibold">{t('users.accessDenied')}</h2>
           <p className="mt-2 text-muted-foreground">
-            Nur Administratoren können Benutzer verwalten.
+            {t('users.onlyAdmins')}
           </p>
         </div>
       </div>
@@ -63,10 +65,10 @@ function UsersPage() {
       <div className="mb-8">
         <h1 className="flex items-center gap-3 text-3xl font-bold">
           <Users className="h-8 w-8" />
-          Benutzerverwaltung
+          {t('users.title')}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Verwalte Benutzer, Rollen und Passwörter.
+          {t('users.subtitle')}
         </p>
       </div>
 
@@ -74,11 +76,11 @@ function UsersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left text-sm font-medium">Benutzer</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">E-Mail</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Rolle</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Registriert</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">Aktionen</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.user')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.email')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.role')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.registered')}</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">{t('users.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -91,7 +93,7 @@ function UsersPage() {
 
       {users?.length === 0 && (
         <div className="py-12 text-center text-muted-foreground">
-          Keine Benutzer gefunden.
+          {t('users.noUsersFound')}
         </div>
       )}
     </div>
@@ -99,6 +101,7 @@ function UsersPage() {
 }
 
 function UserRow({ userData, currentUserId }: { userData: UserWithDate; currentUserId: string }) {
+  const { t } = useI18n()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const queryClient = useQueryClient()
@@ -137,7 +140,7 @@ function UserRow({ userData, currentUserId }: { userData: UserWithDate; currentU
             <div>
               <div className="font-medium">{userData.username}</div>
               {isCurrentUser && (
-                <span className="text-xs text-muted-foreground">(Du)</span>
+                <span className="text-xs text-muted-foreground">{t('users.you')}</span>
               )}
             </div>
           </div>
@@ -229,6 +232,7 @@ function RoleBadge({ role }: { role: 'admin' | 'user' }) {
 }
 
 function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => void }) {
+  const { t } = useI18n()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -241,7 +245,7 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
       onClose()
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      setError(err instanceof Error ? err.message : t('settings.unknownError'))
     },
   })
 
@@ -250,12 +254,12 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
     setError('')
 
     if (password.length < 4) {
-      setError('Passwort muss mindestens 4 Zeichen lang sein')
+      setError(t('resetPassword.passwordTooShort'))
       return
     }
 
     if (password !== confirmPassword) {
-      setError('Passwörter stimmen nicht überein')
+      setError(t('resetPassword.passwordsDontMatch'))
       return
     }
 
@@ -265,9 +269,9 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold">Passwort ändern</h3>
+        <h3 className="text-lg font-semibold">{t('users.setPassword')}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Neues Passwort für <strong>{user.username}</strong> setzen
+          {t('resetPassword.newPassword')} for <strong>{user.username}</strong>
         </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
@@ -278,7 +282,7 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
           )}
 
           <div>
-            <label className="block text-sm font-medium">Neues Passwort</label>
+            <label className="block text-sm font-medium">{t('resetPassword.newPassword')}</label>
             <input
               type="password"
               value={password}
@@ -289,7 +293,7 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Passwort bestätigen</label>
+            <label className="block text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
             <input
               type="password"
               value={confirmPassword}
@@ -304,14 +308,14 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
               onClick={onClose}
               className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
             >
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Speichern...' : 'Passwort setzen'}
+              {mutation.isPending ? t('settings.saving') : t('users.setPassword')}
             </button>
           </div>
         </form>
@@ -331,16 +335,16 @@ function DeleteModal({
   onConfirm: () => void
   isDeleting: boolean
 }) {
+  const { t } = useI18n()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-destructive">Benutzer löschen</h3>
+        <h3 className="text-lg font-semibold text-destructive">{t('deleteUser.title')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          Bist du sicher, dass du <strong>{user.username}</strong> löschen möchtest?
+          {t('deleteUser.confirm')} <strong>{user.username}</strong>?
         </p>
         <p className="mt-2 text-sm text-destructive">
-          Alle Filme, Serien und Sammlungen dieses Benutzers werden ebenfalls gelöscht.
-          Diese Aktion kann nicht rückgängig gemacht werden.
+          {t('deleteUser.warning')}
         </p>
 
         <div className="mt-6 flex justify-end gap-2">
@@ -355,7 +359,7 @@ function DeleteModal({
             disabled={isDeleting}
             className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
           >
-            {isDeleting ? 'Löschen...' : 'Endgültig löschen'}
+            {isDeleting ? t('common.loading') : t('common.delete')}
           </button>
         </div>
       </div>

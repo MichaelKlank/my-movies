@@ -2,6 +2,7 @@ import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Film, Tv, Plus } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/')({
   beforeLoad: ({ context }) => {
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
+  const { t } = useI18n()
   const { data: moviesData } = useQuery({
     queryKey: ['movies', 'recent'],
     queryFn: () => api.getMovies({ limit: '5', sort_by: 'created_at', sort_order: 'desc' }),
@@ -29,13 +31,13 @@ function Dashboard() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
         <Link
           to="/scan"
           className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          Hinzufügen
+          {t('common.add')}
         </Link>
       </div>
 
@@ -44,14 +46,14 @@ function Dashboard() {
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Film className="h-4 w-4" />
-            <span className="text-sm">Filme</span>
+            <span className="text-sm">{t('nav.movies')}</span>
           </div>
           <p className="mt-2 text-2xl font-bold">{totalMovies}</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Tv className="h-4 w-4" />
-            <span className="text-sm">Serien</span>
+            <span className="text-sm">{t('nav.series')}</span>
           </div>
           <p className="mt-2 text-2xl font-bold">{series.length}</p>
         </div>
@@ -60,9 +62,9 @@ function Dashboard() {
       {/* Recently added movies */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Zuletzt hinzugefügt</h2>
+          <h2 className="text-lg font-semibold">{t('common.recentlyAdded')}</h2>
           <Link to="/movies" className="text-sm text-muted-foreground hover:underline">
-            Alle anzeigen
+            {t('common.showAll')}
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -94,9 +96,9 @@ function Dashboard() {
           ))}
           {movies.length === 0 && (
             <p className="text-muted-foreground col-span-full text-center py-8">
-              Noch keine Filme hinzugefügt.{' '}
+              {t('common.noMoviesYet')}{' '}
               <Link to="/scan" className="underline hover:text-foreground">
-                Jetzt scannen
+                {t('common.scanNow')}
               </Link>
             </p>
           )}

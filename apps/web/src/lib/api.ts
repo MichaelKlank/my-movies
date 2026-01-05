@@ -45,9 +45,9 @@ class ApiClient {
     this.token = token
     if (token) {
       localStorage.setItem('token', token)
-    } else {
-      localStorage.removeItem('token')
+      return
     }
+    localStorage.removeItem('token')
   }
 
   getToken(): string | null {
@@ -277,6 +277,36 @@ class ApiClient {
     })
   }
 
+  // User Settings
+  async updateLanguage(language: string | null) {
+    return this.request<User>('/auth/language', {
+      method: 'PUT',
+      body: { language },
+    })
+  }
+
+  async updateIncludeAdult(includeAdult: boolean) {
+    return this.request<User>('/auth/include-adult', {
+      method: 'PUT',
+      body: { include_adult: includeAdult },
+    })
+  }
+
+  async uploadAvatar(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return this.request<{ message: string; user: User }>('/auth/avatar', {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
+  async deleteAvatar() {
+    return this.request<{ message: string; user: User }>('/auth/avatar', {
+      method: 'DELETE',
+    })
+  }
+
   async deleteUser(userId: string) {
     return this.request<{ message: string }>(`/users/${userId}`, { method: 'DELETE' })
   }
@@ -297,6 +327,11 @@ export interface User {
   username: string
   email: string
   role: 'admin' | 'user'
+  language?: string | null
+  include_adult: boolean
+  avatar_path?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Movie {

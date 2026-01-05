@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ScanLine, Keyboard, Search, Plus, X } from 'lucide-react'
 import { api, BarcodeResult, TmdbSearchResult } from '@/lib/api'
 import { browserScanner, isTauri, tauriScanner } from '@/lib/scanner'
+import { useI18n } from '@/hooks/useI18n'
 
 export const Route = createFileRoute('/scan')({
   beforeLoad: ({ context }) => {
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/scan')({
 type ScanMode = 'camera' | 'manual' | 'search'
 
 function ScanPage() {
+  const { t } = useI18n()
   const [mode, setMode] = useState<ScanMode>('manual')
   const [barcode, setBarcode] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -36,7 +38,7 @@ function ScanPage() {
       setError('')
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Lookup fehlgeschlagen')
+      setError(err instanceof Error ? err.message : t('scan.lookupFailed'))
     },
   })
 
@@ -48,7 +50,7 @@ function ScanPage() {
       setError('')
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Suche fehlgeschlagen')
+      setError(err instanceof Error ? err.message : t('scan.searchFailed'))
     },
   })
 
@@ -67,7 +69,7 @@ function ScanPage() {
       navigate({ to: '/movies/$movieId', params: { movieId: movie.id } })
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Film konnte nicht erstellt werden')
+      setError(err instanceof Error ? err.message : t('scan.createFailed'))
     },
   })
 
@@ -106,7 +108,7 @@ function ScanPage() {
             }
           }
         ).catch((err) => {
-          setError(err.message || 'Kamera konnte nicht gestartet werden')
+          setError(err.message || t('scan.cameraFailed'))
           setIsScanning(false)
           setMode('manual')
         })
@@ -136,7 +138,7 @@ function ScanPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Film hinzufügen</h1>
+      <h1 className="text-2xl font-bold">{t('scan.title')}</h1>
 
       {/* Mode selector */}
       <div className="flex gap-2">
@@ -147,7 +149,7 @@ function ScanPage() {
           }`}
         >
           <ScanLine className="h-4 w-4" />
-          Kamera
+          {t('scan.camera')}
         </button>
         <button
           onClick={() => setMode('manual')}
@@ -156,7 +158,7 @@ function ScanPage() {
           }`}
         >
           <Keyboard className="h-4 w-4" />
-          Barcode eingeben
+          {t('scan.enterBarcode')}
         </button>
         <button
           onClick={() => setMode('search')}
@@ -165,7 +167,7 @@ function ScanPage() {
           }`}
         >
           <Search className="h-4 w-4" />
-          TMDB suchen
+          {t('scan.searchTmdb')}
         </button>
       </div>
 
@@ -185,7 +187,7 @@ function ScanPage() {
           />
           {isScanning && (
             <p className="text-center text-muted-foreground">
-              Halte den Barcode vor die Kamera...
+              {t('scan.holdBarcode')}
             </p>
           )}
           <button
@@ -197,7 +199,7 @@ function ScanPage() {
             className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
           >
             <X className="h-4 w-4" />
-            Abbrechen
+            {t('common.cancel')}
           </button>
         </div>
       )}
@@ -208,7 +210,7 @@ function ScanPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="EAN/Barcode eingeben..."
+              placeholder={t('scan.enterEanPlaceholder')}
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -219,7 +221,7 @@ function ScanPage() {
               disabled={lookupMutation.isPending}
               className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {lookupMutation.isPending ? 'Suche...' : 'Suchen'}
+              {lookupMutation.isPending ? t('scan.searching') : t('common.search')}
             </button>
           </div>
         </form>
@@ -231,7 +233,7 @@ function ScanPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Filmtitel eingeben..."
+              placeholder={t('scan.enterMovieTitle')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -242,7 +244,7 @@ function ScanPage() {
               disabled={searchMutation.isPending}
               className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {searchMutation.isPending ? 'Suche...' : 'Suchen'}
+              {searchMutation.isPending ? t('scan.searching') : t('common.search')}
             </button>
           </div>
         </form>
@@ -252,7 +254,7 @@ function ScanPage() {
       {scanResult && scanResult.tmdb_results.length > 0 && (
         <div className="space-y-4">
           <h2 className="font-semibold">
-            Gefunden für Barcode: {scanResult.barcode}
+            {t('scan.foundForBarcode')}: {scanResult.barcode}
             {scanResult.title && <span className="text-muted-foreground"> ({scanResult.title})</span>}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -271,7 +273,7 @@ function ScanPage() {
       {/* TMDB search results */}
       {searchResults.length > 0 && (
         <div className="space-y-4">
-          <h2 className="font-semibold">Suchergebnisse</h2>
+          <h2 className="font-semibold">{t('scan.searchResults')}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {searchResults.map((result) => (
               <TmdbResultCard
@@ -297,6 +299,7 @@ function TmdbResultCard({
   onSelect: () => void
   isLoading: boolean
 }) {
+  const { t } = useI18n()
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="aspect-[2/3] bg-muted">
@@ -321,7 +324,7 @@ function TmdbResultCard({
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          Hinzufügen
+          {t('movies.add')}
         </button>
       </div>
     </div>

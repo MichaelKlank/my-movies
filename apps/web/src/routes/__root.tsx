@@ -2,7 +2,9 @@ import { createRootRouteWithContext, Outlet, Link, useNavigate } from '@tanstack
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Film, Tv, ScanLine, Upload, LogOut, User, Users, Settings } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useI18n } from '@/hooks/useI18n'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
+import { Avatar } from '@/components/Avatar'
 
 interface RouterContext {
   auth: ReturnType<typeof useAuth>
@@ -14,6 +16,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   const { isAuthenticated, user, logout } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
 
   // Set up WebSocket sync for real-time updates
@@ -48,60 +51,67 @@ function RootLayout() {
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent"
             >
               <Film className="h-4 w-4" />
-              <span className="hidden sm:inline">Filme</span>
+              <span className="hidden sm:inline">{t('nav.movies')}</span>
             </Link>
             <Link
               to="/series"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent"
             >
               <Tv className="h-4 w-4" />
-              <span className="hidden sm:inline">Serien</span>
+              <span className="hidden sm:inline">{t('nav.series')}</span>
             </Link>
             <Link
               to="/scan"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent"
             >
               <ScanLine className="h-4 w-4" />
-              <span className="hidden sm:inline">Scannen</span>
+              <span className="hidden sm:inline">{t('nav.scan')}</span>
             </Link>
             <Link
               to="/import"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent"
             >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Import</span>
+              <span className="hidden sm:inline">{t('nav.import')}</span>
             </Link>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{user?.username}</span>
-            </span>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/me"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent"
+              title={t('nav.profile')}
+            >
+              {user ? (
+                <Avatar user={user} size="sm" />
+              ) : (
+                <User className="h-5 w-5" />
+              )}
+            </Link>
             {user?.role === 'admin' && (
               <>
                 <Link
                   to="/users"
-                  className="rounded-md p-2 hover:bg-accent [&.active]:bg-accent"
-                  title="Benutzerverwaltung"
+                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent"
+                  title={t('nav.users')}
                 >
-                  <Users className="h-4 w-4" />
+                  <Users className="h-5 w-5" />
                 </Link>
                 <Link
                   to="/settings"
-                  className="rounded-md p-2 hover:bg-accent [&.active]:bg-accent"
-                  title="Einstellungen"
+                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent"
+                  title={t('nav.settings')}
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-5 w-5" />
                 </Link>
               </>
             )}
             <button
               onClick={handleLogout}
-              className="rounded-md p-2 hover:bg-accent"
-              title="Abmelden"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent"
+              title={t('nav.logout')}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </div>

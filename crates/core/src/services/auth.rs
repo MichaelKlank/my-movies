@@ -88,6 +88,9 @@ impl AuthService {
             role,
             created_at: now,
             updated_at: now,
+            language: None,       // Will use system default
+            include_adult: false, // Default: no adult content
+            avatar_path: None,
             reset_token: None,
             reset_token_expires: None,
         };
@@ -337,6 +340,51 @@ impl AuthService {
     }
 
     /// Admin can set a new password for a user
+    pub async fn update_user_language(
+        &self,
+        user_id: Uuid,
+        language: Option<String>,
+    ) -> Result<UserPublic> {
+        sqlx::query("UPDATE users SET language = ?, updated_at = ? WHERE id = ?")
+            .bind(&language)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_user(user_id).await
+    }
+
+    pub async fn update_user_include_adult(
+        &self,
+        user_id: Uuid,
+        include_adult: bool,
+    ) -> Result<UserPublic> {
+        sqlx::query("UPDATE users SET include_adult = ?, updated_at = ? WHERE id = ?")
+            .bind(include_adult)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_user(user_id).await
+    }
+
+    pub async fn update_user_avatar(
+        &self,
+        user_id: Uuid,
+        avatar_path: Option<String>,
+    ) -> Result<UserPublic> {
+        sqlx::query("UPDATE users SET avatar_path = ?, updated_at = ? WHERE id = ?")
+            .bind(&avatar_path)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_user(user_id).await
+    }
+
     pub async fn admin_set_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
         // Hash new password
         let salt = SaltString::generate(&mut OsRng);
