@@ -1,11 +1,11 @@
-import { createFileRoute, redirect, Link } from '@tanstack/react-router'
-import { useState, useRef, useEffect } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload, FileUp, Check, AlertCircle, RefreshCw, Image, Copy, Trash2, Film } from 'lucide-react'
-import { api, ImportResult, Movie } from '@/lib/api'
-import { wsClient, WsMessage } from '@/lib/ws'
 import { PosterImage } from '@/components/PosterImage'
 import { useI18n } from '@/hooks/useI18n'
+import { api, ImportResult, Movie } from '@/lib/api'
+import { wsClient, WsMessage } from '@/lib/ws'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import { AlertCircle, Check, Copy, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 export const Route = createFileRoute('/import')({
   beforeLoad: ({ context }) => {
@@ -97,11 +97,6 @@ function ImportPage() {
     if (selectedFile) {
       importMutation.mutate(selectedFile)
     }
-  }
-
-  const handleEnrich = () => {
-    setEnrichComplete(null)
-    enrichMutation.mutate()
   }
 
   const progressPercent = enrichProgress 

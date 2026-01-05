@@ -43,7 +43,7 @@ class ImageLoadQueue {
   // Invalidate all cached images
   invalidateAll() {
     // Revoke all blob URLs
-    for (const [url, blobUrl] of this.cache.entries()) {
+    for (const [_, blobUrl] of this.cache.entries()) {
       if (blobUrl && blobUrl.startsWith('blob:')) {
         URL.revokeObjectURL(blobUrl)
       }
