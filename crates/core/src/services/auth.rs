@@ -10,7 +10,7 @@ use crate::db::DbPool;
 use crate::error::{Error, Result};
 use crate::models::{
     AuthResponse, Claims, CreateUser, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest,
-    User, UserPublic, UserRole, UserRow,
+    User, UserPublic, UserRole,
 };
 
 pub struct AuthService {
@@ -101,17 +101,11 @@ impl AuthService {
     }
 
     pub async fn login(&self, input: LoginRequest) -> Result<AuthResponse> {
-        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE username = ?")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = ?")
             .bind(&input.username)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(Error::InvalidCredentials)?;
-
-        let user: User =
-            row.try_into()
-                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                    Error::Internal(e.to_string())
-                })?;
 
         // Verify password
         let parsed_hash =
@@ -163,44 +157,29 @@ impl AuthService {
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<UserPublic> {
-        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE id = ?")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
             .bind(user_id)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(Error::UserNotFound)?;
-
-        let user: User =
-            row.try_into()
-                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                    Error::Internal(e.to_string())
-                })?;
         Ok(user.into())
     }
 
     pub async fn get_user_by_username(&self, username: &str) -> Result<User> {
-        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE username = ?")
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = ?")
             .bind(username)
             .fetch_optional(&self.pool)
             .await?
-            .ok_or(Error::UserNotFound)?;
-
-        row.try_into()
-            .map_err(|e: Box<dyn std::error::Error + Send + Sync>| Error::Internal(e.to_string()))
+            .ok_or(Error::UserNotFound)
     }
 
     pub async fn request_password_reset(&self, input: ForgotPasswordRequest) -> Result<String> {
         // Find user by email
-        let row = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE email = ?")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
             .bind(&input.email)
             .fetch_optional(&self.pool)
             .await?
             .ok_or_else(|| Error::Validation("E-Mail-Adresse nicht gefunden".to_string()))?;
-
-        let user: User =
-            row.try_into()
-                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                    Error::Internal(e.to_string())
-                })?;
 
         // Generate reset token
         let reset_token = Uuid::new_v4().to_string();
@@ -238,7 +217,7 @@ impl AuthService {
 
     pub async fn reset_password(&self, input: ResetPasswordRequest) -> Result<()> {
         // Find users with non-expired reset tokens
-        let rows = sqlx::query_as::<_, UserRow>(
+        let users = sqlx::query_as::<_, User>(
             "SELECT * FROM users WHERE reset_token IS NOT NULL AND reset_token_expires > ?",
         )
         .bind(Utc::now().to_rfc3339())
@@ -247,12 +226,7 @@ impl AuthService {
 
         // Find the user whose token matches
         let mut found_user: Option<User> = None;
-        for row in rows {
-            let user: User =
-                row.try_into()
-                    .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                        Error::Internal(e.to_string())
-                    })?;
+        for user in users {
             if let Some(ref token_hash) = user.reset_token {
                 let parsed_hash =
                     PasswordHash::new(token_hash).map_err(|e| Error::Internal(e.to_string()))?;
@@ -296,20 +270,11 @@ impl AuthService {
 
     /// List all users (admin only)
     pub async fn list_all_users(&self) -> Result<Vec<UserPublic>> {
-        let rows = sqlx::query_as::<_, UserRow>("SELECT * FROM users ORDER BY created_at DESC")
+        let users = sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY created_at DESC")
             .fetch_all(&self.pool)
             .await?;
 
-        let mut users = Vec::new();
-        for row in rows {
-            let user: User =
-                row.try_into()
-                    .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                        Error::Internal(e.to_string())
-                    })?;
-            users.push(user.into());
-        }
-        Ok(users)
+        Ok(users.into_iter().map(|u| u.into()).collect())
     }
 
     /// Update a user's role (admin only)

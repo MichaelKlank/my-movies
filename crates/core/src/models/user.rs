@@ -11,21 +11,10 @@ pub enum UserRole {
     User,
 }
 
-/// Database row representation
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct UserRow {
-    pub id: Uuid,
-    pub username: String,
-    pub email: String,
-    pub password_hash: String,
-    pub role: UserRole,
-    pub created_at: String,
-    pub updated_at: String,
-    pub reset_token: Option<String>,
-    pub reset_token_expires: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
+/// User struct with proper Uuid and DateTime types
+/// UUIDs are stored as BLOB (16 bytes) in SQLite
+/// Timestamps are stored as TEXT (RFC3339) in SQLite
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
@@ -39,30 +28,6 @@ pub struct User {
     pub reset_token: Option<String>,
     #[serde(skip_serializing)]
     pub reset_token_expires: Option<DateTime<Utc>>,
-}
-
-impl TryFrom<UserRow> for User {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    fn try_from(row: UserRow) -> Result<Self, Self::Error> {
-        let reset_token_expires = row
-            .reset_token_expires
-            .as_ref()
-            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-            .map(|dt| dt.with_timezone(&Utc));
-
-        Ok(User {
-            id: row.id,
-            username: row.username,
-            email: row.email,
-            password_hash: row.password_hash,
-            role: row.role,
-            created_at: DateTime::parse_from_rfc3339(&row.created_at)?.with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)?.with_timezone(&Utc),
-            reset_token: row.reset_token,
-            reset_token_expires,
-        })
-    }
 }
 
 #[derive(Debug, Deserialize)]
