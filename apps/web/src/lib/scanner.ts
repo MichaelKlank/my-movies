@@ -1,16 +1,44 @@
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 
-// Check if running in Tauri
-declare global {
-  interface Window {
-    __TAURI__?: {
-      invoke: (cmd: string, args?: unknown) => Promise<unknown>
+// Dynamically import Tauri plugin to avoid errors in browser
+// Using type assertion to avoid TypeScript errors when package isn't installed
+type BarcodeScannerModule = {
+  scan: (options: {
+    windowed?: boolean
+    formats?: string[]
+    scanArea?: {
+      x: number
+      y: number
+      width: number
+      height: number
     }
+  }) => Promise<{ content: string; format: string }>
+  checkPermission: () => Promise<string>
+  requestPermission: () => Promise<string>
+}
+
+let barcodeScanner: BarcodeScannerModule | null = null
+
+// Check if running in Tauri
+export async function isTauri(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    // Try to import the plugin - if it fails, we're not in Tauri
+    // Use @vite-ignore to prevent Rollup from trying to resolve this at build time
+    if (!barcodeScanner) {
+      const pluginPath = '@tauri-apps/plugin-barcode-scanner'
+      const module = await import(/* @vite-ignore */ pluginPath)
+      barcodeScanner = module as unknown as BarcodeScannerModule
+    }
+    return true
+  } catch {
+    return false
   }
 }
 
-export function isTauri(): boolean {
-  return typeof window !== 'undefined' && !!window.__TAURI__
+// Synchronous check for immediate use (may be less accurate)
+export function isTauriSync(): boolean {
+  return typeof window !== 'undefined' && '__TAURI__' in window
 }
 
 export type ScanResult = {
@@ -88,15 +116,25 @@ class BrowserScanner {
 
 // Tauri native scanner
 class TauriScanner {
-  async scan(): Promise<ScanResult> {
-    if (!window.__TAURI__) {
-      throw new Error('Tauri not available')
+  private async getPlugin(): Promise<BarcodeScannerModule> {
+    if (!barcodeScanner) {
+      // Construct import path at runtime to prevent Rollup from resolving it statically
+      // This allows the module to be externalized and loaded only in Tauri runtime
+      const pluginPath = '@tauri-apps/plugin-barcode-scanner'
+      const module = await import(/* @vite-ignore */ pluginPath)
+      barcodeScanner = module as unknown as BarcodeScannerModule
     }
+    return barcodeScanner
+  }
 
-    const result = await window.__TAURI__.invoke('plugin:barcode-scanner|scan', {
-      windowed: false,
+  async scan(): Promise<ScanResult> {
+    const plugin = await this.getPlugin()
+    // Use windowed: true to integrate scanner into UI with transparent webview
+    // This allows the scan area to be controlled by the UI layout
+    const result = await plugin.scan({
+      windowed: true,
       formats: ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'QR_CODE'],
-    }) as { content: string; format: string }
+    })
 
     return {
       barcode: result.content,
@@ -105,17 +143,23 @@ class TauriScanner {
   }
 
   async checkPermission(): Promise<boolean> {
-    if (!window.__TAURI__) return false
-
-    const result = await window.__TAURI__.invoke('plugin:barcode-scanner|check_permission') as string
-    return result === 'granted'
+    try {
+      const plugin = await this.getPlugin()
+      const result = await plugin.checkPermission()
+      return result === 'granted'
+    } catch {
+      return false
+    }
   }
 
   async requestPermission(): Promise<boolean> {
-    if (!window.__TAURI__) return false
-
-    const result = await window.__TAURI__.invoke('plugin:barcode-scanner|request_permission') as string
-    return result === 'granted'
+    try {
+      const plugin = await this.getPlugin()
+      const result = await plugin.requestPermission()
+      return result === 'granted'
+    } catch {
+      return false
+    }
   }
 }
 
@@ -125,7 +169,7 @@ export const tauriScanner = new TauriScanner()
 
 // Helper to scan with the best available method
 export async function scanBarcode(): Promise<ScanResult> {
-  if (isTauri()) {
+  if (await isTauri()) {
     // Use native scanner on Tauri
     const hasPermission = await tauriScanner.checkPermission()
     if (!hasPermission) {

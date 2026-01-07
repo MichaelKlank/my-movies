@@ -21,39 +21,40 @@ function SeriesPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">{t('series.title')}</h1>
+        <h1 className="text-xl md:text-2xl font-bold">{t('series.title')}</h1>
         <Link
           to="/scan"
-          className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+          className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
         >
           <Plus className="h-4 w-4" />
-          {t('series.add')}
+          <span className="hidden sm:inline">{t('series.add')}</span>
+          <span className="sm:hidden">{t('common.add')}</span>
         </Link>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>
+        <div className="text-center py-12 text-muted-foreground text-sm md:text-base">{t('common.loading')}</div>
       ) : series.length === 0 ? (
         <div className="text-center py-12">
           <Tv className="mx-auto h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 text-muted-foreground">{t('series.notFound')}</p>
+          <p className="mt-4 text-muted-foreground text-sm md:text-base">{t('series.notFound')}</p>
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {series.map(s => (
             <div
               key={s.id}
-              className="rounded-lg border bg-card overflow-hidden"
+              className="rounded-lg border bg-card overflow-hidden transition-colors hover:border-primary active:border-primary"
             >
               <div className="aspect-[2/3] bg-muted flex items-center justify-center">
                 <Tv className="h-8 w-8 text-muted-foreground" />
               </div>
-              <div className="p-3">
-                <h3 className="font-medium text-sm truncate">{s.title}</h3>
+              <div className="p-2 md:p-3">
+                <h3 className="font-medium text-xs md:text-sm truncate">{s.title}</h3>
                 {s.network && (
-                  <p className="text-xs text-muted-foreground">{s.network}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.network}</p>
                 )}
               </div>
             </div>

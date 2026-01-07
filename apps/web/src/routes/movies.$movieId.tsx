@@ -64,19 +64,20 @@ function MovieDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <button
         onClick={() => navigate({ to: '/movies' })}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground min-h-touch"
       >
         <ArrowLeft className="h-4 w-4" />
-        {t('common.back')} {t('nav.movies')}
+        <span className="hidden sm:inline">{t('common.back')} {t('nav.movies')}</span>
+        <span className="sm:hidden">{t('common.back')}</span>
       </button>
 
-      <div className="grid gap-8 lg:grid-cols-[350px_1fr]">
+      <div className="flex flex-col lg:grid lg:grid-cols-[350px_1fr] gap-6 md:gap-8">
         {/* Poster */}
         <div className="space-y-4">
-          <div className="aspect-[2/3] rounded-lg bg-muted flex items-center justify-center overflow-hidden shadow-lg">
+          <div className="aspect-[2/3] max-w-xs mx-auto lg:max-w-none rounded-lg bg-muted flex items-center justify-center overflow-hidden shadow-lg">
             <PosterImage
               posterPath={null}
               movieId={movie.id}
@@ -121,18 +122,18 @@ function MovieDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Title Section */}
           <div>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-bold">{movie.title}</h1>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl md:text-3xl font-bold break-words">{movie.title}</h1>
                 {movie.original_title && movie.original_title !== movie.title && (
-                  <p className="text-lg text-muted-foreground mt-1">{movie.original_title}</p>
+                  <p className="text-base md:text-lg text-muted-foreground mt-1 break-words">{movie.original_title}</p>
                 )}
               </div>
               {movie.watched && (
-                <div className="flex items-center gap-1 rounded-full bg-green-500 px-3 py-1 text-sm text-white">
+                <div className="flex items-center gap-1 rounded-full bg-green-500 px-3 py-2 text-sm text-white shrink-0">
                   <Check className="h-4 w-4" />
                   {t('movies.watched')}
                 </div>
@@ -140,7 +141,7 @@ function MovieDetailPage() {
             </div>
 
             {movie.tagline && (
-              <p className="mt-3 text-lg italic text-muted-foreground">„{movie.tagline}"</p>
+              <p className="mt-3 text-base md:text-lg italic text-muted-foreground break-words">„{movie.tagline}"</p>
             )}
           </div>
 
@@ -161,24 +162,24 @@ function MovieDetailPage() {
           {/* Description */}
           {movie.description && (
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold">{t('movies.plot')}</h2>
-              <p className="text-muted-foreground leading-relaxed">{movie.description}</p>
+              <h2 className="text-base md:text-lg font-semibold">{t('movies.plot')}</h2>
+              <p className="text-sm md:text-base text-muted-foreground leading-relaxed break-words">{movie.description}</p>
             </div>
           )}
 
           {/* Cast & Crew */}
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-4 md:gap-6 sm:grid-cols-2">
             {movie.director && (
               <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.director')}</h2>
-                <p>{movie.director}</p>
+                <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.director')}</h2>
+                <p className="text-sm md:text-base break-words">{movie.director}</p>
               </div>
             )}
 
             {movie.actors && (
               <div className="sm:col-span-2">
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.cast')}</h2>
-                <p className="leading-relaxed">{movie.actors}</p>
+                <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('movies.cast')}</h2>
+                <p className="text-sm md:text-base leading-relaxed break-words">{movie.actors}</p>
               </div>
             )}
           </div>
@@ -188,7 +189,7 @@ function MovieDetailPage() {
             {movie.barcode && (
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.barcode')}</h3>
-                <p className="text-sm font-mono">{movie.barcode}</p>
+                <p className="text-sm font-mono break-all">{movie.barcode}</p>
               </div>
             )}
             {movie.imdb_id && (
@@ -198,7 +199,7 @@ function MovieDetailPage() {
                   href={`https://www.imdb.com/title/${movie.imdb_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-primary hover:underline active:text-primary/80 break-all"
                 >
                   {movie.imdb_id}
                 </a>
@@ -211,7 +212,7 @@ function MovieDetailPage() {
                   href={`https://www.themoviedb.org/movie/${movie.tmdb_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-primary hover:underline active:text-primary/80 break-all"
                 >
                   {movie.tmdb_id}
                 </a>
@@ -220,8 +221,8 @@ function MovieDetailPage() {
             {movie.location && (
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.location')}</h3>
-                <p className="text-sm flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
+                <p className="text-sm flex items-center gap-1 break-words">
+                  <MapPin className="h-3 w-3 shrink-0" />
                   {movie.location}
                 </p>
               </div>
@@ -229,7 +230,7 @@ function MovieDetailPage() {
             {movie.edition && (
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase">{t('movies.edition')}</h3>
-                <p className="text-sm">{movie.edition}</p>
+                <p className="text-sm break-words">{movie.edition}</p>
               </div>
             )}
           </div>
@@ -238,44 +239,45 @@ function MovieDetailPage() {
           {movie.notes && (
             <div className="rounded-lg bg-muted/50 p-4">
               <h2 className="text-sm font-semibold mb-2">{t('movies.notes')}</h2>
-              <p className="text-sm text-muted-foreground">{movie.notes}</p>
+              <p className="text-sm text-muted-foreground break-words whitespace-pre-wrap">{movie.notes}</p>
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-4 border-t">
             <button
               onClick={() => toggleWatchedMutation.mutate()}
               disabled={toggleWatchedMutation.isPending}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-2 rounded-md px-4 py-3 text-sm font-medium transition-colors min-h-touch w-full sm:w-auto ${
                 movie.watched
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-secondary hover:bg-secondary/80'
+                  ? 'bg-green-500 text-white hover:bg-green-600 active:bg-green-700'
+                  : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
               }`}
             >
               <Check className="h-4 w-4" />
               {movie.watched ? t('movies.watched') : t('movies.markAsWatched')}
             </button>
             
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setShowRefreshMenu(!showRefreshMenu)}
                 disabled={refreshTmdbMutation.isPending}
-                className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+                className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full sm:w-auto"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                {t('movies.refreshTmdb')}
+                <span className="hidden sm:inline">{t('movies.refreshTmdb')}</span>
+                <span className="sm:hidden">{t('movies.refreshTmdb')}</span>
                 <ChevronDown className="h-4 w-4" />
               </button>
               {showRefreshMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg z-10 min-w-[200px]">
+                <div className="absolute top-full left-0 right-0 sm:right-auto mt-1 bg-card border rounded-md shadow-lg z-10 min-w-[200px]">
                   <button
                     onClick={() => {
                       refreshTmdbMutation.mutate(false)
                       setShowRefreshMenu(false)
                     }}
                     disabled={refreshTmdbMutation.isPending}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
                   >
                     {t('movies.refreshTmdbMissing')}
                   </button>
@@ -285,7 +287,7 @@ function MovieDetailPage() {
                       setShowRefreshMenu(false)
                     }}
                     disabled={refreshTmdbMutation.isPending}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors border-t"
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
                   >
                     {t('movies.refreshTmdbAll')}
                   </button>
@@ -300,7 +302,7 @@ function MovieDetailPage() {
                 }
               }}
               disabled={deleteMutation.isPending}
-              className="flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 ml-auto"
+              className="flex items-center justify-center gap-2 rounded-md bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 min-h-touch w-full sm:w-auto sm:ml-auto"
             >
               <Trash2 className="h-4 w-4" />
               {t('movies.delete')}

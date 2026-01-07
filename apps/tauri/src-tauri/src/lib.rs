@@ -22,8 +22,9 @@ fn setup_app_environment() {
     // Create data directory if it doesn't exist
     std::fs::create_dir_all(&data_dir).ok();
 
-    // SAFETY: We call this at app startup before any threads are spawned,
-    // so there's no risk of data races with other threads reading env vars.
+    // SAFETY: std::env::set_var() is marked unsafe because it can cause data races
+    // when called from multiple threads. However, we call this function at app startup
+    // in the main thread before any other threads are spawned, so it's safe here.
     unsafe {
         // Set DATABASE_URL if not already set
         if std::env::var("DATABASE_URL").is_err() {
@@ -97,6 +98,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
 
     // Add barcode scanner plugin on mobile platforms
+    // Note: The {} block is required because #[cfg] cannot be applied directly to assignments
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
         builder = builder.plugin(tauri_plugin_barcode_scanner::init());

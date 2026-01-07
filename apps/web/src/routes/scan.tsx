@@ -77,46 +77,64 @@ function ScanPage() {
     if (mode === 'camera' && scannerRef.current) {
       setIsScanning(true)
       
-      if (isTauri()) {
-        // Use Tauri native scanner
-        tauriScanner.scan()
-          .then((result) => {
-            setBarcode(result.barcode)
-            lookupMutation.mutate(result.barcode)
-            setMode('manual')
-          })
-          .catch((err) => {
-            setError(err.message)
-          })
-          .finally(() => {
-            setIsScanning(false)
-          })
-      } else {
-        // Use browser scanner
-        browserScanner.start(
-          (result) => {
-            setBarcode(result.barcode)
-            lookupMutation.mutate(result.barcode)
-            browserScanner.stop()
-            setIsScanning(false)
-            setMode('manual')
-          },
-          (err) => {
-            if (!err.message.includes('No MultiFormat')) {
-              console.error('Scanner error:', err)
-            }
+      // Check if Tauri is available
+      isTauri()
+        .then((isTauriEnv) => {
+          if (isTauriEnv) {
+            // Use Tauri native scanner
+            return tauriScanner.scan()
+              .then((result) => {
+                setBarcode(result.barcode)
+                lookupMutation.mutate(result.barcode)
+                setMode('manual')
+              })
+              .catch((err) => {
+                setError(err.message)
+              })
+              .finally(() => {
+                setIsScanning(false)
+              })
+          } else {
+            // Use browser scanner
+            return browserScanner.start(
+              (result) => {
+                setBarcode(result.barcode)
+                lookupMutation.mutate(result.barcode)
+                browserScanner.stop()
+                setIsScanning(false)
+                setMode('manual')
+              },
+              (err) => {
+                if (!err.message.includes('No MultiFormat')) {
+                  console.error('Scanner error:', err)
+                }
+              }
+            ).catch((err) => {
+              setError(err.message || t('scan.cameraFailed'))
+              setIsScanning(false)
+              setMode('manual')
+            })
           }
-        ).catch((err) => {
+        })
+        .catch((err) => {
           setError(err.message || t('scan.cameraFailed'))
           setIsScanning(false)
           setMode('manual')
         })
-      }
     }
 
     return () => {
-      if (mode === 'camera' && !isTauri()) {
-        browserScanner.stop()
+      if (mode === 'camera') {
+        isTauri()
+          .then((isTauriEnv) => {
+            if (!isTauriEnv) {
+              browserScanner.stop()
+            }
+          })
+          .catch(() => {
+            // If check fails, try to stop browser scanner anyway
+            browserScanner.stop()
+          })
       }
     }
   }, [mode])
@@ -136,37 +154,37 @@ function ScanPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('scan.title')}</h1>
+    <div className="space-y-4 md:space-y-6">
+      <h1 className="text-xl md:text-2xl font-bold">{t('scan.title')}</h1>
 
-      {/* Mode selector */}
-      <div className="flex gap-2">
+      {/* Mode selector - Optimized for mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible">
         <button
           onClick={() => setMode('camera')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'camera' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm min-h-touch min-w-touch flex-shrink-0 ${
+            mode === 'camera' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
           <ScanLine className="h-4 w-4" />
-          {t('scan.camera')}
+          <span className="whitespace-nowrap">{t('scan.camera')}</span>
         </button>
         <button
           onClick={() => setMode('manual')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm min-h-touch min-w-touch flex-shrink-0 ${
+            mode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
           <Keyboard className="h-4 w-4" />
-          {t('scan.enterBarcode')}
+          <span className="whitespace-nowrap">{t('scan.enterBarcode')}</span>
         </button>
         <button
           onClick={() => setMode('search')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'search' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm min-h-touch min-w-touch flex-shrink-0 ${
+            mode === 'search' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
           <Search className="h-4 w-4" />
-          {t('scan.searchTmdb')}
+          <span className="whitespace-nowrap">{t('scan.searchTmdb')}</span>
         </button>
       </div>
 
@@ -179,13 +197,31 @@ function ScanPage() {
       {/* Camera mode */}
       {mode === 'camera' && (
         <div className="space-y-4">
-          <div
-            ref={scannerRef}
-            id="scanner-container"
-            className="aspect-video max-w-xl rounded-lg bg-muted overflow-hidden"
-          />
+          <div className="relative flex items-center justify-center w-full">
+            <div
+              ref={scannerRef}
+              id="scanner-container"
+              className="aspect-video w-full max-w-xl rounded-lg md:rounded-lg bg-muted overflow-hidden relative"
+            >
+              {/* Scan area guides - shown when using Tauri native scanner */}
+              {isScanning && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="relative w-full max-w-xs h-48 md:w-64 md:h-40">
+                    {/* Top-left corner */}
+                    <div className="absolute top-0 left-0 w-10 h-10 md:w-8 md:h-8 border-t-4 md:border-t-2 border-l-4 md:border-l-2 border-white rounded-tl-lg" />
+                    {/* Top-right corner */}
+                    <div className="absolute top-0 right-0 w-10 h-10 md:w-8 md:h-8 border-t-4 md:border-t-2 border-r-4 md:border-r-2 border-white rounded-tr-lg" />
+                    {/* Bottom-left corner */}
+                    <div className="absolute bottom-0 left-0 w-10 h-10 md:w-8 md:h-8 border-b-4 md:border-b-2 border-l-4 md:border-l-2 border-white rounded-bl-lg" />
+                    {/* Bottom-right corner */}
+                    <div className="absolute bottom-0 right-0 w-10 h-10 md:w-8 md:h-8 border-b-4 md:border-b-2 border-r-4 md:border-r-2 border-white rounded-br-lg" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           {isScanning && (
-            <p className="text-center text-muted-foreground">
+            <p className="text-center text-muted-foreground text-sm md:text-base px-4">
               {t('scan.holdBarcode')}
             </p>
           )}
@@ -195,7 +231,7 @@ function ScanPage() {
               setIsScanning(false)
               setMode('manual')
             }}
-            className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
+            className="flex items-center justify-center gap-2 rounded-md bg-secondary px-6 py-3 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full md:w-auto"
           >
             <X className="h-4 w-4" />
             {t('common.cancel')}

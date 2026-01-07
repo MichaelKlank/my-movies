@@ -18,6 +18,7 @@
     "scanNow": "Scan Now"
   },
   "nav": {
+    "dashboard": "Dashboard",
     "movies": "Movies",
     "series": "Series",
     "scan": "Scan",

@@ -104,19 +104,19 @@ function SettingCard({ setting }: { setting: SettingStatus }) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-6">
+    <div className="rounded-lg border bg-card p-4 md:p-6">
       <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <div className="rounded-full bg-primary/10 p-2">
-            <Key className="h-5 w-5 text-primary" />
+        <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
+          <div className="rounded-full bg-primary/10 p-2 shrink-0">
+            <Key className="h-4 w-4 md:h-5 md:w-5 text-primary" />
           </div>
-          <div>
-            <h3 className="font-semibold">{getSettingTitle(setting.key)}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm md:text-base">{getSettingTitle(setting.key)}</h3>
+            <p className="mt-1 text-xs md:text-sm text-muted-foreground break-words">
               {setting.key === 'tmdb_api_key' ? t('settings.tmdbApiKeyDesc') : setting.description}
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="rounded bg-muted px-2 py-0.5 text-xs">{setting.env_var}</code>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="rounded bg-muted px-2 py-0.5 text-xs break-all">{setting.env_var}</code>
               <StatusBadge setting={setting} />
             </div>
           </div>
@@ -131,22 +131,22 @@ function SettingCard({ setting }: { setting: SettingStatus }) {
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder={`${setting.env_var} ${t('settings.enterValue')}`}
-              className="w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border bg-background px-4 py-3 pr-10 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               autoFocus
             />
             <button
               type="button"
               onClick={() => setShowValue(!showValue)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground active:text-foreground min-h-touch min-w-touch flex items-center justify-center"
             >
               {showValue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={handleSave}
               disabled={!value.trim() || updateMutation.isPending}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
             >
               {updateMutation.isPending ? t('settings.saving') : t('common.save')}
             </button>
@@ -155,7 +155,7 @@ function SettingCard({ setting }: { setting: SettingStatus }) {
                 setIsEditing(false)
                 setValue('')
               }}
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
             >
               {t('common.cancel')}
             </button>
@@ -167,10 +167,10 @@ function SettingCard({ setting }: { setting: SettingStatus }) {
           )}
         </div>
       ) : (
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <button
             onClick={() => setIsEditing(true)}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
           >
             {setting.is_configured ? t('settings.change') : t('settings.configure')}
           </button>
@@ -179,10 +179,13 @@ function SettingCard({ setting }: { setting: SettingStatus }) {
             <button
               onClick={() => testMutation.mutate()}
               disabled={testMutation.isPending}
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
             >
               {testMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="hidden sm:inline">{t('settings.testApi')}</span>
+                </>
               ) : (
                 t('settings.testApi')
               )}

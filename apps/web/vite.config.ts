@@ -13,6 +13,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    // Exclude Tauri plugins from pre-bundling - they're only available at runtime
+    exclude: ['@tauri-apps/plugin-barcode-scanner'],
+  },
+  build: {
+    rollupOptions: {
+      // Externalize Tauri plugins - they're only available at runtime in Tauri
+      external: (id) => {
+        // Externalize all @tauri-apps/plugin-* packages
+        return id.startsWith('@tauri-apps/plugin-')
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

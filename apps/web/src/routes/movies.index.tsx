@@ -119,9 +119,9 @@ function MoviesPage() {
 
   return (
     <div className="relative">
-      {/* Alphabet Navigation - Fixed on right side */}
+      {/* Alphabet Navigation - Fixed on right side, hidden on mobile */}
       {!search && availableLetters.length > 0 && (
-        <nav className="fixed right-2 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-0.5 bg-background/80 backdrop-blur rounded-full py-2 px-1 shadow-lg border">
+        <nav className="hidden md:flex fixed right-2 top-1/2 -translate-y-1/2 z-40 flex-col gap-0.5 bg-background/80 backdrop-blur rounded-full py-2 px-1 shadow-lg border">
           {ALPHABET.map(letter => {
             const hasMovies = moviesByLetter[letter]?.length > 0
             return (
@@ -129,11 +129,11 @@ function MoviesPage() {
                 key={letter}
                 onClick={() => hasMovies && scrollToLetter(letter)}
                 disabled={!hasMovies}
-                className={`w-6 h-6 text-xs font-medium rounded-full transition-all ${
+                className={`w-6 h-6 text-xs font-medium rounded-full transition-all min-h-touch min-w-touch ${
                   activeLetter === letter
                     ? 'bg-primary text-primary-foreground'
                     : hasMovies
-                      ? 'hover:bg-muted text-foreground'
+                      ? 'hover:bg-muted text-foreground active:bg-muted/80'
                       : 'text-muted-foreground/30 cursor-default'
                 }`}
               >
@@ -144,22 +144,23 @@ function MoviesPage() {
         </nav>
       )}
 
-      <div className="space-y-6 pr-10">
+      <div className="space-y-4 md:space-y-6 md:pr-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t('movies.title')}</h1>
+            <h1 className="text-xl md:text-2xl font-bold">{t('movies.title')}</h1>
             {total > 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 {total} {t('movies.inCollection')}
               </p>
             )}
           </div>
           <Link
             to="/scan"
-            className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+            className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
           >
             <Plus className="h-4 w-4" />
-            {t('movies.add')}
+            <span className="hidden sm:inline">{t('movies.add')}</span>
+            <span className="sm:hidden">{t('common.add')}</span>
           </Link>
         </div>
 
@@ -172,14 +173,15 @@ function MoviesPage() {
               placeholder={t('movies.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-md border bg-background pl-9 pr-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border bg-background pl-9 pr-3 py-3 md:py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
             />
           </div>
           <button
             type="submit"
-            className="rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
+            className="rounded-md bg-secondary px-4 py-3 md:py-2 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch min-w-touch"
           >
-            {t('movies.search')}
+            <span className="hidden sm:inline">{t('movies.search')}</span>
+            <Search className="h-4 w-4 sm:hidden" />
           </button>
         </form>
 
@@ -187,10 +189,10 @@ function MoviesPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleFilterChange({ watched: filter.watched === 'true' ? undefined : 'true' })}
-            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs ${
+            className={`flex items-center gap-1 rounded-full px-3 py-2 md:py-1 text-xs min-h-touch ${
               filter.watched === 'true'
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary hover:bg-secondary/80'
+                : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
             }`}
           >
             <Check className="h-3 w-3" />
@@ -198,10 +200,10 @@ function MoviesPage() {
           </button>
           <button
             onClick={() => handleFilterChange({ watched: filter.watched === 'false' ? undefined : 'false' })}
-            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs ${
+            className={`flex items-center gap-1 rounded-full px-3 py-2 md:py-1 text-xs min-h-touch ${
               filter.watched === 'false'
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary hover:bg-secondary/80'
+                : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
             }`}
           >
             <X className="h-3 w-3" />
@@ -210,7 +212,7 @@ function MoviesPage() {
           <select
             value={filter.disc_type || ''}
             onChange={e => handleFilterChange({ disc_type: e.target.value || undefined })}
-            className="rounded-full border bg-background px-3 py-1 text-xs"
+            className="rounded-full border bg-background px-3 py-2 md:py-1 text-xs min-h-touch"
           >
             <option value="">{t('movies.allFormats')}</option>
             <option value="Blu-ray">Blu-ray</option>
@@ -221,14 +223,14 @@ function MoviesPage() {
 
         {/* Movies grouped by letter */}
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>
+          <div className="text-center py-12 text-muted-foreground text-sm md:text-base">{t('common.loading')}</div>
         ) : movies.length === 0 ? (
           <div className="text-center py-12">
             <Film className="mx-auto h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">{t('movies.notFound')}</p>
+            <p className="mt-4 text-muted-foreground text-sm md:text-base">{t('movies.notFound')}</p>
             <Link
               to="/scan"
-              className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
             >
               <Plus className="h-4 w-4" />
               {t('movies.addFirstMovie')}
@@ -236,27 +238,27 @@ function MoviesPage() {
           </div>
         ) : search ? (
           // Flat grid when searching
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {movies.map(movie => (
               <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovieId(movie.id)} />
             ))}
           </div>
         ) : (
           // Grouped by letter when not searching
-          <div className="space-y-8">
+          <div className="space-y-6 md:space-y-8">
             {availableLetters.map(letter => (
               <section
                 key={letter}
                 ref={el => { sectionRefs.current[letter] = el }}
-                className="scroll-mt-24"
+                className="scroll-mt-20 md:scroll-mt-24"
               >
-                <h2 className="text-lg font-bold mb-4 sticky top-16 bg-background/95 backdrop-blur py-2 z-10 border-b">
+                <h2 className="text-base md:text-lg font-bold mb-3 md:mb-4 sticky top-14 md:top-16 bg-background/95 backdrop-blur py-2 z-10 border-b">
                   {letter}
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                  <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
                     ({moviesByLetter[letter]?.length})
                   </span>
                 </h2>
-                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {moviesByLetter[letter]?.map(movie => (
                     <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovieId(movie.id)} />
                   ))}
@@ -282,7 +284,7 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="group rounded-lg border bg-card overflow-hidden hover:border-primary text-left transition-all hover:shadow-lg"
+      className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary text-left transition-all hover:shadow-lg active:shadow-md w-full"
     >
       <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
         <PosterImage
@@ -290,7 +292,7 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
           movieId={movie.id}
           size="w342"
           alt={movie.title}
-          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform group-hover:scale-105 group-active:scale-100"
           updatedAt={movie.updated_at}
         />
         {movie.watched && (
@@ -299,11 +301,11 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
           </div>
         )}
       </div>
-      <div className="p-3">
-        <h3 className="font-medium text-sm truncate group-hover:text-primary">
+      <div className="p-2 md:p-3">
+        <h3 className="font-medium text-xs md:text-sm truncate group-active:text-primary">
           {movie.title}
         </h3>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
           {movie.production_year && <span>{movie.production_year}</span>}
           {movie.disc_type && (
             <span className="rounded bg-secondary px-1">
@@ -379,7 +381,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70"
@@ -387,34 +389,34 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
       />
 
       {/* Modal */}
-      <div className="relative bg-card rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-card rounded-none md:rounded-lg shadow-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-          <h2 className="font-semibold truncate pr-4">
+        <div className="flex items-center justify-between px-4 py-3 md:py-3 border-b bg-muted/30 shrink-0">
+          <h2 className="font-semibold truncate pr-4 text-base md:text-lg">
             {isLoading ? t('common.loading') : movie?.title || t('movies.movie')}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 hover:bg-muted transition-colors"
+            className="rounded-md p-2 hover:bg-muted active:bg-muted/80 transition-colors min-h-touch min-w-touch"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-80">
-            <div className="text-muted-foreground">{t('common.loading')}</div>
+          <div className="flex items-center justify-center h-80 flex-1">
+            <div className="text-muted-foreground text-sm md:text-base">{t('common.loading')}</div>
           </div>
         ) : !movie ? (
-          <div className="flex items-center justify-center h-80">
-            <div className="text-muted-foreground">{t('movies.notFound')}</div>
+          <div className="flex items-center justify-center h-80 flex-1">
+            <div className="text-muted-foreground text-sm md:text-base">{t('movies.notFound')}</div>
           </div>
         ) : (
           <>
             {/* Content */}
-            <div className="flex p-4 gap-4 max-h-[calc(90vh-120px)] overflow-auto">
+            <div className="flex flex-col md:flex-row p-4 gap-4 overflow-y-auto flex-1">
               {/* Poster Section */}
-              <div className="w-40 shrink-0 space-y-3">
+              <div className="w-full md:w-40 shrink-0 space-y-3 flex flex-col items-center md:items-start">
                 <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted shadow-lg relative group/poster">
                   <PosterImage
                     posterPath={null}
@@ -444,17 +446,17 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   <button
                     onClick={() => toggleWatchedMutation.mutate()}
                     disabled={toggleWatchedMutation.isPending}
-                    className={`p-2 rounded-full transition-colors ${
+                    className={`p-3 rounded-full transition-colors min-h-touch min-w-touch ${
                       movie.watched
                         ? 'text-green-500 bg-green-500/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80'
                     }`}
                     title={movie.watched ? t('movies.watched') : t('movies.markAsWatched')}
                   >
                     <Eye className="h-5 w-5" />
                   </button>
                   <button
-                    className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="p-3 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80 transition-colors min-h-touch min-w-touch"
                     title={t('movies.bookmark')}
                   >
                     <Bookmark className="h-5 w-5" />
@@ -477,12 +479,12 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
               {/* Details Section */}
               <div className="flex-1 min-w-0">
                 {/* Title & Year */}
-                <h3 className="text-xl font-bold">{movie.title}</h3>
+                <h3 className="text-lg md:text-xl font-bold">{movie.title}</h3>
                 {movie.original_title && movie.original_title !== movie.title && (
-                  <p className="text-sm text-muted-foreground">{movie.original_title}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">{movie.original_title}</p>
                 )}
                 
-                <p className="text-muted-foreground mt-1">{movie.production_year}</p>
+                <p className="text-muted-foreground mt-1 text-sm md:text-base">{movie.production_year}</p>
                 
                 {/* Format Badge */}
                 {movie.disc_type && (
@@ -496,55 +498,55 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     {t('movies.details')}
                   </h4>
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-xs md:text-sm">
                     {movie.barcode && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0"># {t('movies.barcode')}</span>
-                        <span className="font-mono">{movie.barcode}</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0"># {t('movies.barcode')}</span>
+                        <span className="font-mono break-all">{movie.barcode}</span>
                       </div>
                     )}
                     {movie.tmdb_id && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">TMDB ID</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0">TMDB ID</span>
                         <a 
                           href={`https://www.themoviedb.org/movie/${movie.tmdb_id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline"
+                          className="text-primary hover:underline active:text-primary/80 break-all"
                         >
                           {movie.tmdb_id}
                         </a>
                       </div>
                     )}
                     {movie.imdb_id && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">IMDb ID</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0">IMDb ID</span>
                         <a 
                           href={`https://www.imdb.com/title/${movie.imdb_id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline"
+                          className="text-primary hover:underline active:text-primary/80 break-all"
                         >
                           {movie.imdb_id}
                         </a>
                       </div>
                     )}
                     {movie.running_time && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.runningTime')}</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.runningTime')}</span>
                         <span>{movie.running_time} {t('movies.minutes')}</span>
                       </div>
                     )}
                     {movie.director && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.director')}</span>
-                        <span>{movie.director}</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.director')}</span>
+                        <span className="break-words">{movie.director}</span>
                       </div>
                     )}
                     {movie.location && (
-                      <div className="flex gap-3">
-                        <span className="text-muted-foreground w-32 shrink-0">{t('movies.location')}</span>
-                        <span>{movie.location}</span>
+                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
+                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.location')}</span>
+                        <span className="break-words">{movie.location}</span>
                       </div>
                     )}
                   </div>
@@ -602,7 +604,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
             </div>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30 relative">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30 relative shrink-0">
               <button
                 onClick={() => {
                   if (confirm(t('movies.deleteConfirm'))) {
@@ -610,7 +612,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   }
                 }}
                 disabled={deleteMutation.isPending}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 active:bg-destructive/20 rounded-md transition-colors min-h-touch"
               >
                 <Trash2 className="h-4 w-4" />
                 {t('movies.delete')}
@@ -620,10 +622,11 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 <button
                   onClick={() => setShowRefreshMenu(!showRefreshMenu)}
                   disabled={refreshTmdbMutation.isPending}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-primary hover:bg-primary/10 active:bg-primary/20 rounded-md transition-colors min-h-touch w-full md:w-auto"
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                  {t('movies.refreshTmdb')}
+                  <span className="hidden sm:inline">{t('movies.refreshTmdb')}</span>
+                  <span className="sm:hidden">{t('movies.refreshTmdb')}</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
                 {showRefreshMenu && (
@@ -634,7 +637,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                         setShowRefreshMenu(false)
                       }}
                       disabled={refreshTmdbMutation.isPending}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                      className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
                     >
                       {t('movies.refreshTmdbMissing')}
                     </button>
@@ -644,7 +647,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                         setShowRefreshMenu(false)
                       }}
                       disabled={refreshTmdbMutation.isPending}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors border-t"
+                      className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
                     >
                       {t('movies.refreshTmdbAll')}
                     </button>
@@ -656,7 +659,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                 to="/movies/$movieId"
                 params={{ movieId }}
                 onClick={onClose}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 active:bg-primary/80 transition-colors min-h-touch"
               >
                 {t('movies.moreDetails')}
               </Link>

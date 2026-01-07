@@ -104,14 +104,14 @@ function ImportPage() {
     : 0
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">{t('import.title')}</h1>
+    <div className="space-y-4 md:space-y-6 max-w-2xl">
+      <h1 className="text-xl md:text-2xl font-bold">{t('import.title')}</h1>
 
-      <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
         <div className="text-center">
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h2 className="mt-4 font-semibold">{t('import.csvImport')}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h2 className="mt-4 text-base md:text-lg font-semibold">{t('import.csvImport')}</h2>
+          <p className="mt-2 text-xs md:text-sm text-muted-foreground">
             {t('import.csvImportDesc')}
           </p>
         </div>
@@ -127,17 +127,17 @@ function ImportPage() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-8 text-sm hover:border-primary hover:bg-accent"
+            className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-8 text-sm hover:border-primary hover:bg-accent active:bg-accent/80 min-h-touch"
           >
             <FileUp className="h-5 w-5" />
-            {selectedFile ? selectedFile.name : t('import.selectFile')}
+            <span className="truncate">{selectedFile ? selectedFile.name : t('import.selectFile')}</span>
           </button>
 
           {selectedFile && (
             <button
               onClick={handleImport}
               disabled={importMutation.isPending}
-              className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
             >
               {importMutation.isPending ? t('import.importing') : t('import.title')}
             </button>
@@ -199,7 +199,7 @@ function ImportPage() {
         <button
           onClick={() => enrichMutation.mutate(false)}
           disabled={isEnriching || enrichMutation.isPending}
-          className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 disabled:opacity-50 min-h-touch"
         >
           <RefreshCw className={`h-4 w-4 ${isEnriching ? 'animate-spin' : ''}`} />
           {isEnriching ? t('import.loadingTmdbData') : t('import.loadTmdbData')}
