@@ -260,6 +260,10 @@ class ApiClient {
     return this.request<EnrichResult>(`/import/enrich-tmdb${query}`, { method: 'POST' })
   }
 
+  async cancelEnrichTmdb() {
+    return this.request<{ message: string }>('/import/enrich-tmdb/cancel', { method: 'POST' })
+  }
+
   // Settings (admin only)
   async getSettings() {
     return this.request<SettingStatus[]>('/settings')

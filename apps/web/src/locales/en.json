@@ -249,6 +249,7 @@
     "andMore": "and",
     "more": "more",
     "errorLoadingTmdb": "Error loading TMDB data",
+    "cancelled": "Cancelled",
     "imported": "imported",
     "supportedFormats": "Supported Formats",
     "csvColumnsDesc": "The CSV file should contain the following columns (as in My Movies Pro Export):",

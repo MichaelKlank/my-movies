@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::extract::{Multipart, Query};
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
@@ -9,6 +10,10 @@ use my_movies_core::models::{Claims, MovieFilter, UpdateMovie};
 use my_movies_core::services::TmdbService;
 
 use crate::AppState;
+
+/// Global cancellation flag for TMDB enrichment
+static ENRICH_CANCELLED: AtomicBool = AtomicBool::new(false);
+static ENRICH_RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// Download poster image from TMDB URL and return as bytes
 async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
@@ -161,6 +166,19 @@ pub async fn enrich_movies_tmdb(
             .into_response();
     }
 
+    // Check if already running
+    if ENRICH_RUNNING.load(Ordering::SeqCst) {
+        return (
+            StatusCode::CONFLICT,
+            Json(json!({ "error": "TMDB enrichment is already running" })),
+        )
+            .into_response();
+    }
+
+    // Reset cancellation flag and mark as running
+    ENRICH_CANCELLED.store(false, Ordering::SeqCst);
+    ENRICH_RUNNING.store(true, Ordering::SeqCst);
+
     // Send initial status
     let msg = json!({
         "type": "tmdb_enrich_started",
@@ -192,8 +210,23 @@ pub async fn enrich_movies_tmdb(
         let mut enriched = 0;
         let mut errors: Vec<String> = Vec::new();
         let lang = language_clone.as_deref();
+        let mut cancelled = false;
 
         for (index, movie) in movies_to_enrich.iter().enumerate() {
+            // Check for cancellation
+            if ENRICH_CANCELLED.load(Ordering::SeqCst) {
+                cancelled = true;
+                let msg = json!({
+                    "type": "tmdb_enrich_cancelled",
+                    "payload": {
+                        "current": index,
+                        "total": total,
+                        "enriched": enriched
+                    }
+                });
+                let _ = state_clone.ws_broadcast.send(msg.to_string());
+                break;
+            }
             // Try to get TMDB details - priority: tmdb_id > imdb_id > title search
             let tmdb_details = if let Some(tmdb_id) = movie.tmdb_id {
                 // Use existing TMDB ID
@@ -354,16 +387,21 @@ pub async fn enrich_movies_tmdb(
             sleep(Duration::from_millis(250)).await;
         }
 
-        // Send completion
-        let msg = json!({
-            "type": "tmdb_enrich_complete",
-            "payload": {
-                "total": total,
-                "enriched": enriched,
-                "errors": errors
-            }
-        });
-        let _ = state_clone.ws_broadcast.send(msg.to_string());
+        // Mark as not running
+        ENRICH_RUNNING.store(false, Ordering::SeqCst);
+
+        // Send completion (only if not cancelled - cancellation sends its own message)
+        if !cancelled {
+            let msg = json!({
+                "type": "tmdb_enrich_complete",
+                "payload": {
+                    "total": total,
+                    "enriched": enriched,
+                    "errors": errors
+                }
+            });
+            let _ = state_clone.ws_broadcast.send(msg.to_string());
+        }
     });
 
     // Return immediately
@@ -373,6 +411,34 @@ pub async fn enrich_movies_tmdb(
             "message": "TMDB enrichment started",
             "total": total
         })),
+    )
+        .into_response()
+}
+
+/// Cancel the running TMDB enrichment
+pub async fn cancel_enrich_tmdb(Extension(claims): Extension<Claims>) -> impl IntoResponse {
+    // Only admins can cancel
+    if claims.role != my_movies_core::models::UserRole::Admin {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({ "error": "Only admins can cancel enrichment" })),
+        )
+            .into_response();
+    }
+
+    if !ENRICH_RUNNING.load(Ordering::SeqCst) {
+        return (
+            StatusCode::OK,
+            Json(json!({ "message": "No enrichment running" })),
+        )
+            .into_response();
+    }
+
+    ENRICH_CANCELLED.store(true, Ordering::SeqCst);
+
+    (
+        StatusCode::OK,
+        Json(json!({ "message": "Cancellation requested" })),
     )
         .into_response()
 }

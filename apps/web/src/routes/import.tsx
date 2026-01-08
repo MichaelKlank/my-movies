@@ -4,7 +4,7 @@ import { api, ImportResult, Movie } from '@/lib/api'
 import { wsClient, WsMessage } from '@/lib/ws'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
-import { AlertCircle, Check, Copy, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Copy, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 export const Route = createFileRoute('/import')({
@@ -36,8 +36,19 @@ function ImportPage() {
   const [enrichProgress, setEnrichProgress] = useState<TmdbEnrichProgress | null>(null)
   const [enrichComplete, setEnrichComplete] = useState<TmdbEnrichComplete | null>(null)
   const [isEnriching, setIsEnriching] = useState(false)
+  const [showRefreshMenu, setShowRefreshMenu] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+
+  // Check if TMDB API key is configured (admin only, fails silently for non-admins)
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api.getSettings(),
+    retry: false, // Don't retry if forbidden (non-admin)
+  })
+  // Only disable if we explicitly know it's NOT configured
+  const tmdbSetting = settings?.find(s => s.key === 'tmdb_api_key')
+  const tmdbApiConfigured = !settings ? true : (tmdbSetting?.is_configured ?? true)
 
   // Subscribe to WebSocket events for TMDB enrichment
   useEffect(() => {
@@ -57,11 +68,21 @@ function ImportPage() {
           setEnrichComplete(message.payload as TmdbEnrichComplete)
           queryClient.invalidateQueries({ queryKey: ['movies'] })
           break
+        case 'tmdb_enrich_cancelled':
+          setIsEnriching(false)
+          setEnrichProgress(null)
+          setEnrichComplete({
+            total: (message.payload as { total: number }).total,
+            enriched: (message.payload as { enriched: number }).enriched,
+            errors: [t('import.cancelled')]
+          })
+          queryClient.invalidateQueries({ queryKey: ['movies'] })
+          break
       }
     })
 
     return unsubscribe
-  }, [queryClient])
+  }, [queryClient, t])
 
   const importMutation = useMutation({
     mutationFn: (file: File) => api.importCsv(file),
@@ -82,6 +103,10 @@ function ImportPage() {
     onError: () => {
       setIsEnriching(false)
     }
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: () => api.cancelEnrichTmdb(),
   })
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,7 +210,7 @@ function ImportPage() {
       </div>
 
       {/* TMDB Enrichment Section */}
-      <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className={`rounded-lg border bg-card p-6 space-y-4 ${!tmdbApiConfigured ? 'opacity-60' : ''}`}>
         <div className="flex items-start gap-4">
           <Image className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
           <div className="flex-1">
@@ -193,39 +218,131 @@ function ImportPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {t('import.loadTmdbDataDesc')}
             </p>
+            {!tmdbApiConfigured && (
+              <p className="mt-2 text-sm text-yellow-600">
+                <Link to="/settings" className="underline hover:no-underline">
+                  {t('settings.tmdbApiKey')}
+                </Link> {t('users.notConfigured').toLowerCase()}
+              </p>
+            )}
           </div>
         </div>
 
-        <button
-          onClick={() => enrichMutation.mutate(false)}
-          disabled={isEnriching || enrichMutation.isPending}
-          className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 disabled:opacity-50 min-h-touch"
-        >
-          <RefreshCw className={`h-4 w-4 ${isEnriching ? 'animate-spin' : ''}`} />
-          {isEnriching ? t('import.loadingTmdbData') : t('import.loadTmdbData')}
-        </button>
+        {/* Dropdown Menu Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowRefreshMenu(!showRefreshMenu)}
+            disabled={isEnriching || enrichMutation.isPending || !tmdbApiConfigured}
+            className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 disabled:opacity-50 min-h-touch"
+          >
+            <RefreshCw className={`h-4 w-4 ${isEnriching ? 'animate-spin' : ''}`} />
+            {isEnriching ? t('import.loadingTmdbData') : t('import.loadTmdbData')}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showRefreshMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Desktop dropdown */}
+          {showRefreshMenu && (
+            <div className="hidden sm:block absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10">
+              <button
+                onClick={() => {
+                  enrichMutation.mutate(false)
+                  setShowRefreshMenu(false)
+                }}
+                disabled={enrichMutation.isPending}
+                className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
+              >
+                {t('import.loadMissingData')}
+              </button>
+              <button
+                onClick={() => {
+                  enrichMutation.mutate(true)
+                  setShowRefreshMenu(false)
+                }}
+                disabled={enrichMutation.isPending}
+                className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
+              >
+                {t('import.reloadAllData')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile dialog for TMDB refresh */}
+        {showRefreshMenu && (
+          <div 
+            className="sm:hidden fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowRefreshMenu(false)}
+          >
+            <div 
+              className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-card rounded-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-4 py-3 border-b bg-muted/50">
+                <h3 className="text-sm font-semibold text-center">
+                  {t('import.loadTmdbData')}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  enrichMutation.mutate(false)
+                  setShowRefreshMenu(false)
+                }}
+                disabled={enrichMutation.isPending}
+                className="w-full text-left px-4 py-4 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
+              >
+                {t('import.loadMissingData')}
+              </button>
+              <button
+                onClick={() => {
+                  enrichMutation.mutate(true)
+                  setShowRefreshMenu(false)
+                }}
+                disabled={enrichMutation.isPending}
+                className="w-full text-left px-4 py-4 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
+              >
+                {t('import.reloadAllData')}
+              </button>
+              <button
+                onClick={() => setShowRefreshMenu(false)}
+                className="w-full text-center px-4 py-4 text-sm font-medium text-destructive hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Progress Bar */}
         {enrichProgress && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {enrichProgress.current} {t('import.moviesProcessed')} {enrichProgress.total}
-              </span>
-              <span className="font-medium">{progressPercent}%</span>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {enrichProgress.current} {t('import.moviesProcessed')} {enrichProgress.total}
+                </span>
+                <span className="font-medium">{progressPercent}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span className="text-green-600">{enrichProgress.enriched} {t('import.updated')}</span>
+                {enrichProgress.errors_count > 0 && (
+                  <span className="text-yellow-600">{enrichProgress.errors_count} {t('import.notFound')}</span>
+                )}
+              </div>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              <span className="text-green-600">{enrichProgress.enriched} {t('import.updated')}</span>
-              {enrichProgress.errors_count > 0 && (
-                <span className="text-yellow-600">{enrichProgress.errors_count} {t('import.notFound')}</span>
-              )}
-            </div>
+            {/* Cancel Button */}
+            <button
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+              className="flex items-center justify-center gap-2 w-full rounded-md bg-destructive/10 text-destructive px-4 py-2 text-sm font-medium hover:bg-destructive/20 active:bg-destructive/30 disabled:opacity-50"
+            >
+              {cancelMutation.isPending ? t('common.loading') : t('common.cancel')}
+            </button>
           </div>
         )}
 

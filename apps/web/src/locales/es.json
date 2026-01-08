@@ -6,6 +6,7 @@
     "delete": "Eliminar",
     "edit": "Editar",
     "close": "Cerrar",
+    "done": "Listo",
     "back": "Atrás",
     "search": "Buscar",
     "add": "Añadir",
@@ -18,11 +19,13 @@
     "scanNow": "Escanear Ahora"
   },
   "nav": {
+    "home": "Inicio",
+    "dashboard": "Panel",
     "movies": "Películas",
     "series": "Series",
     "scan": "Escanear",
     "import": "Importar",
-    "profile": "Mi Perfil",
+    "profile": "Perfil",
     "settings": "Configuración",
     "users": "Usuarios",
     "logout": "Cerrar Sesión"
@@ -58,13 +61,24 @@
     "systemLanguage": "Idioma del Sistema",
     "contentSettings": "Configuración de Contenido",
     "includeAdult": "Mostrar Contenido para Adultos",
-    "includeAdultDesc": "Permitir la visualización de películas con contenido para adultos en los resultados de búsqueda"
+    "includeAdultDesc": "Permitir la visualización de películas con contenido para adultos en los resultados de búsqueda",
+    "displaySettings": "Pantalla",
+    "cardSize": "Tamaño de Tarjeta",
+    "cardSizeDesc": "Tamaño de las tarjetas de películas en tu colección"
   },
   "dashboard": {
     "title": "Panel de Control"
   },
+  "fab": {
+    "addMovie": "Añadir Película",
+    "scanBarcode": "Escanear Código",
+    "enterBarcode": "Introducir Código",
+    "searchTmdb": "Buscar TMDB",
+    "scrollToTop": "Ir arriba",
+    "import": "Importar CSV"
+  },
   "movies": {
-    "title": "Películas",
+    "title": "Colección",
     "add": "Añadir Película",
     "inCollection": "Películas en la colección",
     "searchPlaceholder": "Buscar películas...",
@@ -73,10 +87,13 @@
     "notWatched": "No Vista",
     "markAsWatched": "Marcar como vista",
     "allFormats": "Todos los Formatos",
+    "allTypes": "Todos los Tipos",
+    "typeMovie": "Películas",
+    "typeSeries": "Series",
     "addFirstMovie": "Añadir primera película",
     "delete": "Eliminar",
     "deleteConfirm": "¿Realmente eliminar la película?",
-    "notFound": "Película no encontrada",
+    "notFound": "No se encontraron películas",
     "changePoster": "Cambiar póster",
     "bookmark": "Marcador",
     "movie": "Película",
@@ -97,7 +114,13 @@
     "cast": "Reparto",
     "notes": "Notas",
     "edition": "Edición",
-    "moreDetails": "Más Detalles"
+    "moreDetails": "Más Detalles",
+    "cardSize": "Tamaño del Póster",
+    "cardSizeSmall": "Pequeño",
+    "cardSizeMedium": "Mediano",
+    "cardSizeLarge": "Grande",
+    "recentlyAdded": "Agregados Recientemente",
+    "clearFilters": "Limpiar Filtros"
   },
   "scan": {
     "title": "Añadir Película",
@@ -106,6 +129,7 @@
     "searchTmdb": "Buscar en TMDB",
     "enterEanPlaceholder": "Introducir EAN/Código de Barras...",
     "searching": "Buscando...",
+    "lookingUp": "Buscando en la base de datos...",
     "holdBarcode": "Mantén el código de barras frente a la cámara...",
     "enterMovieTitle": "Introducir título de película...",
     "lookupFailed": "Búsqueda fallida",
@@ -113,7 +137,11 @@
     "createFailed": "No se pudo crear la película",
     "cameraFailed": "No se pudo iniciar la cámara",
     "foundForBarcode": "Encontrado para Código de Barras",
-    "searchResults": "Resultados de Búsqueda"
+    "searchResults": "Resultados de Búsqueda",
+    "noResults": "No se encontraron resultados",
+    "noResultsForTitle": "No se encontraron películas en TMDB para \"{{title}}\".",
+    "noResultsForBarcode": "El código de barras {{barcode}} no se encontró en la base de datos.",
+    "searchManually": "Buscar manualmente"
   },
   "users": {
     "title": "Gestión de Usuarios",
@@ -129,7 +157,15 @@
     "configured": "Configurado",
     "accessDenied": "Acceso Denegado",
     "onlyAdmins": "Solo los administradores pueden gestionar usuarios.",
-    "setPassword": "Establecer Contraseña"
+    "setPassword": "Establecer Contraseña",
+    "createUser": "Crear Usuario",
+    "createUserDesc": "Crea un nuevo usuario. Puedes establecer una contraseña temporal o generar un enlace de restablecimiento.",
+    "generateResetLink": "Generar enlace (el usuario establece la contraseña)",
+    "userCreated": "Usuario creado",
+    "shareResetLink": "Comparte este enlace con el nuevo usuario para que pueda establecer su contraseña:",
+    "copyLink": "Copiar enlace",
+    "usernameTooShort": "El nombre de usuario debe tener al menos 2 caracteres",
+    "invalidEmail": "Dirección de correo electrónico inválida"
   },
   "settings": {
     "title": "Configuración",
@@ -213,6 +249,7 @@
     "andMore": "y",
     "more": "más",
     "errorLoadingTmdb": "Error al cargar datos de TMDB",
+    "cancelled": "Cancelado",
     "imported": "importado",
     "supportedFormats": "Formatos compatibles",
     "csvColumnsDesc": "El archivo CSV debe contener las siguientes columnas (como en la exportación de My Movies Pro):",

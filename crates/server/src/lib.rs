@@ -197,6 +197,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         // Import/Export
         .route("/import/csv", post(import::import_csv))
         .route("/import/enrich-tmdb", post(import::enrich_movies_tmdb))
+        .route(
+            "/import/enrich-tmdb/cancel",
+            post(import::cancel_enrich_tmdb),
+        )
         // Settings (admin only)
         .route("/settings", get(settings::get_settings))
         .route(
@@ -205,7 +209,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         )
         .route("/settings/test/tmdb", post(settings::test_tmdb))
         // User management (admin only)
-        .route("/users", get(users::list_users).post(users::admin_create_user))
+        .route(
+            "/users",
+            get(users::list_users).post(users::admin_create_user),
+        )
         .route(
             "/users/:id/role",
             axum::routing::put(users::update_user_role),
