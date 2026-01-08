@@ -205,7 +205,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         )
         .route("/settings/test/tmdb", post(settings::test_tmdb))
         // User management (admin only)
-        .route("/users", get(users::list_users))
+        .route("/users", get(users::list_users).post(users::admin_create_user))
         .route(
             "/users/:id/role",
             axum::routing::put(users::update_user_role),

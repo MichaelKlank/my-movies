@@ -12,6 +12,9 @@ import {
   UserCircle,
   Calendar,
   Mail,
+  UserPlus,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { api, UserWithDate } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -29,6 +32,7 @@ export const Route = createFileRoute('/users')({
 function UsersPage() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Only admins can access users
   if (user?.role !== 'admin') {
@@ -48,6 +52,7 @@ function UsersPage() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => api.getUsers(),
+    staleTime: 0, // Always refetch when navigating to this page
   })
 
   if (isLoading) {
@@ -62,15 +67,28 @@ function UsersPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="flex items-center gap-3 text-3xl font-bold">
-          <Users className="h-8 w-8" />
-          {t('users.title')}
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          {t('users.subtitle')}
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-3 text-3xl font-bold">
+            <Users className="h-8 w-8" />
+            {t('users.title')}
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            {t('users.subtitle')}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
+        >
+          <UserPlus className="h-4 w-4" />
+          {t('users.createUser')}
+        </button>
       </div>
+
+      {showCreateModal && (
+        <CreateUserModal onClose={() => setShowCreateModal(false)} />
+      )}
 
       <div className="rounded-lg border">
         <table className="w-full">
@@ -364,3 +382,212 @@ function DeleteModal({
   )
 }
 
+function CreateUserModal({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n()
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [useTemporaryPassword, setUseTemporaryPassword] = useState(true)
+  const [error, setError] = useState('')
+  const [resetLink, setResetLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: () => api.adminCreateUser(
+      username,
+      email,
+      useTemporaryPassword ? undefined : password
+    ),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      if (result.reset_token) {
+        // Show reset link to admin
+        const link = `${window.location.origin}/reset-password?token=${result.reset_token}`
+        setResetLink(link)
+      } else {
+        onClose()
+      }
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : t('settings.unknownError'))
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (username.length < 2) {
+      setError(t('users.usernameTooShort'))
+      return
+    }
+
+    if (!email.includes('@')) {
+      setError(t('users.invalidEmail'))
+      return
+    }
+
+    if (!useTemporaryPassword) {
+      if (password.length < 4) {
+        setError(t('resetPassword.passwordTooShort'))
+        return
+      }
+      if (password !== confirmPassword) {
+        setError(t('resetPassword.passwordsDontMatch'))
+        return
+      }
+    }
+
+    mutation.mutate()
+  }
+
+  const copyLink = async () => {
+    if (resetLink) {
+      await navigator.clipboard.writeText(resetLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  // Show reset link after creation
+  if (resetLink) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-base md:text-lg font-semibold flex items-center gap-2">
+            <Check className="h-5 w-5 text-green-500" />
+            {t('users.userCreated')}
+          </h3>
+          <p className="mt-2 text-xs md:text-sm text-muted-foreground">
+            {t('users.shareResetLink')}
+          </p>
+
+          <div className="mt-4 flex gap-2">
+            <input
+              type="text"
+              value={resetLink}
+              readOnly
+              className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs font-mono"
+            />
+            <button
+              onClick={copyLink}
+              className="rounded-md border px-3 py-2 hover:bg-muted"
+              title={t('users.copyLink')}
+            >
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 min-h-touch"
+            >
+              {t('common.close')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base md:text-lg font-semibold">{t('users.createUser')}</h3>
+        <p className="mt-1 text-xs md:text-sm text-muted-foreground">
+          {t('users.createUserDesc')}
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {error && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs md:text-sm font-medium">{t('auth.username')}</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-medium">{t('auth.email')}</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
+              required
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="useTemporaryPassword"
+              checked={useTemporaryPassword}
+              onChange={(e) => setUseTemporaryPassword(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="useTemporaryPassword" className="text-xs md:text-sm">
+              {t('users.generateResetLink')}
+            </label>
+          </div>
+
+          {!useTemporaryPassword && (
+            <>
+              <div>
+                <label className="block text-xs md:text-sm font-medium">{t('auth.password')}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs md:text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
+            >
+              {mutation.isPending ? t('common.loading') : t('users.createUser')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api, User } from '@/lib/api'
 import { wsClient } from '@/lib/ws'
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   // Check for existing session on mount
   useEffect(() => {
@@ -51,8 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     api.logout()
     wsClient.disconnect()
+    queryClient.clear() // Clear all cached data when switching users
     setUser(null)
-  }, [])
+  }, [queryClient])
 
   const updateUser = useCallback((updatedUser: User) => {
     setUser(updatedUser)

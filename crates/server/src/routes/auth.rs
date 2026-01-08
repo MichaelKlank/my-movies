@@ -21,7 +21,16 @@ pub async fn register(
     Json(input): Json<CreateUser>,
 ) -> impl IntoResponse {
     match state.auth_service.register(input).await {
-        Ok(auth_response) => (StatusCode::CREATED, Json(auth_response)).into_response(),
+        Ok(auth_response) => {
+            // Broadcast new user to WebSocket clients (for admin user list)
+            let msg = json!({
+                "type": "user_created",
+                "payload": &auth_response.user
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            (StatusCode::CREATED, Json(auth_response)).into_response()
+        }
         Err(e) => (
             StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
             Json(json!({ "error": e.to_string() })),

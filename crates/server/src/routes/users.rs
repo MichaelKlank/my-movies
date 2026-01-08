@@ -143,3 +143,66 @@ pub async fn admin_set_password(
 pub struct PasswordResetResponse {
     pub message: String,
 }
+
+#[derive(serde::Deserialize)]
+pub struct AdminCreateUserRequest {
+    pub username: String,
+    pub email: String,
+    pub password: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct AdminCreateUserResponse {
+    pub user: UserPublic,
+    pub reset_token: Option<String>,
+}
+
+/// Admin create a new user
+pub async fn admin_create_user(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Json(body): Json<AdminCreateUserRequest>,
+) -> Result<Json<AdminCreateUserResponse>, crate::routes::AppError> {
+    // Only admins can create users
+    if claims.role != UserRole::Admin {
+        return Err(my_movies_core::Error::Forbidden.into());
+    }
+
+    // Validate inputs
+    if body.username.len() < 2 {
+        return Err(my_movies_core::Error::Validation(
+            "Username muss mindestens 2 Zeichen lang sein".into(),
+        )
+        .into());
+    }
+
+    if !body.email.contains('@') {
+        return Err(my_movies_core::Error::Validation(
+            "Ungültige E-Mail-Adresse".into(),
+        )
+        .into());
+    }
+
+    if let Some(ref pwd) = body.password {
+        if pwd.len() < 4 {
+            return Err(my_movies_core::Error::Validation(
+                "Passwort muss mindestens 4 Zeichen lang sein".into(),
+            )
+            .into());
+        }
+    }
+
+    let (user, reset_token) = state
+        .auth_service
+        .admin_create_user(body.username, body.email, body.password)
+        .await?;
+
+    // Broadcast new user to WebSocket clients
+    let msg = json!({
+        "type": "user_created",
+        "payload": user
+    });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok(Json(AdminCreateUserResponse { user, reset_token }))
+}

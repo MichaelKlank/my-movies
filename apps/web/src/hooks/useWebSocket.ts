@@ -51,9 +51,13 @@ export function useWebSocketSync() {
           break
 
         // User events
+        case 'user_created':
+          queryClient.invalidateQueries({ queryKey: ['users'] })
+          break
         case 'user_updated':
           queryClient.invalidateQueries({ queryKey: ['me'] })
           queryClient.invalidateQueries({ queryKey: ['user'] })
+          queryClient.invalidateQueries({ queryKey: ['users'] })
           // Update query data and auth context if payload contains user data
           if (message.payload && typeof message.payload === 'object' && 'id' in message.payload) {
             const userData = message.payload as any

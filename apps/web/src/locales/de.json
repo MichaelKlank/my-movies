@@ -135,7 +135,15 @@
     "configured": "Konfiguriert",
     "accessDenied": "Zugriff verweigert",
     "onlyAdmins": "Nur Administratoren können Benutzer verwalten.",
-    "setPassword": "Passwort setzen"
+    "setPassword": "Passwort setzen",
+    "createUser": "Benutzer anlegen",
+    "createUserDesc": "Erstelle einen neuen Benutzer. Du kannst ein temporäres Passwort setzen oder einen Reset-Link generieren.",
+    "generateResetLink": "Reset-Link generieren (Benutzer setzt Passwort selbst)",
+    "userCreated": "Benutzer erstellt",
+    "shareResetLink": "Teile diesen Link mit dem neuen Benutzer, damit er sein Passwort setzen kann:",
+    "copyLink": "Link kopieren",
+    "usernameTooShort": "Benutzername muss mindestens 2 Zeichen lang sein",
+    "invalidEmail": "Ungültige E-Mail-Adresse"
   },
   "settings": {
     "title": "Einstellungen",

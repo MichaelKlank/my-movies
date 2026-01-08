@@ -135,7 +135,15 @@
     "configured": "Configured",
     "accessDenied": "Access Denied",
     "onlyAdmins": "Only administrators can manage users.",
-    "setPassword": "Set Password"
+    "setPassword": "Set Password",
+    "createUser": "Create User",
+    "createUserDesc": "Create a new user. You can set a temporary password or generate a reset link.",
+    "generateResetLink": "Generate reset link (user sets password)",
+    "userCreated": "User created",
+    "shareResetLink": "Share this link with the new user so they can set their password:",
+    "copyLink": "Copy link",
+    "usernameTooShort": "Username must be at least 2 characters long",
+    "invalidEmail": "Invalid email address"
   },
   "settings": {
     "title": "Settings",

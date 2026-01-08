@@ -19,6 +19,7 @@ function LoginPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -36,6 +37,19 @@ function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // Validation for registration
+    if (isRegister) {
+      if (password.length < 6) {
+        setError(t('resetPassword.passwordTooShort'))
+        return
+      }
+      if (password !== confirmPassword) {
+        setError(t('resetPassword.passwordsDontMatch'))
+        return
+      }
+    }
+
     setIsLoading(true)
 
     try {
@@ -120,6 +134,23 @@ function LoginPage() {
             />
           </div>
 
+          {isRegister && (
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium">
+                {t('resetPassword.confirmPassword')}
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={isLoading}
@@ -133,7 +164,11 @@ function LoginPage() {
           {isRegister ? t('auth.alreadyHaveAccount') : t('auth.noAccountYet')}{' '}
           <button
             type="button"
-            onClick={() => setIsRegister(!isRegister)}
+            onClick={() => {
+              setIsRegister(!isRegister)
+              setConfirmPassword('')
+              setError('')
+            }}
             className="font-medium underline hover:text-foreground active:text-foreground min-h-touch min-w-touch"
           >
             {isRegister ? t('auth.login') : t('auth.register')}

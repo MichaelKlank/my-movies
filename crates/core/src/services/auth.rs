@@ -444,4 +444,95 @@ impl AuthService {
 
         Ok(())
     }
+
+    /// Admin creates a new user
+    /// If password is None, generates a reset token so user must set password on first login
+    /// Returns (user, optional reset_token)
+    pub async fn admin_create_user(
+        &self,
+        username: String,
+        email: String,
+        password: Option<String>,
+    ) -> Result<(UserPublic, Option<String>)> {
+        // Check if username or email already exists
+        let existing = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM users WHERE username = ? OR email = ?",
+        )
+        .bind(&username)
+        .bind(&email)
+        .fetch_one(&self.pool)
+        .await?;
+
+        if existing > 0 {
+            return Err(Error::Duplicate("Username or email already exists".into()));
+        }
+
+        let argon2 = Argon2::default();
+        let salt = SaltString::generate(&mut OsRng);
+
+        // If password provided, hash it; otherwise use a random placeholder
+        let (password_hash, reset_token) = if let Some(pwd) = password {
+            let hash = argon2
+                .hash_password(pwd.as_bytes(), &salt)
+                .map_err(|e| Error::Internal(e.to_string()))?
+                .to_string();
+            (hash, None)
+        } else {
+            // Generate random password (user won't know it)
+            let random_pwd = Uuid::new_v4().to_string();
+            let hash = argon2
+                .hash_password(random_pwd.as_bytes(), &salt)
+                .map_err(|e| Error::Internal(e.to_string()))?
+                .to_string();
+            
+            // Generate reset token
+            let token = Uuid::new_v4().to_string();
+            (hash, Some(token))
+        };
+
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+        let expires = now + Duration::hours(48); // 48 hours for new user to set password
+
+        // Hash reset token if present
+        let reset_token_hash = if let Some(ref token) = reset_token {
+            let token_hash = argon2
+                .hash_password(token.as_bytes(), &salt)
+                .map_err(|e| Error::Internal(e.to_string()))?
+                .to_string();
+            Some(token_hash)
+        } else {
+            None
+        };
+
+        sqlx::query(
+            r#"
+            INSERT INTO users (id, username, email, password_hash, role, created_at, updated_at, include_adult, reset_token, reset_token_expires)
+            VALUES (?, ?, ?, ?, 'user', ?, ?, 0, ?, ?)
+            "#,
+        )
+        .bind(id)
+        .bind(&username)
+        .bind(&email)
+        .bind(&password_hash)
+        .bind(now.to_rfc3339())
+        .bind(now.to_rfc3339())
+        .bind(&reset_token_hash)
+        .bind(reset_token.as_ref().map(|_| expires.to_rfc3339()))
+        .execute(&self.pool)
+        .await?;
+
+        let user = self.get_user(id).await?;
+
+        // Log reset link if generated
+        if let Some(ref token) = reset_token {
+            tracing::info!("=== NEW USER CREATED ===");
+            tracing::info!("User: {} ({})", username, email);
+            tracing::info!("Reset link: /reset-password?token={}", token);
+            tracing::info!("Token expires: {}", expires);
+            tracing::info!("========================");
+        }
+
+        Ok((user, reset_token))
+    }
 }

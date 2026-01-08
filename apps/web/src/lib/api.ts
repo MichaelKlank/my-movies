@@ -328,6 +328,13 @@ class ApiClient {
       body: { password },
     })
   }
+
+  async adminCreateUser(username: string, email: string, password?: string) {
+    return this.request<{ user: UserWithDate; reset_token: string | null }>('/users', {
+      method: 'POST',
+      body: { username, email, password: password || null },
+    })
+  }
 }
 
 export const api = new ApiClient()
