@@ -265,12 +265,13 @@ function MovieDetailPage() {
                 className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full sm:w-auto"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{t('movies.refreshTmdb')}</span>
-                <span className="sm:hidden">{t('movies.refreshTmdb')}</span>
-                <ChevronDown className="h-4 w-4" />
+                {t('movies.refreshTmdb')}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showRefreshMenu ? 'rotate-180' : ''}`} />
               </button>
+              
+              {/* Desktop dropdown */}
               {showRefreshMenu && (
-                <div className="absolute top-full left-0 right-0 sm:right-auto mt-1 bg-card border rounded-md shadow-lg z-10 min-w-[200px]">
+                <div className="hidden sm:block absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg z-10 min-w-[200px]">
                   <button
                     onClick={() => {
                       refreshTmdbMutation.mutate(false)
@@ -294,6 +295,51 @@ function MovieDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Mobile dialog for TMDB refresh */}
+            {showRefreshMenu && (
+              <div 
+                className="sm:hidden fixed inset-0 bg-black/50 z-50"
+                onClick={() => setShowRefreshMenu(false)}
+              >
+                <div 
+                  className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-card rounded-xl shadow-2xl overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-4 py-3 border-b bg-muted/50">
+                    <h3 className="text-sm font-semibold text-center">
+                      {t('movies.refreshTmdb')}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      refreshTmdbMutation.mutate(false)
+                      setShowRefreshMenu(false)
+                    }}
+                    disabled={refreshTmdbMutation.isPending}
+                    className="w-full text-left px-4 py-4 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
+                  >
+                    {t('movies.refreshTmdbMissing')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      refreshTmdbMutation.mutate(true)
+                      setShowRefreshMenu(false)
+                    }}
+                    disabled={refreshTmdbMutation.isPending}
+                    className="w-full text-left px-4 py-4 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
+                  >
+                    {t('movies.refreshTmdbAll')}
+                  </button>
+                  <button
+                    onClick={() => setShowRefreshMenu(false)}
+                    className="w-full text-center px-4 py-4 text-sm font-medium text-destructive hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => {

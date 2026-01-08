@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Film, Search, Plus, Check, X, Star, Trash2, RefreshCw, Eye, Bookmark, ImagePlus, Upload, ChevronDown } from 'lucide-react'
+import { Film, Search, Plus, Check, X } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { PosterImage } from '@/components/PosterImage'
@@ -21,7 +21,6 @@ function MoviesPage() {
   const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<MovieFilter>({})
-  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null)
   const [activeLetter, setActiveLetter] = useState<string | null>(null)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
 
@@ -97,25 +96,6 @@ function MoviesPage() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [availableLetters])
-
-  // Close modal on Escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedMovieId(null)
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [])
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (selectedMovieId) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [selectedMovieId])
 
   return (
     <div className="relative">
@@ -240,7 +220,7 @@ function MoviesPage() {
           // Flat grid when searching
           <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {movies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovieId(movie.id)} />
+              <MovieCard key={movie.id} movie={movie} />
             ))}
           </div>
         ) : (
@@ -260,7 +240,7 @@ function MoviesPage() {
                 </h2>
                 <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {moviesByLetter[letter]?.map(movie => (
-                    <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovieId(movie.id)} />
+                    <MovieCard key={movie.id} movie={movie} />
                   ))}
                 </div>
               </section>
@@ -268,23 +248,16 @@ function MoviesPage() {
           </div>
         )}
       </div>
-
-      {/* Movie Detail Modal */}
-      {selectedMovieId && (
-        <MovieDetailModal
-          movieId={selectedMovieId}
-          onClose={() => setSelectedMovieId(null)}
-        />
-      )}
     </div>
   )
 }
 
-function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
+function MovieCard({ movie }: { movie: Movie }) {
   return (
-    <button
-      onClick={onClick}
-      className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary text-left transition-all hover:shadow-lg active:shadow-md w-full"
+    <Link
+      to="/movies/$movieId"
+      params={{ movieId: movie.id }}
+      className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary text-left transition-all hover:shadow-lg active:shadow-md w-full block"
     >
       <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
         <PosterImage
@@ -321,526 +294,6 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
           )}
         </div>
       </div>
-    </button>
-  )
-}
-
-function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () => void }) {
-  const { t } = useI18n()
-  const [showPosterDialog, setShowPosterDialog] = useState(false)
-  const [showRefreshMenu, setShowRefreshMenu] = useState(false)
-
-  const { data: movie, isLoading } = useQuery({
-    queryKey: ['movie', movieId],
-    queryFn: () => api.getMovie(movieId),
-  })
-
-  const toggleWatchedMutation = useMutation({
-    mutationFn: () => api.updateMovie(movieId, { watched: !movie?.watched }),
-    // WebSocket event will handle cache invalidation
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: () => api.deleteMovie(movieId),
-    onSuccess: () => {
-      // WebSocket event will handle cache invalidation
-      onClose()
-    },
-  })
-
-  const refreshTmdbMutation = useMutation({
-    mutationFn: (force: boolean) => api.refreshMovieTmdb(movieId, force),
-    // WebSocket event will handle cache invalidation
-  })
-
-  const discTypeLabel = (type?: string) => {
-    switch (type?.toLowerCase()) {
-      case 'bluray': return 'Blu-ray'
-      case 'uhdbluray': return '4K UHD'
-      case 'dvd': return 'DVD'
-      case 'hddvd': return 'HD DVD'
-      default: return type || ''
-    }
-  }
-
-  // posterUrl is now handled by PosterImage component
-
-  // Star rating component
-  const StarRating = ({ rating }: { rating?: number }) => {
-    const stars = rating ? Math.round(rating / 2) : 0 // Convert 10-scale to 5-scale
-    return (
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map(i => (
-          <Star
-            key={i}
-            className={`h-5 w-5 ${i <= stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-          />
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative bg-card rounded-none md:rounded-lg shadow-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 md:py-3 border-b bg-muted/30 shrink-0">
-          <h2 className="font-semibold truncate pr-4 text-base md:text-lg">
-            {isLoading ? t('common.loading') : movie?.title || t('movies.movie')}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded-md p-2 hover:bg-muted active:bg-muted/80 transition-colors min-h-touch min-w-touch"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center h-80 flex-1">
-            <div className="text-muted-foreground text-sm md:text-base">{t('common.loading')}</div>
-          </div>
-        ) : !movie ? (
-          <div className="flex items-center justify-center h-80 flex-1">
-            <div className="text-muted-foreground text-sm md:text-base">{t('movies.notFound')}</div>
-          </div>
-        ) : (
-          <>
-            {/* Content */}
-            <div className="flex flex-col md:flex-row p-4 gap-4 overflow-y-auto flex-1">
-              {/* Poster Section */}
-              <div className="w-full md:w-40 shrink-0 space-y-3 flex flex-col items-center md:items-start">
-                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted shadow-lg relative group/poster">
-                  <PosterImage
-                    posterPath={null}
-                    movieId={movie?.id}
-                    size="w500"
-                    alt={movie.title}
-                    className="w-full h-full object-cover"
-                    updatedAt={movie?.updated_at}
-                  />
-                  {/* Edit poster overlay */}
-                  <button
-                    onClick={() => setShowPosterDialog(true)}
-                    className="absolute inset-0 bg-black/60 opacity-0 group-hover/poster:opacity-100 transition-opacity flex items-center justify-center"
-                    title={t('movies.changePoster')}
-                  >
-                    <ImagePlus className="h-8 w-8 text-white" />
-                  </button>
-                </div>
-                
-                {/* Rating */}
-                <div className="flex justify-center">
-                  <StarRating rating={movie.personal_rating} />
-                </div>
-
-                {/* Quick Actions */}
-                <div className="flex justify-center gap-4">
-                  <button
-                    onClick={() => toggleWatchedMutation.mutate()}
-                    disabled={toggleWatchedMutation.isPending}
-                    className={`p-3 rounded-full transition-colors min-h-touch min-w-touch ${
-                      movie.watched
-                        ? 'text-green-500 bg-green-500/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80'
-                    }`}
-                    title={movie.watched ? t('movies.watched') : t('movies.markAsWatched')}
-                  >
-                    <Eye className="h-5 w-5" />
-                  </button>
-                  <button
-                    className="p-3 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80 transition-colors min-h-touch min-w-touch"
-                    title={t('movies.bookmark')}
-                  >
-                    <Bookmark className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Poster Upload Dialog */}
-              {showPosterDialog && (
-                <PosterUploadDialog
-                  movieId={movieId}
-                  onClose={() => setShowPosterDialog(false)}
-                  onSuccess={() => {
-                    // WebSocket event will handle cache invalidation
-                    setShowPosterDialog(false)
-                  }}
-                />
-              )}
-
-              {/* Details Section */}
-              <div className="flex-1 min-w-0">
-                {/* Title & Year */}
-                <h3 className="text-lg md:text-xl font-bold">{movie.title}</h3>
-                {movie.original_title && movie.original_title !== movie.title && (
-                  <p className="text-xs md:text-sm text-muted-foreground">{movie.original_title}</p>
-                )}
-                
-                <p className="text-muted-foreground mt-1 text-sm md:text-base">{movie.production_year}</p>
-                
-                {/* Format Badge */}
-                {movie.disc_type && (
-                  <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium bg-purple-600 text-white">
-                    {discTypeLabel(movie.disc_type)}
-                  </span>
-                )}
-
-                {/* Details Section */}
-                <div className="mt-4">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    {t('movies.details')}
-                  </h4>
-                  <div className="space-y-2 text-xs md:text-sm">
-                    {movie.barcode && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0"># {t('movies.barcode')}</span>
-                        <span className="font-mono break-all">{movie.barcode}</span>
-                      </div>
-                    )}
-                    {movie.tmdb_id && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0">TMDB ID</span>
-                        <a 
-                          href={`https://www.themoviedb.org/movie/${movie.tmdb_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline active:text-primary/80 break-all"
-                        >
-                          {movie.tmdb_id}
-                        </a>
-                      </div>
-                    )}
-                    {movie.imdb_id && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0">IMDb ID</span>
-                        <a 
-                          href={`https://www.imdb.com/title/${movie.imdb_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline active:text-primary/80 break-all"
-                        >
-                          {movie.imdb_id}
-                        </a>
-                      </div>
-                    )}
-                    {movie.running_time && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.runningTime')}</span>
-                        <span>{movie.running_time} {t('movies.minutes')}</span>
-                      </div>
-                    )}
-                    {movie.director && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.director')}</span>
-                        <span className="break-words">{movie.director}</span>
-                      </div>
-                    )}
-                    {movie.location && (
-                      <div className="flex flex-col md:flex-row gap-1 md:gap-3">
-                        <span className="text-muted-foreground md:w-32 md:shrink-0">{t('movies.location')}</span>
-                        <span className="break-words">{movie.location}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Genres */}
-                {movie.genres && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      {t('movies.genres')}
-                    </h4>
-                    <div className="flex flex-wrap gap-1">
-                      {movie.genres.split(',').map(genre => (
-                        <span
-                          key={genre}
-                          className="px-2 py-0.5 rounded-full text-xs bg-muted"
-                        >
-                          {genre.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actors */}
-                {movie.actors && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      {t('movies.cast')}
-                    </h4>
-                    <p className="text-sm">{movie.actors}</p>
-                  </div>
-                )}
-
-                {/* Description */}
-                {movie.description && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      {t('movies.plot')}
-                    </h4>
-                    <p className="text-sm leading-relaxed">{movie.description}</p>
-                  </div>
-                )}
-
-                {/* Notes */}
-                {movie.notes && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      {t('movies.notes')}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">{movie.notes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-end gap-2 px-4 py-3 border-t bg-muted/30 relative shrink-0">
-              <button
-                onClick={() => {
-                  if (confirm(t('movies.deleteConfirm'))) {
-                    deleteMutation.mutate()
-                  }
-                }}
-                disabled={deleteMutation.isPending}
-                className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 active:bg-destructive/20 rounded-md transition-colors min-h-touch"
-              >
-                <Trash2 className="h-4 w-4" />
-                {t('movies.delete')}
-              </button>
-              
-              <div className="relative">
-                <button
-                  onClick={() => setShowRefreshMenu(!showRefreshMenu)}
-                  disabled={refreshTmdbMutation.isPending}
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-primary hover:bg-primary/10 active:bg-primary/20 rounded-md transition-colors min-h-touch w-full md:w-auto"
-                >
-                  <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                  <span>{t('movies.refreshTmdb')}</span>
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                {showRefreshMenu && (
-                  <div className="absolute bottom-full right-0 mb-1 bg-card border rounded-md shadow-lg z-50 min-w-[200px]">
-                    <button
-                      onClick={() => {
-                        refreshTmdbMutation.mutate(false)
-                        setShowRefreshMenu(false)
-                      }}
-                      disabled={refreshTmdbMutation.isPending}
-                      className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors min-h-touch"
-                    >
-                      {t('movies.refreshTmdbMissing')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        refreshTmdbMutation.mutate(true)
-                        setShowRefreshMenu(false)
-                      }}
-                      disabled={refreshTmdbMutation.isPending}
-                      className="w-full text-left px-4 py-3 text-sm hover:bg-muted active:bg-muted/80 transition-colors border-t min-h-touch"
-                    >
-                      {t('movies.refreshTmdbAll')}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <Link
-                to="/movies/$movieId"
-                params={{ movieId }}
-                onClick={onClose}
-                className="flex items-center justify-center gap-2 px-4 py-3 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 active:bg-primary/80 transition-colors min-h-touch"
-              >
-                {t('movies.moreDetails')}
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Poster Upload Dialog Component
-function PosterUploadDialog({ 
-  movieId, 
-  onClose, 
-  onSuccess 
-}: { 
-  movieId: string
-  onClose: () => void
-  onSuccess: () => void 
-}) {
-  const { t } = useI18n()
-  const [customPosterUrl, setCustomPosterUrl] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Create preview URL when file is selected
-  useEffect(() => {
-    if (selectedFile) {
-      const url = URL.createObjectURL(selectedFile)
-      setPreviewUrl(url)
-      return () => URL.revokeObjectURL(url)
-    }
-    setPreviewUrl(null)
-  }, [selectedFile])
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError(t('poster.invalidFileType'))
-        return
-      }
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError(t('poster.fileTooLarge'))
-        return
-      }
-      setSelectedFile(file)
-      setCustomPosterUrl('')
-      setError(null)
-    }
-  }
-
-  const handleUrlChange = (url: string) => {
-    setCustomPosterUrl(url)
-    setSelectedFile(null)
-    setError(null)
-  }
-
-  const handleSubmit = async () => {
-    setIsUploading(true)
-    setError(null)
-
-    try {
-      if (selectedFile) {
-        // Upload file
-        await api.uploadMoviePoster(movieId, selectedFile)
-        onSuccess()
-        return
-      }
-      if (customPosterUrl.trim()) {
-        // Download image from URL and store in database
-        await api.setPosterFromUrl(movieId, customPosterUrl.trim())
-        onSuccess()
-        return
-      }
-      setError(t('poster.pleaseSelect'))
-      setIsUploading(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('settings.unknownError'))
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const displayPreview = previewUrl || (customPosterUrl ? customPosterUrl : null)
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-card rounded-lg shadow-xl w-full max-w-md p-4 space-y-4">
-        <h3 className="font-semibold">{t('poster.setPoster')}</h3>
-        
-        {/* File Upload Section */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t('poster.uploadFile')}</label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 rounded-md border-2 border-dashed bg-background px-4 py-6 text-sm hover:border-primary hover:bg-accent transition-colors"
-          >
-            <Upload className="h-5 w-5" />
-            {selectedFile ? selectedFile.name : t('poster.selectImage')}
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="h-px flex-1 bg-border" />
-          <span>{t('poster.or')}</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        {/* URL Input Section */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t('poster.enterUrl')}</label>
-          <input
-            type="url"
-            value={customPosterUrl}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            placeholder="https://image.tmdb.org/t/p/w500/..."
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <p className="text-xs text-muted-foreground">
-            {t('poster.tip')}{' '}
-            <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-              themoviedb.org
-            </a>
-            {' '}{t('poster.tipCopy')}
-          </p>
-        </div>
-
-        {/* Preview */}
-        {displayPreview && (
-          <div className="flex justify-center">
-            <div className="w-24 aspect-[2/3] rounded overflow-hidden bg-muted shadow">
-              <img
-                src={displayPreview}
-                alt={t('poster.preview')}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none'
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-2 text-sm rounded-md hover:bg-muted"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={(!customPosterUrl.trim() && !selectedFile) || isUploading}
-            className="px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isUploading ? t('settings.saving') : t('common.save')}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Link>
   )
 }

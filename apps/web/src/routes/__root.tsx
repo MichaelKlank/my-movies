@@ -129,6 +129,13 @@ function RootLayout() {
           </Link>
           <div className="flex items-center gap-1">
             <Link
+              to="/import"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+              title={t('nav.import')}
+            >
+              <Upload className="h-5 w-5" />
+            </Link>
+            <Link
               to="/me"
               className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
               title={t('nav.profile')}
