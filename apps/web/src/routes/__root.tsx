@@ -1,10 +1,28 @@
-import { createRootRouteWithContext, Outlet, Link, useNavigate } from '@tanstack/react-router'
+import { createRootRouteWithContext, Outlet, Link, useNavigate, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Film, Tv, ScanLine, Upload, LogOut, User, Users, Settings } from 'lucide-react'
+import { Film, LogOut, User, Users, Settings, Search, Home } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
 import { Avatar } from '@/components/Avatar'
+import { createContext, useContext, useState } from 'react'
+
+// Context for search toolbar visibility (used by movies page)
+interface SearchToolbarContextType {
+  showToolbar: boolean
+  setShowToolbar: (show: boolean) => void
+  hasActiveFilter: boolean
+  setHasActiveFilter: (active: boolean) => void
+}
+
+const SearchToolbarContext = createContext<SearchToolbarContextType>({
+  showToolbar: false,
+  setShowToolbar: () => {},
+  hasActiveFilter: false,
+  setHasActiveFilter: () => {},
+})
+
+export const useSearchToolbar = () => useContext(SearchToolbarContext)
 
 interface RouterContext {
   auth: ReturnType<typeof useAuth>
@@ -18,6 +36,11 @@ function RootLayout() {
   const { isAuthenticated, user, logout } = useAuth()
   const { t } = useI18n()
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // Search toolbar state (shared with movies page)
+  const [showToolbar, setShowToolbar] = useState(false)
+  const [hasActiveFilter, setHasActiveFilter] = useState(false)
 
   // Set up WebSocket sync for real-time updates
   useWebSocketSync()
@@ -26,6 +49,9 @@ function RootLayout() {
     logout()
     navigate({ to: '/login' })
   }
+
+  // Check if we're on the movies page
+  const isMoviesPage = location.pathname === '/movies' || location.pathname === '/movies/'
 
   if (!isAuthenticated) {
     return (
@@ -36,47 +62,30 @@ function RootLayout() {
   }
 
   return (
+    <SearchToolbarContext.Provider value={{ showToolbar, setShowToolbar, hasActiveFilter, setHasActiveFilter }}>
     <div className="h-screen bg-background flex flex-col overflow-hidden relative">
       {/* Header - Hidden on mobile, shown on desktop */}
       <header className="hidden md:block border-b bg-card shrink-0 relative z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="container flex h-14 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+          <Link to="/movies" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
             <span>My Movies</span>
           </Link>
 
-          <nav className="flex items-center gap-1">
-            <Link
-              to="/movies"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-            >
-              <Film className="h-4 w-4" />
-              <span>{t('nav.movies')}</span>
-            </Link>
-            <Link
-              to="/series"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-            >
-              <Tv className="h-4 w-4" />
-              <span>{t('nav.series')}</span>
-            </Link>
-            <Link
-              to="/scan"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-            >
-              <ScanLine className="h-4 w-4" />
-              <span>{t('nav.scan')}</span>
-            </Link>
-            <Link
-              to="/import"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-            >
-              <Upload className="h-4 w-4" />
-              <span>{t('nav.import')}</span>
-            </Link>
-          </nav>
-
           <div className="flex items-center gap-1">
+            {/* Search button for movies page */}
+            {isMoviesPage && (
+              <button
+                onClick={() => setShowToolbar(!showToolbar)}
+                className={`relative flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent ${showToolbar ? 'bg-accent' : ''}`}
+                title={t('movies.search')}
+              >
+                <Search className={`h-5 w-5 ${(showToolbar || hasActiveFilter) ? 'text-primary' : ''}`} />
+                {hasActiveFilter && !showToolbar && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
+                )}
+              </button>
+            )}
             <Link
               to="/me"
               className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
@@ -117,54 +126,31 @@ function RootLayout() {
         </div>
       </header>
 
-      {/* Mobile Header - Simple title bar - Fixed at top */}
+      {/* Mobile Header - Fixed at top */}
       <header className="md:hidden fixed top-0 left-0 right-0 border-b bg-card z-50 shrink-0 shadow-sm" style={{ 
         paddingTop: 'env(safe-area-inset-top, 0px)',
         backgroundColor: 'hsl(var(--card))' // Ensure solid background
       }}>
         <div className="flex h-14 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+          <div className="w-10" /> {/* Spacer for balance */}
+          <Link to="/movies" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
             <span className="text-base">My Movies</span>
           </Link>
-          <div className="flex items-center gap-1">
-            <Link
-              to="/import"
-              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-              title={t('nav.import')}
+          {/* Search icon - only on movies page */}
+          {isMoviesPage ? (
+            <button
+              onClick={() => setShowToolbar(!showToolbar)}
+              className="relative flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent active:bg-accent/80"
             >
-              <Upload className="h-5 w-5" />
-            </Link>
-            <Link
-              to="/me"
-              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-              title={t('nav.profile')}
-            >
-              {user ? (
-                <Avatar user={user} size="sm" />
-              ) : (
-                <User className="h-5 w-5" />
+              <Search className={`h-5 w-5 ${(showToolbar || hasActiveFilter) ? 'text-primary' : ''}`} />
+              {hasActiveFilter && !showToolbar && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
               )}
-            </Link>
-            {user?.role === 'admin' && (
-              <>
-                <Link
-                  to="/users"
-                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-                  title={t('nav.users')}
-                >
-                  <Users className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="/settings"
-                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-                  title={t('nav.settings')}
-                >
-                  <Settings className="h-5 w-5" />
-                </Link>
-              </>
-            )}
-          </div>
+            </button>
+          ) : (
+            <div className="w-10" /> // Spacer when not on movies page
+          )}
         </div>
       </header>
 
@@ -186,39 +172,15 @@ function RootLayout() {
       }}>
         <div className="flex items-center justify-around h-16">
           <Link
-            to="/"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-            title={t('nav.dashboard')}
-          >
-            <Film className="h-5 w-5" />
-            <span className="text-xs">{t('nav.dashboard')}</span>
-          </Link>
-          <Link
             to="/movies"
             className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-            title={t('nav.movies')}
+            title={t('nav.home')}
           >
-            <Film className="h-5 w-5" />
-            <span className="text-xs">{t('nav.movies')}</span>
+            <Home className="h-5 w-5" />
+            <span className="text-xs">{t('nav.home')}</span>
           </Link>
           <Link
-            to="/scan"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-            title={t('nav.scan')}
-          >
-            <ScanLine className="h-5 w-5" />
-            <span className="text-xs">{t('nav.scan')}</span>
-          </Link>
-          <Link
-            to="/series"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-            title={t('nav.series')}
-          >
-            <Tv className="h-5 w-5" />
-            <span className="text-xs">{t('nav.series')}</span>
-          </Link>
-          <button
-            onClick={() => navigate({ to: '/me' })}
+            to="/me"
             className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
             title={t('nav.profile')}
           >
@@ -228,7 +190,27 @@ function RootLayout() {
               <User className="h-5 w-5" />
             )}
             <span className="text-xs">{t('nav.profile')}</span>
-          </button>
+          </Link>
+          {user?.role === 'admin' && (
+            <>
+              <Link
+                to="/users"
+                className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
+                title={t('nav.users')}
+              >
+                <Users className="h-5 w-5" />
+                <span className="text-xs">{t('nav.users')}</span>
+              </Link>
+              <Link
+                to="/settings"
+                className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
+                title={t('nav.settings')}
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-xs">{t('nav.settings')}</span>
+              </Link>
+            </>
+          )}
           <button
             onClick={handleLogout}
             className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch text-destructive hover:bg-destructive/10 active:bg-destructive/20"
@@ -243,5 +225,6 @@ function RootLayout() {
       {/* Dev tools (only in development) */}
       {import.meta.env.DEV && <TanStackRouterDevtools />}
     </div>
+    </SearchToolbarContext.Provider>
   )
 }

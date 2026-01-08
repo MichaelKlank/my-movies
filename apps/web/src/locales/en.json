@@ -6,6 +6,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
+    "done": "Done",
     "back": "Back",
     "search": "Search",
     "add": "Add",
@@ -18,12 +19,13 @@
     "scanNow": "Scan Now"
   },
   "nav": {
+    "home": "Home",
     "dashboard": "Dashboard",
     "movies": "Movies",
     "series": "Series",
     "scan": "Scan",
     "import": "Import",
-    "profile": "My Profile",
+    "profile": "Profile",
     "settings": "Settings",
     "users": "Users",
     "logout": "Logout"
@@ -59,13 +61,24 @@
     "systemLanguage": "System Language",
     "contentSettings": "Content Settings",
     "includeAdult": "Show Adult Content",
-    "includeAdultDesc": "Allow display of movies with adult content in search results"
+    "includeAdultDesc": "Allow display of movies with adult content in search results",
+    "displaySettings": "Display",
+    "cardSize": "Card Size",
+    "cardSizeDesc": "Size of movie cards in your collection"
   },
   "dashboard": {
     "title": "Dashboard"
   },
+  "fab": {
+    "addMovie": "Add Movie",
+    "scanBarcode": "Scan Barcode",
+    "enterBarcode": "Enter Barcode",
+    "searchTmdb": "Search TMDB",
+    "scrollToTop": "Scroll to top",
+    "import": "Import CSV"
+  },
   "movies": {
-    "title": "Movies",
+    "title": "Collection",
     "add": "Add Movie",
     "inCollection": "Movies in collection",
     "searchPlaceholder": "Search movies...",
@@ -74,10 +87,13 @@
     "notWatched": "Not Watched",
     "markAsWatched": "Mark as watched",
     "allFormats": "All Formats",
+    "allTypes": "All Types",
+    "typeMovie": "Movies",
+    "typeSeries": "Series",
     "addFirstMovie": "Add first movie",
     "delete": "Delete",
     "deleteConfirm": "Really delete movie?",
-    "notFound": "Movie not found",
+    "notFound": "No movies found",
     "changePoster": "Change poster",
     "bookmark": "Bookmark",
     "movie": "Movie",
@@ -98,7 +114,13 @@
     "cast": "Cast",
     "notes": "Notes",
     "edition": "Edition",
-    "moreDetails": "More Details"
+    "moreDetails": "More Details",
+    "cardSize": "Poster Size",
+    "cardSizeSmall": "Small",
+    "cardSizeMedium": "Medium",
+    "cardSizeLarge": "Large",
+    "recentlyAdded": "Recently Added",
+    "clearFilters": "Clear Filters"
   },
   "scan": {
     "title": "Add Movie",

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
-import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus, ChevronDown } from 'lucide-react'
+import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus, ChevronDown, Grid3X3, Grid2X2, LayoutGrid } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,6 +32,13 @@ const LANGUAGES = [
   { code: 'zh-CN', label: '中文 (简体)', flag: '🇨🇳' },
 ] as const
 
+type CardSize = 'small' | 'medium' | 'large'
+
+function getStoredCardSize(): CardSize {
+  if (typeof window === 'undefined') return 'medium'
+  return (localStorage.getItem('cardSize') as CardSize) || 'medium'
+}
+
 function ProfilePage() {
   const { t } = useI18n()
   const { updateUser } = useAuth()
@@ -40,8 +47,15 @@ function ProfilePage() {
   const [includeAdult, setIncludeAdult] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
+  const [cardSize, setCardSize] = useState<CardSize>(getStoredCardSize)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const languageDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Save card size to localStorage
+  const handleCardSizeChange = (size: CardSize) => {
+    setCardSize(size)
+    localStorage.setItem('cardSize', size)
+  }
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
@@ -420,6 +434,57 @@ function ProfilePage() {
               {t('common.loading')}
             </div>
           )}
+        </div>
+
+        {/* Display Settings */}
+        <div className="rounded-lg border bg-card p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <LayoutGrid className="h-5 w-5" />
+            <h2 className="text-lg md:text-xl font-semibold">{t('profile.displaySettings')}</h2>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs md:text-sm font-medium">{t('profile.cardSize')}</label>
+              <p className="text-xs md:text-sm text-muted-foreground mt-1 mb-3">
+                {t('profile.cardSizeDesc')}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCardSizeChange('small')}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                    cardSize === 'small' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <Grid3X3 className="h-6 w-6 md:h-8 md:w-8" />
+                  <span className="text-xs md:text-sm font-medium">{t('movies.cardSizeSmall')}</span>
+                </button>
+                <button
+                  onClick={() => handleCardSizeChange('medium')}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                    cardSize === 'medium' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <Grid2X2 className="h-6 w-6 md:h-8 md:w-8" />
+                  <span className="text-xs md:text-sm font-medium">{t('movies.cardSizeMedium')}</span>
+                </button>
+                <button
+                  onClick={() => handleCardSizeChange('large')}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                    cardSize === 'large' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <LayoutGrid className="h-6 w-6 md:h-8 md:w-8" />
+                  <span className="text-xs md:text-sm font-medium">{t('movies.cardSizeLarge')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

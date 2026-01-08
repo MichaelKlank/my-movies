@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { ScanLine, Keyboard, Search, Plus, X, Loader2, AlertCircle } from 'lucide-react'
@@ -6,7 +6,16 @@ import { api, BarcodeResult, TmdbSearchResult } from '@/lib/api'
 import { browserScanner, isTauri, tauriScanner } from '@/lib/scanner'
 import { useI18n } from '@/hooks/useI18n'
 
+type ScanMode = 'camera' | 'manual' | 'search'
+
 export const Route = createFileRoute('/scan')({
+  validateSearch: (search: Record<string, unknown>): { mode?: ScanMode } => {
+    return {
+      mode: ['camera', 'manual', 'search'].includes(search.mode as string) 
+        ? (search.mode as ScanMode) 
+        : undefined,
+    }
+  },
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated) {
       throw redirect({ to: '/login' })
@@ -15,11 +24,10 @@ export const Route = createFileRoute('/scan')({
   component: ScanPage,
 })
 
-type ScanMode = 'camera' | 'manual' | 'search'
-
 function ScanPage() {
   const { t } = useI18n()
-  const [mode, setMode] = useState<ScanMode>('manual')
+  const search = useSearch({ from: '/scan' })
+  const [mode, setMode] = useState<ScanMode>(search.mode || 'manual')
   const [barcode, setBarcode] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [scanResult, setScanResult] = useState<BarcodeResult | null>(null)
@@ -28,6 +36,12 @@ function ScanPage() {
   const [error, setError] = useState('')
   const scannerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  
+  // Clear error when mode changes
+  const handleModeChange = (newMode: ScanMode) => {
+    setError('')
+    setMode(newMode)
+  }
 
   // Barcode lookup mutation
   const lookupMutation = useMutation({
@@ -160,7 +174,7 @@ function ScanPage() {
       {/* Mode selector - Optimized for mobile */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible">
         <button
-          onClick={() => setMode('camera')}
+          onClick={() => handleModeChange('camera')}
           className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
             mode === 'camera' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
@@ -169,7 +183,7 @@ function ScanPage() {
           <span className="whitespace-nowrap">{t('scan.camera')}</span>
         </button>
         <button
-          onClick={() => setMode('manual')}
+          onClick={() => handleModeChange('manual')}
           className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
             mode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
@@ -178,7 +192,7 @@ function ScanPage() {
           <span className="whitespace-nowrap">{t('scan.enterBarcode')}</span>
         </button>
         <button
-          onClick={() => setMode('search')}
+          onClick={() => handleModeChange('search')}
           className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
             mode === 'search' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
@@ -228,7 +242,7 @@ function ScanPage() {
             onClick={() => {
               browserScanner.stop()
               setIsScanning(false)
-              setMode('manual')
+              handleModeChange('manual')
             }}
             className="flex items-center justify-center gap-2 rounded-md bg-secondary px-6 py-3 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full md:w-auto"
           >
@@ -306,7 +320,7 @@ function ScanPage() {
           </div>
           <button
             onClick={() => {
-              setMode('search')
+              handleModeChange('search')
               setSearchQuery(scanResult.title || '')
             }}
             className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
