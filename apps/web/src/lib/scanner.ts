@@ -127,13 +127,27 @@ class TauriScanner {
     return barcodeScanner
   }
 
-  async scan(): Promise<ScanResult> {
+  async scan(scanAreaElement?: HTMLElement | null): Promise<ScanResult> {
     const plugin = await this.getPlugin()
+    
+    // Calculate scan area from the element if provided
+    let scanArea: { x: number; y: number; width: number; height: number } | undefined
+    if (scanAreaElement) {
+      const rect = scanAreaElement.getBoundingClientRect()
+      scanArea = {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      }
+    }
+    
     // Use windowed: true to integrate scanner into UI with transparent webview
-    // This allows the scan area to be controlled by the UI layout
+    // scanArea limits the scanning to the specified rectangle
     const result = await plugin.scan({
       windowed: true,
       formats: ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'QR_CODE'],
+      ...(scanArea && { scanArea }),
     })
 
     return {

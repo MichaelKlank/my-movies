@@ -188,7 +188,7 @@ function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl md:pb-8">
       <div className="mb-6 md:mb-8">
         <h1 className="flex items-center gap-3 text-2xl md:text-3xl font-bold">
           <User className="h-6 w-6 md:h-8 md:w-8" />

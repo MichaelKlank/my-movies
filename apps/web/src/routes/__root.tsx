@@ -36,13 +36,13 @@ function RootLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden relative">
       {/* Header - Hidden on mobile, shown on desktop */}
-      <header className="hidden md:block border-b bg-card pt-safe-top">
+      <header className="hidden md:block border-b bg-card shrink-0 relative z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="container flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
-            <span>My Movies</span>
+            <span>My Moviesss</span>
           </Link>
 
           <nav className="flex items-center gap-1">
@@ -117,34 +117,66 @@ function RootLayout() {
         </div>
       </header>
 
-      {/* Mobile Header - Simple title bar */}
-      <header className="md:hidden border-b bg-card pt-safe-top">
+      {/* Mobile Header - Simple title bar - Fixed at top */}
+      <header className="md:hidden fixed top-0 left-0 right-0 border-b bg-card z-50 shrink-0 shadow-sm" style={{ 
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        backgroundColor: 'hsl(var(--card))' // Ensure solid background
+      }}>
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
             <span className="text-base">My Movies</span>
           </Link>
-          <Link
-            to="/me"
-            className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-            title={t('nav.profile')}
-          >
-            {user ? (
-              <Avatar user={user} size="sm" />
-            ) : (
-              <User className="h-5 w-5" />
+          <div className="flex items-center gap-1">
+            <Link
+              to="/me"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+              title={t('nav.profile')}
+            >
+              {user ? (
+                <Avatar user={user} size="sm" />
+              ) : (
+                <User className="h-5 w-5" />
+              )}
+            </Link>
+            {user?.role === 'admin' && (
+              <>
+                <Link
+                  to="/users"
+                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+                  title={t('nav.users')}
+                >
+                  <Users className="h-5 w-5" />
+                </Link>
+                <Link
+                  to="/settings"
+                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+                  title={t('nav.settings')}
+                >
+                  <Settings className="h-5 w-5" />
+                </Link>
+              </>
             )}
-          </Link>
+          </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 container px-4 py-4 md:py-6 pb-20 md:pb-6 overflow-y-auto">
+      {/* Main content - Scrollable area */}
+      <main 
+        className="flex-1 container px-4 overflow-y-auto min-h-0 relative z-0 pt-safe-top pb-safe-bottom"
+        style={{ 
+          paddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0px))', // 72px (h-14 + extra) + safe area for mobile fixed header
+          paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))', // 80px (h-16 + extra) + safe area for bottom navigation
+          WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+        }}
+      >
         <Outlet />
       </main>
 
       {/* Bottom Navigation Bar - Mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card pb-safe-bottom z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card z-50 shadow-lg pb-safe-bottom" style={{ 
+        backgroundColor: 'hsl(var(--card))' // Ensure solid background
+      }}>
         <div className="flex items-center justify-around h-16">
           <Link
             to="/"
@@ -180,7 +212,7 @@ function RootLayout() {
           </Link>
           <button
             onClick={() => navigate({ to: '/me' })}
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch"
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
             title={t('nav.profile')}
           >
             {user ? (
@@ -189,6 +221,14 @@ function RootLayout() {
               <User className="h-5 w-5" />
             )}
             <span className="text-xs">{t('nav.profile')}</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch text-destructive hover:bg-destructive/10 active:bg-destructive/20"
+            title={t('nav.logout')}
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="text-xs">{t('nav.logout')}</span>
           </button>
         </div>
       </nav>
