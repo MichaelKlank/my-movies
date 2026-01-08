@@ -180,13 +180,13 @@ pub async fn admin_create_user(
         return Err(my_movies_core::Error::Validation("Ungültige E-Mail-Adresse".into()).into());
     }
 
-    if let Some(ref pwd) = body.password {
-        if pwd.len() < 4 {
-            return Err(my_movies_core::Error::Validation(
-                "Passwort muss mindestens 4 Zeichen lang sein".into(),
-            )
-            .into());
-        }
+    if let Some(ref pwd) = body.password
+        && pwd.len() < 4
+    {
+        return Err(my_movies_core::Error::Validation(
+            "Passwort muss mindestens 4 Zeichen lang sein".into(),
+        )
+        .into());
     }
 
     let (user, reset_token) = state
