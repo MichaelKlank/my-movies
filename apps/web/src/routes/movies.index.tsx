@@ -70,38 +70,65 @@ function MoviesPage() {
     setFilter(prev => ({ ...prev, ...newFilter }))
   }
 
+  const isManualScrolling = useRef(false)
+
   const scrollToLetter = (letter: string) => {
     const element = sectionRefs.current[letter]
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // Disable observer updates during manual scroll
+      isManualScrolling.current = true
       setActiveLetter(letter)
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      
+      // Re-enable after scroll animation completes
+      setTimeout(() => {
+        isManualScrolling.current = false
+      }, 800)
     }
   }
 
-  // Track active letter on scroll
+  // Track active letter using IntersectionObserver
   useEffect(() => {
-    const handleScroll = () => {
-      for (const letter of availableLetters) {
-        const element = sectionRefs.current[letter]
-        if (element) {
-          const rect = element.getBoundingClientRect()
-          if (rect.top <= 150 && rect.bottom > 150) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Skip if manually scrolling
+        if (isManualScrolling.current) return
+        
+        // Find the entry that's intersecting and closest to the top
+        const visibleEntries = entries.filter(e => e.isIntersecting)
+        if (visibleEntries.length > 0) {
+          // Sort by position, pick the one closest to top
+          visibleEntries.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+          const topEntry = visibleEntries[0]
+          const letter = topEntry.target.getAttribute('data-letter')
+          if (letter) {
             setActiveLetter(letter)
-            break
           }
         }
+      },
+      {
+        rootMargin: '-80px 0px -60% 0px', // Top offset for header, bottom cuts off lower part
+        threshold: 0
       }
-    }
+    )
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    // Observe all section elements
+    availableLetters.forEach(letter => {
+      const element = sectionRefs.current[letter]
+      if (element) {
+        element.setAttribute('data-letter', letter)
+        observer.observe(element)
+      }
+    })
+
+    return () => observer.disconnect()
   }, [availableLetters])
 
   return (
     <div className="relative">
-      {/* Alphabet Navigation - Fixed on right side, responsive sizing */}
+      {/* Alphabet Navigation - Slim pill overlay */}
       {!search && availableLetters.length > 0 && (
-        <nav className="hidden md:flex fixed right-1 top-20 bottom-4 z-40 flex-col justify-between bg-background/60 backdrop-blur-sm rounded-full py-1.5 px-0.5 shadow-md border border-border/50">
+        <nav className="hidden md:flex fixed right-1 top-20 bottom-4 z-40 flex-col bg-black/10 dark:bg-white/20 backdrop-blur-sm rounded-full py-1 px-0">
           {ALPHABET.map(letter => {
             const hasMovies = moviesByLetter[letter]?.length > 0
             return (
@@ -109,12 +136,12 @@ function MoviesPage() {
                 key={letter}
                 onClick={() => hasMovies && scrollToLetter(letter)}
                 disabled={!hasMovies}
-                className={`w-5 h-5 text-[10px] font-medium rounded-full transition-all flex items-center justify-center ${
+                className={`w-3 flex-1 min-h-0 text-[8px] font-semibold rounded-full transition-all flex items-center justify-center ${
                   activeLetter === letter
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-primary/20 text-primary-foreground'
                     : hasMovies
-                      ? 'hover:bg-muted/80 text-foreground active:bg-muted'
-                      : 'text-muted-foreground/20 cursor-default'
+                      ? 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                      : 'text-gray-300 dark:text-gray-600 cursor-default'
                 }`}
               >
                 {letter}
