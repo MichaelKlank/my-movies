@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ScanLine, Keyboard, Search, Plus, X } from 'lucide-react'
+import { ScanLine, Keyboard, Search, Plus, X, Loader2, AlertCircle } from 'lucide-react'
 import { api, BarcodeResult, TmdbSearchResult } from '@/lib/api'
 import { browserScanner, isTauri, tauriScanner } from '@/lib/scanner'
 import { useI18n } from '@/hooks/useI18n'
@@ -284,8 +284,41 @@ function ScanPage() {
         </form>
       )}
 
+      {/* Loading state for barcode lookup */}
+      {lookupMutation.isPending && (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">{t('scan.lookingUp')}</p>
+        </div>
+      )}
+
+      {/* No results found for barcode */}
+      {scanResult && scanResult.tmdb_results.length === 0 && !lookupMutation.isPending && (
+        <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+          <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground" />
+          <div>
+            <p className="font-medium">{t('scan.noResults')}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {scanResult.title 
+                ? t('scan.noResultsForTitle', { title: scanResult.title })
+                : t('scan.noResultsForBarcode', { barcode: scanResult.barcode })}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setMode('search')
+              setSearchQuery(scanResult.title || '')
+            }}
+            className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
+          >
+            <Search className="h-4 w-4" />
+            {t('scan.searchManually')}
+          </button>
+        </div>
+      )}
+
       {/* Barcode lookup results */}
-      {scanResult && scanResult.tmdb_results.length > 0 && (
+      {scanResult && scanResult.tmdb_results.length > 0 && !lookupMutation.isPending && (
         <div className="space-y-4">
           <h2 className="font-semibold">
             {t('scan.foundForBarcode')}: {scanResult.barcode}

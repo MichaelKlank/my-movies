@@ -107,6 +107,7 @@
     "searchTmdb": "Search TMDB",
     "enterEanPlaceholder": "Enter EAN/Barcode...",
     "searching": "Searching...",
+    "lookingUp": "Searching database...",
     "holdBarcode": "Hold the barcode in front of the camera...",
     "enterMovieTitle": "Enter movie title...",
     "lookupFailed": "Lookup failed",
@@ -114,7 +115,11 @@
     "createFailed": "Movie could not be created",
     "cameraFailed": "Camera could not be started",
     "foundForBarcode": "Found for Barcode",
-    "searchResults": "Search Results"
+    "searchResults": "Search Results",
+    "noResults": "No results found",
+    "noResultsForTitle": "No movies found on TMDB for \"{{title}}\".",
+    "noResultsForBarcode": "Barcode {{barcode}} was not found in the database.",
+    "searchManually": "Search manually"
   },
   "users": {
     "title": "User Management",

@@ -99,9 +99,9 @@ function MoviesPage() {
 
   return (
     <div className="relative">
-      {/* Alphabet Navigation - Fixed on right side, hidden on mobile */}
+      {/* Alphabet Navigation - Fixed on right side, responsive sizing */}
       {!search && availableLetters.length > 0 && (
-        <nav className="hidden md:flex fixed right-2 top-1/2 -translate-y-1/2 z-40 flex-col gap-0.5 bg-background/80 backdrop-blur rounded-full py-2 px-1 shadow-lg border">
+        <nav className="hidden md:flex fixed right-1 top-20 bottom-4 z-40 flex-col justify-between bg-background/60 backdrop-blur-sm rounded-full py-1.5 px-0.5 shadow-md border border-border/50">
           {ALPHABET.map(letter => {
             const hasMovies = moviesByLetter[letter]?.length > 0
             return (
@@ -109,12 +109,12 @@ function MoviesPage() {
                 key={letter}
                 onClick={() => hasMovies && scrollToLetter(letter)}
                 disabled={!hasMovies}
-                className={`w-6 h-6 text-xs font-medium rounded-full transition-all min-h-touch min-w-touch ${
+                className={`w-5 h-5 text-[10px] font-medium rounded-full transition-all flex items-center justify-center ${
                   activeLetter === letter
                     ? 'bg-primary text-primary-foreground'
                     : hasMovies
-                      ? 'hover:bg-muted text-foreground active:bg-muted/80'
-                      : 'text-muted-foreground/30 cursor-default'
+                      ? 'hover:bg-muted/80 text-foreground active:bg-muted'
+                      : 'text-muted-foreground/20 cursor-default'
                 }`}
               >
                 {letter}

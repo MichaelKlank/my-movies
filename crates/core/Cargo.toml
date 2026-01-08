@@ -37,3 +37,6 @@ envy = "0.4"
 
 # URL encoding
 urlencoding = "2.1"
+
+# Regex for title cleaning
+regex = "1"
