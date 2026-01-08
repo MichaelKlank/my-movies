@@ -128,7 +128,7 @@ function MoviesPage() {
     <div className="relative">
       {/* Alphabet Navigation - Slim pill overlay */}
       {!search && availableLetters.length > 0 && (
-        <nav className="hidden md:flex fixed right-1 top-20 bottom-4 z-40 flex-col bg-black/10 dark:bg-white/20 backdrop-blur-sm rounded-full py-1 px-0">
+        <nav className="hidden md:flex fixed right-4 top-20 bottom-4 z-40 flex-col">
           {ALPHABET.map(letter => {
             const hasMovies = moviesByLetter[letter]?.length > 0
             return (
@@ -136,12 +136,12 @@ function MoviesPage() {
                 key={letter}
                 onClick={() => hasMovies && scrollToLetter(letter)}
                 disabled={!hasMovies}
-                className={`w-3 flex-1 min-h-0 text-[8px] font-semibold rounded-full transition-all flex items-center justify-center ${
+                className={`w-4 flex-1 min-h-0 text-[9px] font-semibold transition-all flex items-center justify-center ${
                   activeLetter === letter
-                    ? 'bg-primary/20 text-primary-foreground'
+                    ? 'text-primary font-bold scale-125'
                     : hasMovies
-                      ? 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                      : 'text-gray-300 dark:text-gray-600 cursor-default'
+                      ? 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                      : 'text-gray-200 dark:text-gray-700 cursor-default'
                 }`}
               >
                 {letter}
