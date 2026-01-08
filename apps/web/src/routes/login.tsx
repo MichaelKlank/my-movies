@@ -54,14 +54,14 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-safe-top pb-safe-bottom">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary">
             <Film className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold">My Movies</h1>
-          <p className="text-muted-foreground">
+          <h1 className="mt-4 text-xl md:text-2xl font-bold">My Movies</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             {isRegister ? t('auth.register') : t('auth.login')}
           </p>
         </div>
@@ -82,8 +82,9 @@ function LoginPage() {
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               required
+              autoComplete="username"
             />
           </div>
 
@@ -97,8 +98,9 @@ function LoginPage() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
                 required
+                autoComplete="email"
               />
             </div>
           )}
@@ -112,36 +114,37 @@ function LoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               required
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-4 py-3 text-base md:text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
           >
             {isLoading ? t('common.loading') : isRegister ? t('auth.register') : t('auth.login')}
           </button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-xs md:text-sm text-muted-foreground">
           {isRegister ? t('auth.alreadyHaveAccount') : t('auth.noAccountYet')}{' '}
           <button
             type="button"
             onClick={() => setIsRegister(!isRegister)}
-            className="font-medium underline hover:text-foreground"
+            className="font-medium underline hover:text-foreground active:text-foreground min-h-touch min-w-touch"
           >
             {isRegister ? t('auth.login') : t('auth.register')}
           </button>
         </p>
 
         {!isRegister && (
-          <p className="text-center text-sm">
+          <p className="text-center text-xs md:text-sm">
             <Link
               to="/forgot-password"
-              className="text-muted-foreground hover:text-foreground underline"
+              className="text-muted-foreground hover:text-foreground active:text-foreground underline min-h-touch min-w-touch inline-block"
             >
               {t('auth.forgotPassword')}
             </Link>

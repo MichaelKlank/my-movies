@@ -77,46 +77,64 @@ function ScanPage() {
     if (mode === 'camera' && scannerRef.current) {
       setIsScanning(true)
       
-      if (isTauri()) {
-        // Use Tauri native scanner
-        tauriScanner.scan()
-          .then((result) => {
-            setBarcode(result.barcode)
-            lookupMutation.mutate(result.barcode)
-            setMode('manual')
-          })
-          .catch((err) => {
-            setError(err.message)
-          })
-          .finally(() => {
-            setIsScanning(false)
-          })
-      } else {
-        // Use browser scanner
-        browserScanner.start(
-          (result) => {
-            setBarcode(result.barcode)
-            lookupMutation.mutate(result.barcode)
-            browserScanner.stop()
-            setIsScanning(false)
-            setMode('manual')
-          },
-          (err) => {
-            if (!err.message.includes('No MultiFormat')) {
-              console.error('Scanner error:', err)
-            }
+      // Check if Tauri is available
+      isTauri()
+        .then((isTauriEnv) => {
+          if (isTauriEnv) {
+            // Use Tauri native scanner with scan area from the container element
+            return tauriScanner.scan(scannerRef.current)
+              .then((result) => {
+                setBarcode(result.barcode)
+                lookupMutation.mutate(result.barcode)
+                setMode('manual')
+              })
+              .catch((err) => {
+                setError(err.message)
+              })
+              .finally(() => {
+                setIsScanning(false)
+              })
+          } else {
+            // Use browser scanner
+            return browserScanner.start(
+              (result) => {
+                setBarcode(result.barcode)
+                lookupMutation.mutate(result.barcode)
+                browserScanner.stop()
+                setIsScanning(false)
+                setMode('manual')
+              },
+              (err) => {
+                if (!err.message.includes('No MultiFormat')) {
+                  console.error('Scanner error:', err)
+                }
+              }
+            ).catch((err) => {
+              setError(err.message || t('scan.cameraFailed'))
+              setIsScanning(false)
+              setMode('manual')
+            })
           }
-        ).catch((err) => {
+        })
+        .catch((err) => {
           setError(err.message || t('scan.cameraFailed'))
           setIsScanning(false)
           setMode('manual')
         })
-      }
     }
 
     return () => {
-      if (mode === 'camera' && !isTauri()) {
-        browserScanner.stop()
+      if (mode === 'camera') {
+        isTauri()
+          .then((isTauriEnv) => {
+            if (!isTauriEnv) {
+              browserScanner.stop()
+            }
+          })
+          .catch(() => {
+            // If check fails, try to stop browser scanner anyway
+            browserScanner.stop()
+          })
       }
     }
   }, [mode])
@@ -136,37 +154,37 @@ function ScanPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('scan.title')}</h1>
+    <div className="space-y-4 md:space-y-6">
+      <h1 className="text-xl md:text-2xl font-bold">{t('scan.title')}</h1>
 
-      {/* Mode selector */}
-      <div className="flex gap-2">
+      {/* Mode selector - Optimized for mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible">
         <button
           onClick={() => setMode('camera')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'camera' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
+            mode === 'camera' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
-          <ScanLine className="h-4 w-4" />
-          {t('scan.camera')}
+          <ScanLine className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">{t('scan.camera')}</span>
         </button>
         <button
           onClick={() => setMode('manual')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
+            mode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
-          <Keyboard className="h-4 w-4" />
-          {t('scan.enterBarcode')}
+          <Keyboard className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">{t('scan.enterBarcode')}</span>
         </button>
         <button
           onClick={() => setMode('search')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
-            mode === 'search' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'
+          className={`flex items-center gap-2 rounded-md px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm flex-shrink-0 ${
+            mode === 'search' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 active:bg-secondary/60'
           }`}
         >
-          <Search className="h-4 w-4" />
-          {t('scan.searchTmdb')}
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">{t('scan.searchTmdb')}</span>
         </button>
       </div>
 
@@ -179,13 +197,30 @@ function ScanPage() {
       {/* Camera mode */}
       {mode === 'camera' && (
         <div className="space-y-4">
-          <div
-            ref={scannerRef}
-            id="scanner-container"
-            className="aspect-video max-w-xl rounded-lg bg-muted overflow-hidden"
-          />
+          <div className="relative flex items-center justify-center w-full">
+            <div
+              ref={scannerRef}
+              id="scanner-container"
+              className="aspect-[3/4] md:aspect-video w-full max-w-md md:max-w-xl rounded-lg bg-muted overflow-hidden relative"
+            >
+              {/* Scan area guides - shown when using Tauri native scanner */}
+              {/* The scan area now matches the entire container, so guides should cover the full area */}
+              {isScanning && (
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Top-left corner */}
+                  <div className="absolute top-2 left-2 md:top-4 md:left-4 w-12 h-12 md:w-10 md:h-10 border-t-4 md:border-t-2 border-l-4 md:border-l-2 border-white rounded-tl-lg" />
+                  {/* Top-right corner */}
+                  <div className="absolute top-2 right-2 md:top-4 md:right-4 w-12 h-12 md:w-10 md:h-10 border-t-4 md:border-t-2 border-r-4 md:border-r-2 border-white rounded-tr-lg" />
+                  {/* Bottom-left corner */}
+                  <div className="absolute bottom-2 left-2 md:bottom-4 md:left-4 w-12 h-12 md:w-10 md:h-10 border-b-4 md:border-b-2 border-l-4 md:border-l-2 border-white rounded-bl-lg" />
+                  {/* Bottom-right corner */}
+                  <div className="absolute bottom-2 right-2 md:bottom-4 md:right-4 w-12 h-12 md:w-10 md:h-10 border-b-4 md:border-b-2 border-r-4 md:border-r-2 border-white rounded-br-lg" />
+                </div>
+              )}
+            </div>
+          </div>
           {isScanning && (
-            <p className="text-center text-muted-foreground">
+            <p className="text-center text-muted-foreground text-sm md:text-base px-4">
               {t('scan.holdBarcode')}
             </p>
           )}
@@ -195,7 +230,7 @@ function ScanPage() {
               setIsScanning(false)
               setMode('manual')
             }}
-            className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
+            className="flex items-center justify-center gap-2 rounded-md bg-secondary px-6 py-3 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full md:w-auto"
           >
             <X className="h-4 w-4" />
             {t('common.cancel')}
@@ -212,13 +247,13 @@ function ScanPage() {
               placeholder={t('scan.enterEanPlaceholder')}
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
-              className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 rounded-md border bg-background px-3 md:px-4 py-2.5 md:py-2 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               autoFocus
             />
             <button
               type="submit"
               disabled={lookupMutation.isPending}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch shrink-0"
             >
               {lookupMutation.isPending ? t('scan.searching') : t('common.search')}
             </button>
@@ -235,13 +270,13 @@ function ScanPage() {
               placeholder={t('scan.enterMovieTitle')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 rounded-md border bg-background px-3 md:px-4 py-2.5 md:py-2 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               autoFocus
             />
             <button
               type="submit"
               disabled={searchMutation.isPending}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch shrink-0"
             >
               {searchMutation.isPending ? t('scan.searching') : t('common.search')}
             </button>

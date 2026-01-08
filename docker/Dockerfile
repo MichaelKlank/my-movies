@@ -25,7 +25,9 @@ COPY crates crates
 
 # Copy Tauri Cargo.toml (needed for workspace resolution, but we won't build it)
 COPY apps/tauri/src-tauri/Cargo.toml apps/tauri/src-tauri/Cargo.toml
-RUN mkdir -p apps/tauri/src-tauri/src && echo "fn main() {}" > apps/tauri/src-tauri/src/main.rs
+RUN mkdir -p apps/tauri/src-tauri/src && \
+    echo "fn main() {}" > apps/tauri/src-tauri/src/main.rs && \
+    echo "" > apps/tauri/src-tauri/src/lib.rs
 
 # Build release binary (server only, not tauri)
 RUN cargo build --release --package my-movies-server

@@ -188,29 +188,29 @@ function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="mb-8">
-        <h1 className="flex items-center gap-3 text-3xl font-bold">
-          <User className="h-8 w-8" />
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl md:pb-8">
+      <div className="mb-6 md:mb-8">
+        <h1 className="flex items-center gap-3 text-2xl md:text-3xl font-bold">
+          <User className="h-6 w-6 md:h-8 md:w-8" />
           {t('profile.title')}
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="mt-2 text-sm md:text-base text-muted-foreground">
           {t('profile.subtitle')}
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Avatar Section */}
-        <div className="rounded-lg border bg-card p-6">
-          <h2 className="text-xl font-semibold mb-4">{t('profile.avatar')}</h2>
-          <div className="flex items-center gap-6">
+        <div className="rounded-lg border bg-card p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold mb-4">{t('profile.avatar')}</h2>
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
             <div className="relative group">
               <Avatar user={user} size="xl" />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
                 <ImagePlus className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 w-full md:w-auto space-y-3">
               <div>
                 <input
                   ref={fileInputRef}
@@ -226,11 +226,11 @@ function ProfilePage() {
                       alt="Preview"
                       className="h-20 w-20 rounded-full object-cover"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={handleUpload}
                         disabled={uploadAvatarMutation.isPending}
-                        className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
                       >
                         {uploadAvatarMutation.isPending ? (
                           <>
@@ -249,7 +249,7 @@ function ProfilePage() {
                           setAvatarPreview(null)
                           if (fileInputRef.current) fileInputRef.current.value = ''
                         }}
-                        className="flex items-center gap-2 rounded-md bg-secondary px-3 py-1.5 text-sm hover:bg-secondary/80"
+                        className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full sm:w-auto"
                       >
                         <X className="h-4 w-4" />
                         {t('common.cancel')}
@@ -260,7 +260,7 @@ function ProfilePage() {
                   <div className="space-y-2">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"
+                      className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm hover:bg-secondary/80 active:bg-secondary/60 min-h-touch w-full sm:w-auto"
                     >
                       <Upload className="h-4 w-4" />
                       {t('profile.uploadAvatar')}
@@ -269,7 +269,7 @@ function ProfilePage() {
                       <button
                         onClick={handleDeleteAvatar}
                         disabled={deleteAvatarMutation.isPending}
-                        className="flex items-center gap-2 rounded-md bg-destructive/10 text-destructive px-4 py-2 text-sm hover:bg-destructive/20 disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 rounded-md bg-destructive/10 text-destructive px-4 py-3 text-sm hover:bg-destructive/20 active:bg-destructive/30 disabled:opacity-50 min-h-touch w-full sm:w-auto"
                       >
                         {deleteAvatarMutation.isPending ? (
                           <>
@@ -295,33 +295,33 @@ function ProfilePage() {
         </div>
 
         {/* User Info Card */}
-        <div className="rounded-lg border bg-card p-6">
-          <h2 className="text-xl font-semibold mb-4">{t('profile.userInfo')}</h2>
+        <div className="rounded-lg border bg-card p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold mb-4">{t('profile.userInfo')}</h2>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">{t('profile.username')}</label>
-              <p className="text-lg font-medium">{user.username}</p>
+              <label className="text-xs md:text-sm font-medium text-muted-foreground">{t('profile.username')}</label>
+              <p className="text-base md:text-lg font-medium break-words">{user.username}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">{t('profile.email')}</label>
-              <p className="text-lg">{user.email}</p>
+              <label className="text-xs md:text-sm font-medium text-muted-foreground">{t('profile.email')}</label>
+              <p className="text-base md:text-lg break-words">{user.email}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">{t('profile.role')}</label>
+              <label className="text-xs md:text-sm font-medium text-muted-foreground">{t('profile.role')}</label>
               <div className="flex items-center gap-2 mt-1">
                 {user.role === 'admin' ? (
                   <>
                     <Shield className="h-4 w-4 text-primary" />
-                    <span className="text-lg font-medium">{t('profile.roleAdmin')}</span>
+                    <span className="text-base md:text-lg font-medium">{t('profile.roleAdmin')}</span>
                   </>
                 ) : (
-                  <span className="text-lg">{t('profile.roleUser')}</span>
+                  <span className="text-base md:text-lg">{t('profile.roleUser')}</span>
                 )}
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">{t('profile.registeredAt')}</label>
-              <p className="text-lg">
+              <label className="text-xs md:text-sm font-medium text-muted-foreground">{t('profile.registeredAt')}</label>
+              <p className="text-base md:text-lg">
                 {new Date(user.created_at).toLocaleDateString('de-DE', {
                   year: 'numeric',
                   month: 'long',
@@ -333,12 +333,12 @@ function ProfilePage() {
         </div>
 
         {/* Language Settings */}
-        <div className="rounded-lg border bg-card p-6">
+        <div className="rounded-lg border bg-card p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Globe className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">{t('profile.language')}</h2>
+            <h2 className="text-lg md:text-xl font-semibold">{t('profile.language')}</h2>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-xs md:text-sm text-muted-foreground mb-4">
             {t('profile.languageDesc')}
           </p>
           <div className="relative" ref={languageDropdownRef}>
@@ -346,7 +346,7 @@ function ProfilePage() {
               type="button"
               onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
               disabled={updateLanguageMutation.isPending}
-              className="w-full flex items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="w-full flex items-center justify-between rounded-md border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 min-h-touch"
             >
               <span className="flex items-center gap-2">
                 {(() => {
@@ -371,7 +371,7 @@ function ProfilePage() {
                       handleLanguageChange(lang.code)
                       setShowLanguageDropdown(false)
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted transition-colors ${
+                    className={`w-full flex items-center gap-2 px-4 py-3 text-sm text-left hover:bg-muted active:bg-muted/80 transition-colors min-h-touch ${
                       selectedLanguage === lang.code ? 'bg-muted' : ''
                     }`}
                   >
@@ -391,19 +391,19 @@ function ProfilePage() {
         </div>
 
         {/* Content Settings */}
-        <div className="rounded-lg border bg-card p-6">
+        <div className="rounded-lg border bg-card p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Settings className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">{t('profile.contentSettings')}</h2>
+            <h2 className="text-lg md:text-xl font-semibold">{t('profile.contentSettings')}</h2>
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium">{t('profile.includeAdult')}</label>
-              <p className="text-sm text-muted-foreground mt-1">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <label className="text-xs md:text-sm font-medium">{t('profile.includeAdult')}</label>
+              <p className="text-xs md:text-sm text-muted-foreground mt-1">
                 {t('profile.includeAdultDesc')}
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
                 checked={includeAdult}

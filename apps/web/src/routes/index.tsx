@@ -30,51 +30,51 @@ function Dashboard() {
   const totalMovies = moviesData?.total ?? 0
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
+        <h1 className="text-xl md:text-2xl font-bold">{t('dashboard.title')}</h1>
         <Link
           to="/scan"
-          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
         >
           <Plus className="h-4 w-4" />
-          {t('common.add')}
+          <span className="hidden sm:inline">{t('common.add')}</span>
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Film className="h-4 w-4" />
-            <span className="text-sm">{t('nav.movies')}</span>
+            <span className="text-xs md:text-sm">{t('nav.movies')}</span>
           </div>
-          <p className="mt-2 text-2xl font-bold">{totalMovies}</p>
+          <p className="mt-2 text-xl md:text-2xl font-bold">{totalMovies}</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Tv className="h-4 w-4" />
-            <span className="text-sm">{t('nav.series')}</span>
+            <span className="text-xs md:text-sm">{t('nav.series')}</span>
           </div>
-          <p className="mt-2 text-2xl font-bold">{series.length}</p>
+          <p className="mt-2 text-xl md:text-2xl font-bold">{series.length}</p>
         </div>
       </div>
 
       {/* Recently added movies */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t('common.recentlyAdded')}</h2>
-          <Link to="/movies" className="text-sm text-muted-foreground hover:underline">
+          <h2 className="text-base md:text-lg font-semibold">{t('common.recentlyAdded')}</h2>
+          <Link to="/movies" className="text-xs md:text-sm text-muted-foreground hover:underline active:text-foreground min-h-touch min-w-touch flex items-center">
             {t('common.showAll')}
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {movies.map(movie => (
             <Link
               key={movie.id}
               to="/movies/$movieId"
               params={{ movieId: movie.id }}
-              className="group rounded-lg border bg-card overflow-hidden hover:border-primary"
+              className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary transition-colors"
             >
               <div className="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
                 <PosterImage
@@ -86,18 +86,18 @@ function Dashboard() {
                   updatedAt={movie.updated_at}
                 />
               </div>
-              <div className="p-3">
-                <h3 className="font-medium truncate group-hover:text-primary">{movie.title}</h3>
+              <div className="p-2 md:p-3">
+                <h3 className="font-medium truncate text-sm md:text-base group-active:text-primary">{movie.title}</h3>
                 {movie.production_year && (
-                  <p className="text-sm text-muted-foreground">{movie.production_year}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">{movie.production_year}</p>
                 )}
               </div>
             </Link>
           ))}
           {movies.length === 0 && (
-            <p className="text-muted-foreground col-span-full text-center py-8">
+            <p className="text-muted-foreground col-span-full text-center py-8 text-sm md:text-base">
               {t('common.noMoviesYet')}{' '}
-              <Link to="/scan" className="underline hover:text-foreground">
+              <Link to="/scan" className="underline hover:text-foreground active:text-primary">
                 {t('common.scanNow')}
               </Link>
             </p>

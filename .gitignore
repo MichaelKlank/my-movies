@@ -55,9 +55,8 @@ pnpm-debug.log*
 # =============================================================================
 # Tauri
 # =============================================================================
-# Generated Tauri files (keep gen/schemas for type generation)
-/apps/tauri/src-tauri/gen/android/
-/apps/tauri/src-tauri/gen/apple/
+# Generated Tauri files (schemas are regenerated on build)
+/apps/tauri/src-tauri/gen/**/*
 
 # Tauri build bundles
 /apps/tauri/src-tauri/target/
