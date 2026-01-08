@@ -625,8 +625,7 @@ function MovieDetailModal({ movieId, onClose }: { movieId: string; onClose: () =
                   className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-primary hover:bg-primary/10 active:bg-primary/20 rounded-md transition-colors min-h-touch w-full md:w-auto"
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshTmdbMutation.isPending ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">{t('movies.refreshTmdb')}</span>
-                  <span className="sm:hidden">{t('movies.refreshTmdb')}</span>
+                  <span>{t('movies.refreshTmdb')}</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
                 {showRefreshMenu && (

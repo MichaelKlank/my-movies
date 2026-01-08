@@ -42,7 +42,7 @@ function RootLayout() {
         <div className="container flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
-            <span>My Moviesss</span>
+            <span>My Movies</span>
           </Link>
 
           <nav className="flex items-center gap-1">
