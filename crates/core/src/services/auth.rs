@@ -484,7 +484,7 @@ impl AuthService {
                 .hash_password(random_pwd.as_bytes(), &salt)
                 .map_err(|e| Error::Internal(e.to_string()))?
                 .to_string();
-            
+
             // Generate reset token
             let token = Uuid::new_v4().to_string();
             (hash, Some(token))

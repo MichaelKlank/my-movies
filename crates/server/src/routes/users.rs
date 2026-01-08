@@ -177,10 +177,7 @@ pub async fn admin_create_user(
     }
 
     if !body.email.contains('@') {
-        return Err(my_movies_core::Error::Validation(
-            "Ungültige E-Mail-Adresse".into(),
-        )
-        .into());
+        return Err(my_movies_core::Error::Validation("Ungültige E-Mail-Adresse".into()).into());
     }
 
     if let Some(ref pwd) = body.password {
