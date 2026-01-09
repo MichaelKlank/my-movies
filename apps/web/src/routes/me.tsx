@@ -35,29 +35,18 @@ const LANGUAGES = [
 
 type CardSize = 'small' | 'medium' | 'large'
 
-function getStoredCardSize(): CardSize {
-  if (typeof window === 'undefined') return 'medium'
-  return (localStorage.getItem('cardSize') as CardSize) || 'medium'
-}
-
 function ProfilePage() {
   const { t } = useI18n()
   const { updateUser } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, syncFromUser } = useTheme()
   const queryClient = useQueryClient()
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [includeAdult, setIncludeAdult] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
-  const [cardSize, setCardSize] = useState<CardSize>(getStoredCardSize)
+  const [cardSize, setCardSize] = useState<CardSize>('medium')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const languageDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Save card size to localStorage
-  const handleCardSizeChange = (size: CardSize) => {
-    setCardSize(size)
-    localStorage.setItem('cardSize', size)
-  }
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
@@ -68,8 +57,14 @@ function ProfilePage() {
     if (user) {
       setSelectedLanguage(user.language || null)
       setIncludeAdult(user.include_adult)
+      // Sync theme and card size from user settings
+      syncFromUser(user.theme)
+      if (user.card_size === 'small' || user.card_size === 'medium' || user.card_size === 'large') {
+        setCardSize(user.card_size)
+        localStorage.setItem('cardSize', user.card_size) // Also update localStorage for other components
+      }
     }
-  }, [user])
+  }, [user, syncFromUser])
 
   // Detect system language on mount
   useEffect(() => {
@@ -119,6 +114,24 @@ function ProfilePage() {
     },
   })
 
+  const updateThemeMutation = useMutation({
+    mutationFn: (theme: string | null) => api.updateTheme(theme),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(['me'], updatedUser)
+      queryClient.setQueryData(['user'], updatedUser)
+      updateUser(updatedUser)
+    },
+  })
+
+  const updateCardSizeMutation = useMutation({
+    mutationFn: (cardSize: string | null) => api.updateCardSize(cardSize),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(['me'], updatedUser)
+      queryClient.setQueryData(['user'], updatedUser)
+      updateUser(updatedUser)
+    },
+  })
+
   const handleLanguageChange = (language: string | null) => {
     setSelectedLanguage(language)
     updateLanguageMutation.mutate(language)
@@ -127,6 +140,17 @@ function ProfilePage() {
   const handleIncludeAdultChange = (checked: boolean) => {
     setIncludeAdult(checked)
     updateIncludeAdultMutation.mutate(checked)
+  }
+
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+    setTheme(newTheme)
+    updateThemeMutation.mutate(newTheme)
+  }
+
+  const handleCardSizeChange = (size: CardSize) => {
+    setCardSize(size)
+    localStorage.setItem('cardSize', size) // For immediate effect in other components
+    updateCardSizeMutation.mutate(size)
   }
 
   const uploadAvatarMutation = useMutation({
@@ -500,7 +524,7 @@ function ProfilePage() {
           </p>
           <div className="flex gap-2">
             <button
-              onClick={() => setTheme('light')}
+              onClick={() => handleThemeChange('light')}
               className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
                 theme === 'light' 
                   ? 'border-primary bg-primary/5' 
@@ -511,7 +535,7 @@ function ProfilePage() {
               <span className="text-xs md:text-sm font-medium">{t('profile.themeLight')}</span>
             </button>
             <button
-              onClick={() => setTheme('dark')}
+              onClick={() => handleThemeChange('dark')}
               className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
                 theme === 'dark' 
                   ? 'border-primary bg-primary/5' 
@@ -522,7 +546,7 @@ function ProfilePage() {
               <span className="text-xs md:text-sm font-medium">{t('profile.themeDark')}</span>
             </button>
             <button
-              onClick={() => setTheme('system')}
+              onClick={() => handleThemeChange('system')}
               className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
                 theme === 'system' 
                   ? 'border-primary bg-primary/5' 

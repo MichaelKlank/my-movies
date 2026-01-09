@@ -169,6 +169,72 @@ pub async fn update_include_adult(
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct UpdateThemeRequest {
+    pub theme: Option<String>,
+}
+
+pub async fn update_theme(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Json(body): Json<UpdateThemeRequest>,
+) -> impl IntoResponse {
+    match state
+        .auth_service
+        .update_user_theme(claims.sub, body.theme)
+        .await
+    {
+        Ok(user) => {
+            // Broadcast update to WebSocket clients
+            let msg = json!({
+                "type": "user_updated",
+                "payload": user
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            (StatusCode::OK, Json(user)).into_response()
+        }
+        Err(e) => (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateCardSizeRequest {
+    pub card_size: Option<String>,
+}
+
+pub async fn update_card_size(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Json(body): Json<UpdateCardSizeRequest>,
+) -> impl IntoResponse {
+    match state
+        .auth_service
+        .update_user_card_size(claims.sub, body.card_size)
+        .await
+    {
+        Ok(user) => {
+            // Broadcast update to WebSocket clients
+            let msg = json!({
+                "type": "user_updated",
+                "payload": user
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            (StatusCode::OK, Json(user)).into_response()
+        }
+        Err(e) => (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
 /// Upload avatar image for current user
 pub async fn upload_avatar(
     State(state): State<Arc<AppState>>,

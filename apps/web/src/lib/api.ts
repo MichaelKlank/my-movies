@@ -375,6 +375,20 @@ class ApiClient {
     })
   }
 
+  async updateTheme(theme: string | null) {
+    return this.request<User>('/auth/theme', {
+      method: 'PUT',
+      body: { theme },
+    })
+  }
+
+  async updateCardSize(cardSize: string | null) {
+    return this.request<User>('/auth/card-size', {
+      method: 'PUT',
+      body: { card_size: cardSize },
+    })
+  }
+
   async uploadAvatar(file: File) {
     const formData = new FormData()
     formData.append('file', file)
@@ -420,6 +434,8 @@ export interface User {
   language?: string | null
   include_adult: boolean
   avatar_path?: string | null
+  theme?: string | null
+  card_size?: string | null
   created_at: string
   updated_at: string
 }

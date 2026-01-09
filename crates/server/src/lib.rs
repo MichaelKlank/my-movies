@@ -144,6 +144,11 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             "/auth/include-adult",
             axum::routing::put(auth::update_include_adult),
         )
+        .route("/auth/theme", axum::routing::put(auth::update_theme))
+        .route(
+            "/auth/card-size",
+            axum::routing::put(auth::update_card_size),
+        )
         // Avatar upload
         .route("/auth/avatar", axum::routing::post(auth::upload_avatar))
         .route("/auth/avatar", axum::routing::delete(auth::delete_avatar))

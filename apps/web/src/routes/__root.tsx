@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
+import { useTheme } from '@/hooks/useTheme'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
 import { Avatar } from '@/components/Avatar'
 import { createContext, useContext, useState, useRef, useEffect } from 'react'
@@ -131,8 +132,9 @@ function AvatarMenu() {
 }
 
 function RootLayout() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { t } = useI18n()
+  const { syncFromUser } = useTheme()
   const location = useLocation()
   
   // Search toolbar state (shared with movies page)
@@ -141,6 +143,18 @@ function RootLayout() {
 
   // Set up WebSocket sync for real-time updates
   useWebSocketSync()
+
+  // Sync user preferences when user changes (login/logout/switch)
+  useEffect(() => {
+    if (user) {
+      // Sync theme from user settings
+      syncFromUser(user.theme)
+      // Sync card size to localStorage for other components
+      // Default to 'medium' if user has no preference
+      const cardSize = user.card_size || 'medium'
+      localStorage.setItem('cardSize', cardSize)
+    }
+  }, [user, syncFromUser])
 
   // Check if we're on the movies page
   const isMoviesPage = location.pathname === '/movies' || location.pathname === '/movies/'

@@ -93,6 +93,8 @@ impl AuthService {
             avatar_path: None,
             reset_token: None,
             reset_token_expires: None,
+            theme: None,     // Will use system default
+            card_size: None, // Will use medium default
         };
 
         let token = self.create_token(&user)?;
@@ -362,6 +364,36 @@ impl AuthService {
     ) -> Result<UserPublic> {
         sqlx::query("UPDATE users SET include_adult = ?, updated_at = ? WHERE id = ?")
             .bind(include_adult)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_user(user_id).await
+    }
+
+    pub async fn update_user_theme(
+        &self,
+        user_id: Uuid,
+        theme: Option<String>,
+    ) -> Result<UserPublic> {
+        sqlx::query("UPDATE users SET theme = ?, updated_at = ? WHERE id = ?")
+            .bind(&theme)
+            .bind(Utc::now().to_rfc3339())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_user(user_id).await
+    }
+
+    pub async fn update_user_card_size(
+        &self,
+        user_id: Uuid,
+        card_size: Option<String>,
+    ) -> Result<UserPublic> {
+        sqlx::query("UPDATE users SET card_size = ?, updated_at = ? WHERE id = ?")
+            .bind(&card_size)
             .bind(Utc::now().to_rfc3339())
             .bind(user_id)
             .execute(&self.pool)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -6,6 +6,7 @@ interface ThemeContextType {
   theme: Theme
   setTheme: (theme: Theme) => void
   resolvedTheme: 'light' | 'dark'
+  syncFromUser: (userTheme: string | null | undefined) => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
@@ -17,11 +18,15 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+function isValidTheme(value: string | null | undefined): value is Theme {
+  return value === 'light' || value === 'dark' || value === 'system'
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'system'
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+    if (isValidTheme(stored)) {
       return stored
     }
     return 'system'
@@ -58,13 +63,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [theme])
 
-  const setTheme = (newTheme: Theme) => {
+  // Sync theme from user settings (called when user logs in or data is loaded)
+  const syncFromUser = useCallback((userTheme: string | null | undefined) => {
+    if (isValidTheme(userTheme)) {
+      setThemeState(userTheme)
+      localStorage.setItem(STORAGE_KEY, userTheme)
+    } else {
+      // User has no preference set - default to system
+      setThemeState('system')
+      localStorage.setItem(STORAGE_KEY, 'system')
+    }
+  }, [])
+
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
+    // Save to localStorage for flash prevention on reload
     localStorage.setItem(STORAGE_KEY, newTheme)
-  }
+  }, [])
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme, syncFromUser }}>
       {children}
     </ThemeContext.Provider>
   )
