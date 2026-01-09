@@ -336,52 +336,49 @@ pub async fn refresh_tmdb(
 
             for search_title in search_titles {
                 // Try movie search
-                if tmdb_details.is_none() {
-                    if let Ok(results) = state
+                if tmdb_details.is_none()
+                    && let Ok(results) = state
                         .tmdb_service
                         .search_movies(&search_title, year, language, include_adult)
                         .await
-                    {
-                        if !results.is_empty() {
-                            let first = &results[0];
-                            tmdb_details = state
-                                .tmdb_service
-                                .get_movie_details(first.id, language)
-                                .await
-                                .ok();
-                            if tmdb_details.is_some() {
-                                tracing::debug!(
-                                    "Found movie with cleaned title '{}': {:?}",
-                                    search_title,
-                                    tmdb_details.as_ref().map(|d| &d.title)
-                                );
-                                break;
-                            }
-                        }
+                    && !results.is_empty()
+                {
+                    let first = &results[0];
+                    tmdb_details = state
+                        .tmdb_service
+                        .get_movie_details(first.id, language)
+                        .await
+                        .ok();
+                    if tmdb_details.is_some() {
+                        tracing::debug!(
+                            "Found movie with cleaned title '{}': {:?}",
+                            search_title,
+                            tmdb_details.as_ref().map(|d| &d.title)
+                        );
+                        break;
                     }
                 }
 
                 // Try TV search
-                if tmdb_details.is_none() && tv_details.is_none() {
-                    if let Ok(results) = state.tmdb_service.search_tv(&search_title, language).await
-                    {
-                        if !results.is_empty() {
-                            let first = &results[0];
-                            tv_details = state
-                                .tmdb_service
-                                .get_tv_details(first.id, language)
-                                .await
-                                .ok();
-                            if tv_details.is_some() {
-                                is_tv_series = true;
-                                tracing::debug!(
-                                    "Found TV series with cleaned title '{}': {:?}",
-                                    search_title,
-                                    tv_details.as_ref().map(|d| &d.name)
-                                );
-                                break;
-                            }
-                        }
+                if tmdb_details.is_none()
+                    && tv_details.is_none()
+                    && let Ok(results) = state.tmdb_service.search_tv(&search_title, language).await
+                    && !results.is_empty()
+                {
+                    let first = &results[0];
+                    tv_details = state
+                        .tmdb_service
+                        .get_tv_details(first.id, language)
+                        .await
+                        .ok();
+                    if tv_details.is_some() {
+                        is_tv_series = true;
+                        tracing::debug!(
+                            "Found TV series with cleaned title '{}': {:?}",
+                            search_title,
+                            tv_details.as_ref().map(|d| &d.name)
+                        );
+                        break;
                     }
                 }
             }
@@ -1078,27 +1075,24 @@ pub async fn analyze_collection(
                     if is_tv {
                         if let Ok(tv_results) =
                             state.tmdb_service.search_tv(&title, Some(&language)).await
+                            && let Some(tv) = tv_results.into_iter().next()
                         {
-                            if let Some(tv) = tv_results.into_iter().next() {
-                                extracted.tmdb_tv_match = Some(TmdbTvMatch {
-                                    id: tv.id,
-                                    name: tv.name,
-                                    original_name: tv.original_name,
-                                    overview: tv.overview,
-                                    poster_path: tv.poster_path,
-                                    first_air_date: tv.first_air_date,
-                                    vote_average: tv.vote_average,
-                                });
-                            }
+                            extracted.tmdb_tv_match = Some(TmdbTvMatch {
+                                id: tv.id,
+                                name: tv.name,
+                                original_name: tv.original_name,
+                                overview: tv.overview,
+                                poster_path: tv.poster_path,
+                                first_air_date: tv.first_air_date,
+                                vote_average: tv.vote_average,
+                            });
                         }
-                    } else {
-                        if let Ok(search_results) = state
-                            .tmdb_service
-                            .search_movies(&title, None, Some(&language), false)
-                            .await
-                        {
-                            extracted.tmdb_match = search_results.into_iter().next();
-                        }
+                    } else if let Ok(search_results) = state
+                        .tmdb_service
+                        .search_movies(&title, None, Some(&language), false)
+                        .await
+                    {
+                        extracted.tmdb_match = search_results.into_iter().next();
                     }
 
                     description_titles.push(extracted);
@@ -1109,54 +1103,51 @@ pub async fn analyze_collection(
 
     // Step 2: If original_title didn't have a movie list, try to parse description
     // This is more reliable for box sets because TMDB collections often don't match physical box sets exactly
-    if description_titles.len() < 2 {
-        if let Some(ref description) = movie.description {
-            let parsed_titles = parse_collection_description(description);
-            tracing::debug!("Parsed {} titles from description", parsed_titles.len());
+    if description_titles.len() < 2
+        && let Some(ref description) = movie.description
+    {
+        let parsed_titles = parse_collection_description(description);
+        tracing::debug!("Parsed {} titles from description", parsed_titles.len());
 
-            if parsed_titles.len() >= 2 {
-                // Try to find TMDB matches for each parsed title
-                for parsed in parsed_titles {
-                    let is_tv = is_likely_tv_series(&parsed.title);
-                    let mut extracted = ExtractedTitle {
-                        title: parsed.title.clone(),
-                        tmdb_match: None,
-                        tmdb_tv_match: None,
-                        description_excerpt: parsed.excerpt,
-                        is_tv_series: is_tv,
-                    };
+        if parsed_titles.len() >= 2 {
+            // Try to find TMDB matches for each parsed title
+            for parsed in parsed_titles {
+                let is_tv = is_likely_tv_series(&parsed.title);
+                let mut extracted = ExtractedTitle {
+                    title: parsed.title.clone(),
+                    tmdb_match: None,
+                    tmdb_tv_match: None,
+                    description_excerpt: parsed.excerpt,
+                    is_tv_series: is_tv,
+                };
 
-                    // Search TMDB - try TV first if it looks like a series, otherwise movie
-                    if is_tv {
-                        if let Ok(tv_results) = state
-                            .tmdb_service
-                            .search_tv(&parsed.title, Some(&language))
-                            .await
-                        {
-                            if let Some(tv) = tv_results.into_iter().next() {
-                                extracted.tmdb_tv_match = Some(TmdbTvMatch {
-                                    id: tv.id,
-                                    name: tv.name,
-                                    original_name: tv.original_name,
-                                    overview: tv.overview,
-                                    poster_path: tv.poster_path,
-                                    first_air_date: tv.first_air_date,
-                                    vote_average: tv.vote_average,
-                                });
-                            }
-                        }
-                    } else {
-                        if let Ok(search_results) = state
-                            .tmdb_service
-                            .search_movies(&parsed.title, None, Some(&language), false)
-                            .await
-                        {
-                            extracted.tmdb_match = search_results.into_iter().next();
-                        }
+                // Search TMDB - try TV first if it looks like a series, otherwise movie
+                if is_tv {
+                    if let Ok(tv_results) = state
+                        .tmdb_service
+                        .search_tv(&parsed.title, Some(&language))
+                        .await
+                        && let Some(tv) = tv_results.into_iter().next()
+                    {
+                        extracted.tmdb_tv_match = Some(TmdbTvMatch {
+                            id: tv.id,
+                            name: tv.name,
+                            original_name: tv.original_name,
+                            overview: tv.overview,
+                            poster_path: tv.poster_path,
+                            first_air_date: tv.first_air_date,
+                            vote_average: tv.vote_average,
+                        });
                     }
-
-                    description_titles.push(extracted);
+                } else if let Ok(search_results) = state
+                    .tmdb_service
+                    .search_movies(&parsed.title, None, Some(&language), false)
+                    .await
+                {
+                    extracted.tmdb_match = search_results.into_iter().next();
                 }
+
+                description_titles.push(extracted);
             }
         }
     }
@@ -1194,27 +1185,24 @@ pub async fn analyze_collection(
                     if is_tv {
                         if let Ok(tv_results) =
                             state.tmdb_service.search_tv(&title, Some(&language)).await
+                            && let Some(tv) = tv_results.into_iter().next()
                         {
-                            if let Some(tv) = tv_results.into_iter().next() {
-                                extracted.tmdb_tv_match = Some(TmdbTvMatch {
-                                    id: tv.id,
-                                    name: tv.name,
-                                    original_name: tv.original_name,
-                                    overview: tv.overview,
-                                    poster_path: tv.poster_path,
-                                    first_air_date: tv.first_air_date,
-                                    vote_average: tv.vote_average,
-                                });
-                            }
+                            extracted.tmdb_tv_match = Some(TmdbTvMatch {
+                                id: tv.id,
+                                name: tv.name,
+                                original_name: tv.original_name,
+                                overview: tv.overview,
+                                poster_path: tv.poster_path,
+                                first_air_date: tv.first_air_date,
+                                vote_average: tv.vote_average,
+                            });
                         }
-                    } else {
-                        if let Ok(search_results) = state
-                            .tmdb_service
-                            .search_movies(&title, None, Some(&language), false)
-                            .await
-                        {
-                            extracted.tmdb_match = search_results.into_iter().next();
-                        }
+                    } else if let Ok(search_results) = state
+                        .tmdb_service
+                        .search_movies(&title, None, Some(&language), false)
+                        .await
+                    {
+                        extracted.tmdb_match = search_results.into_iter().next();
                     }
 
                     title_parsed_titles.push(extracted);
@@ -1291,15 +1279,15 @@ pub async fn analyze_collection(
                 }
 
                 // If we've reached or exceeded expected count, stop fetching more collections
-                if let Some(expected) = expected_count {
-                    if tmdb_titles.len() >= expected {
-                        tracing::debug!(
-                            "Reached expected count {} with {} movies, stopping collection fetch",
-                            expected,
-                            tmdb_titles.len()
-                        );
-                        break;
-                    }
+                if let Some(expected) = expected_count
+                    && tmdb_titles.len() >= expected
+                {
+                    tracing::debug!(
+                        "Reached expected count {} with {} movies, stopping collection fetch",
+                        expected,
+                        tmdb_titles.len()
+                    );
+                    break;
                 }
             }
         }
@@ -1400,7 +1388,7 @@ pub async fn analyze_collection(
                         let title_lower = m.title.to_lowercase();
                         title_lower.contains(&base_lower)
                             || base_lower
-                                .contains(&title_lower.split_whitespace().next().unwrap_or(""))
+                                .contains(title_lower.split_whitespace().next().unwrap_or(""))
                     })
                     .take(30)
                     .collect();
@@ -1450,27 +1438,26 @@ pub async fn analyze_collection(
             .tmdb_service
             .search_tv(&series_name, Some(&language))
             .await
+            && let Some(tv) = tv_results.into_iter().next()
         {
-            if let Some(tv) = tv_results.into_iter().next() {
-                result.is_collection = false; // It's a single TV series, not a collection
-                result.confidence = 0.8;
-                result.total_movies = 1;
-                result.extracted_titles.push(ExtractedTitle {
-                    title: tv.name.clone(),
-                    tmdb_match: None,
-                    tmdb_tv_match: Some(TmdbTvMatch {
-                        id: tv.id,
-                        name: tv.name,
-                        original_name: tv.original_name,
-                        overview: tv.overview,
-                        poster_path: tv.poster_path,
-                        first_air_date: tv.first_air_date,
-                        vote_average: tv.vote_average,
-                    }),
-                    description_excerpt: None,
-                    is_tv_series: true,
-                });
-            }
+            result.is_collection = false; // It's a single TV series, not a collection
+            result.confidence = 0.8;
+            result.total_movies = 1;
+            result.extracted_titles.push(ExtractedTitle {
+                title: tv.name.clone(),
+                tmdb_match: None,
+                tmdb_tv_match: Some(TmdbTvMatch {
+                    id: tv.id,
+                    name: tv.name,
+                    original_name: tv.original_name,
+                    overview: tv.overview,
+                    poster_path: tv.poster_path,
+                    first_air_date: tv.first_air_date,
+                    vote_average: tv.vote_average,
+                }),
+                description_excerpt: None,
+                is_tv_series: true,
+            });
         }
     }
 
@@ -1529,52 +1516,49 @@ pub async fn analyze_collection(
                     .tmdb_service
                     .search_tv(&search_title, Some(&language))
                     .await
+                    && let Some(tv) = tv_results.into_iter().next()
                 {
-                    if let Some(tv) = tv_results.into_iter().next() {
-                        result.is_collection = false;
-                        result.confidence = 0.7;
-                        result.total_movies = 1;
-                        result.extracted_titles.push(ExtractedTitle {
-                            title: tv.name.clone(),
-                            tmdb_match: None,
-                            tmdb_tv_match: Some(TmdbTvMatch {
-                                id: tv.id,
-                                name: tv.name,
-                                original_name: tv.original_name,
-                                overview: tv.overview,
-                                poster_path: tv.poster_path,
-                                first_air_date: tv.first_air_date,
-                                vote_average: tv.vote_average,
-                            }),
-                            description_excerpt: None,
-                            is_tv_series: true,
-                        });
-                        break;
-                    }
+                    result.is_collection = false;
+                    result.confidence = 0.7;
+                    result.total_movies = 1;
+                    result.extracted_titles.push(ExtractedTitle {
+                        title: tv.name.clone(),
+                        tmdb_match: None,
+                        tmdb_tv_match: Some(TmdbTvMatch {
+                            id: tv.id,
+                            name: tv.name,
+                            original_name: tv.original_name,
+                            overview: tv.overview,
+                            poster_path: tv.poster_path,
+                            first_air_date: tv.first_air_date,
+                            vote_average: tv.vote_average,
+                        }),
+                        description_excerpt: None,
+                        is_tv_series: true,
+                    });
+                    break;
                 }
             }
 
             // If no TV series found, try movie search
-            if result.extracted_titles.is_empty() {
-                if let Ok(movie_results) = state
+            if result.extracted_titles.is_empty()
+                && let Ok(movie_results) = state
                     .tmdb_service
                     .search_movies(&search_title, None, Some(&language), false)
                     .await
-                {
-                    if let Some(movie_match) = movie_results.into_iter().next() {
-                        result.is_collection = false;
-                        result.confidence = 0.7;
-                        result.total_movies = 1;
-                        result.extracted_titles.push(ExtractedTitle {
-                            title: movie_match.title.clone(),
-                            tmdb_match: Some(movie_match),
-                            tmdb_tv_match: None,
-                            description_excerpt: None,
-                            is_tv_series: false,
-                        });
-                        break;
-                    }
-                }
+                && let Some(movie_match) = movie_results.into_iter().next()
+            {
+                result.is_collection = false;
+                result.confidence = 0.7;
+                result.total_movies = 1;
+                result.extracted_titles.push(ExtractedTitle {
+                    title: movie_match.title.clone(),
+                    tmdb_match: Some(movie_match),
+                    tmdb_tv_match: None,
+                    description_excerpt: None,
+                    is_tv_series: false,
+                });
+                break;
             }
         }
     }
@@ -1634,15 +1618,13 @@ pub async fn split_collection(
     let mut first_movie_poster_path: Option<String> = None;
 
     // If we have a TMDB collection poster, download it for the collection
-    if collection_needs_poster {
-        if let Some(ref poster_path) = request.collection_poster_path {
-            tracing::debug!("Downloading collection poster from TMDB: {}", poster_path);
-            if let Some(poster_data) = download_poster_image(poster_path).await {
-                let _ = state
-                    .movie_service
-                    .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
-                    .await;
-            }
+    if collection_needs_poster && let Some(ref poster_path) = request.collection_poster_path {
+        tracing::debug!("Downloading collection poster from TMDB: {}", poster_path);
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            let _ = state
+                .movie_service
+                .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
+                .await;
         }
     }
 
@@ -1746,33 +1728,32 @@ pub async fn split_collection(
                 }
 
                 // Get credits for director/actors
-                if let Some(tmdb_id) = tmdb_details.as_ref().map(|d| d.id) {
-                    if let Ok(credits) = state
+                if let Some(tmdb_id) = tmdb_details.as_ref().map(|d| d.id)
+                    && let Ok(credits) = state
                         .tmdb_service
                         .get_movie_credits(tmdb_id, Some(&language))
                         .await
-                    {
-                        // Get director(s)
-                        let directors: Vec<_> = credits
-                            .crew
-                            .iter()
-                            .filter(|c| c.job == "Director")
-                            .map(|c| c.name.clone())
-                            .collect();
-                        if !directors.is_empty() {
-                            update.director = Some(directors.join(", "));
-                        }
+                {
+                    // Get director(s)
+                    let directors: Vec<_> = credits
+                        .crew
+                        .iter()
+                        .filter(|c| c.job == "Director")
+                        .map(|c| c.name.clone())
+                        .collect();
+                    if !directors.is_empty() {
+                        update.director = Some(directors.join(", "));
+                    }
 
-                        // Get top actors
-                        let actors: Vec<_> = credits
-                            .cast
-                            .iter()
-                            .take(10)
-                            .map(|c| c.name.clone())
-                            .collect();
-                        if !actors.is_empty() {
-                            update.actors = Some(actors.join(", "));
-                        }
+                    // Get top actors
+                    let actors: Vec<_> = credits
+                        .cast
+                        .iter()
+                        .take(10)
+                        .map(|c| c.name.clone())
+                        .collect();
+                    if !actors.is_empty() {
+                        update.actors = Some(actors.join(", "));
                     }
                 }
 
@@ -1789,15 +1770,16 @@ pub async fn split_collection(
     }
 
     // Fallback: If collection still has no poster and we have a first movie poster, use it
-    if collection_needs_poster && request.collection_poster_path.is_none() {
-        if let Some(ref poster_path) = first_movie_poster_path {
-            tracing::debug!("Using first movie poster for collection: {}", poster_path);
-            if let Some(poster_data) = download_poster_image(poster_path).await {
-                let _ = state
-                    .movie_service
-                    .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
-                    .await;
-            }
+    if collection_needs_poster
+        && request.collection_poster_path.is_none()
+        && let Some(ref poster_path) = first_movie_poster_path
+    {
+        tracing::debug!("Using first movie poster for collection: {}", poster_path);
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            let _ = state
+                .movie_service
+                .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
+                .await;
         }
     }
 
@@ -1872,27 +1854,25 @@ async fn handle_collection_refresh(
         .tmdb_service
         .search_collections(&collection_search_term, Some(lang))
         .await
+        && let Some(tmdb_collection) = collections.into_iter().next()
+        && let Some(ref poster_path) = tmdb_collection.poster_path
     {
-        if let Some(tmdb_collection) = collections.into_iter().next() {
-            if let Some(ref poster_path) = tmdb_collection.poster_path {
-                tracing::debug!("Found TMDB collection poster: {}", poster_path);
-                if let Some(poster_data) = download_poster_image(poster_path).await {
-                    let _ = state
-                        .movie_service
-                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                        .await;
+        tracing::debug!("Found TMDB collection poster: {}", poster_path);
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            let _ = state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await;
 
-                    return (
-                        StatusCode::OK,
-                        Json(json!({
-                            "message": "Collection poster updated from TMDB collection",
-                            "source": "tmdb_collection",
-                            "collection_name": tmdb_collection.name,
-                        })),
-                    )
-                        .into_response();
-                }
-            }
+            return (
+                StatusCode::OK,
+                Json(json!({
+                    "message": "Collection poster updated from TMDB collection",
+                    "source": "tmdb_collection",
+                    "collection_name": tmdb_collection.name,
+                })),
+            )
+                .into_response();
         }
     }
 
@@ -1923,47 +1903,18 @@ async fn handle_collection_refresh(
             );
 
             // Strategy 2a: If first child has a TMDB ID, try to get poster from TMDB (preferred)
-            if let Some(tmdb_id) = first_child.tmdb_id {
-                if let Ok(details) = state
+            if let Some(tmdb_id) = first_child.tmdb_id
+                && let Ok(details) = state
                     .tmdb_service
                     .get_movie_details(tmdb_id, language)
                     .await
-                {
-                    if let Some(ref poster_path) = details.poster_path {
-                        tracing::debug!(
-                            "Downloading poster from first child's TMDB: {}",
-                            poster_path
-                        );
-                        if let Some(poster_data) = download_poster_image(poster_path).await {
-                            let _ = state
-                                .movie_service
-                                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                                .await;
-
-                            return (
-                                StatusCode::OK,
-                                Json(json!({
-                                    "message": "Collection poster updated from first movie's TMDB data",
-                                    "source": "first_child_tmdb",
-                                    "movie_title": first_child.title,
-                                })),
-                            )
-                                .into_response();
-                        }
-                    }
-                }
-            }
-
-            // Strategy 2b: Try to copy existing poster from first child
-            // Note: list() doesn't include poster_data, so we need to fetch the full movie
-            if let Ok(child_with_poster) =
-                state.movie_service.get_by_id(user_id, first_child.id).await
+                && let Some(ref poster_path) = details.poster_path
             {
-                if let Some(poster_data) = child_with_poster.poster_data {
-                    tracing::debug!(
-                        "Copying existing poster from first child movie: {}",
-                        first_child.title
-                    );
+                tracing::debug!(
+                    "Downloading poster from first child's TMDB: {}",
+                    poster_path
+                );
+                if let Some(poster_data) = download_poster_image(poster_path).await {
                     let _ = state
                         .movie_service
                         .update_movie_poster_data(user_id, collection_id, Some(poster_data))
@@ -1972,13 +1923,39 @@ async fn handle_collection_refresh(
                     return (
                         StatusCode::OK,
                         Json(json!({
-                            "message": "Collection poster updated from first movie",
-                            "source": "first_child",
+                            "message": "Collection poster updated from first movie's TMDB data",
+                            "source": "first_child_tmdb",
                             "movie_title": first_child.title,
                         })),
                     )
                         .into_response();
                 }
+            }
+
+            // Strategy 2b: Try to copy existing poster from first child
+            // Note: list() doesn't include poster_data, so we need to fetch the full movie
+            if let Ok(child_with_poster) =
+                state.movie_service.get_by_id(user_id, first_child.id).await
+                && let Some(poster_data) = child_with_poster.poster_data
+            {
+                tracing::debug!(
+                    "Copying existing poster from first child movie: {}",
+                    first_child.title
+                );
+                let _ = state
+                    .movie_service
+                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                    .await;
+
+                return (
+                    StatusCode::OK,
+                    Json(json!({
+                        "message": "Collection poster updated from first movie",
+                        "source": "first_child",
+                        "movie_title": first_child.title,
+                    })),
+                )
+                    .into_response();
             }
 
             // Strategy 2c: Search TMDB by first child's title if it has no TMDB ID
@@ -1990,35 +1967,29 @@ async fn handle_collection_refresh(
                     .tmdb_service
                     .search_movies(&clean_title, first_child.production_year, language, false)
                     .await
+                    && let Some(first_result) = results.into_iter().next()
+                    && let Some(ref poster_path) = first_result.poster_path
                 {
-                    if let Some(first_result) = results.into_iter().next() {
-                        if let Some(ref poster_path) = first_result.poster_path {
-                            tracing::debug!(
-                                "Found poster via TMDB search for '{}': {}",
-                                clean_title,
-                                poster_path
-                            );
-                            if let Some(poster_data) = download_poster_image(poster_path).await {
-                                let _ = state
-                                    .movie_service
-                                    .update_movie_poster_data(
-                                        user_id,
-                                        collection_id,
-                                        Some(poster_data),
-                                    )
-                                    .await;
+                    tracing::debug!(
+                        "Found poster via TMDB search for '{}': {}",
+                        clean_title,
+                        poster_path
+                    );
+                    if let Some(poster_data) = download_poster_image(poster_path).await {
+                        let _ = state
+                            .movie_service
+                            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                            .await;
 
-                                return (
-                                    StatusCode::OK,
-                                    Json(json!({
-                                        "message": "Collection poster updated via TMDB search",
-                                        "source": "tmdb_search",
-                                        "movie_title": first_result.title,
-                                    })),
-                                )
-                                    .into_response();
-                            }
-                        }
+                        return (
+                            StatusCode::OK,
+                            Json(json!({
+                                "message": "Collection poster updated via TMDB search",
+                                "source": "tmdb_search",
+                                "movie_title": first_result.title,
+                            })),
+                        )
+                            .into_response();
                     }
                 }
             }
@@ -2041,31 +2012,29 @@ async fn handle_collection_refresh(
             .tmdb_service
             .search_movies(&clean_title, collection.production_year, language, false)
             .await
+            && let Some(first_result) = results.into_iter().next()
+            && let Some(ref poster_path) = first_result.poster_path
         {
-            if let Some(first_result) = results.into_iter().next() {
-                if let Some(ref poster_path) = first_result.poster_path {
-                    tracing::debug!(
-                        "Found poster via extracted title '{}': {}",
-                        clean_title,
-                        poster_path
-                    );
-                    if let Some(poster_data) = download_poster_image(poster_path).await {
-                        let _ = state
-                            .movie_service
-                            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                            .await;
+            tracing::debug!(
+                "Found poster via extracted title '{}': {}",
+                clean_title,
+                poster_path
+            );
+            if let Some(poster_data) = download_poster_image(poster_path).await {
+                let _ = state
+                    .movie_service
+                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                    .await;
 
-                        return (
-                            StatusCode::OK,
-                            Json(json!({
-                                "message": "Collection poster updated via extracted title",
-                                "source": "extracted_title",
-                                "movie_title": first_result.title,
-                            })),
-                        )
-                            .into_response();
-                    }
-                }
+                return (
+                    StatusCode::OK,
+                    Json(json!({
+                        "message": "Collection poster updated via extracted title",
+                        "source": "extracted_title",
+                        "movie_title": first_result.title,
+                    })),
+                )
+                    .into_response();
             }
         }
     }
@@ -2083,31 +2052,29 @@ async fn handle_collection_refresh(
         .tmdb_service
         .search_movies(&clean_base, None, language, false)
         .await
+        && let Some(first_result) = results.into_iter().next()
+        && let Some(ref poster_path) = first_result.poster_path
     {
-        if let Some(first_result) = results.into_iter().next() {
-            if let Some(ref poster_path) = first_result.poster_path {
-                tracing::debug!(
-                    "Found poster via base title search '{}': {}",
-                    clean_base,
-                    poster_path
-                );
-                if let Some(poster_data) = download_poster_image(poster_path).await {
-                    let _ = state
-                        .movie_service
-                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                        .await;
+        tracing::debug!(
+            "Found poster via base title search '{}': {}",
+            clean_base,
+            poster_path
+        );
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            let _ = state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await;
 
-                    return (
-                        StatusCode::OK,
-                        Json(json!({
-                            "message": "Collection poster updated via base title search",
-                            "source": "base_title_search",
-                            "movie_title": first_result.title,
-                        })),
-                    )
-                        .into_response();
-                }
-            }
+            return (
+                StatusCode::OK,
+                Json(json!({
+                    "message": "Collection poster updated via base title search",
+                    "source": "base_title_search",
+                    "movie_title": first_result.title,
+                })),
+            )
+                .into_response();
         }
     }
 
@@ -2174,9 +2141,7 @@ fn extract_titles_from_collection_title(title: &str) -> Vec<String> {
 /// e.g., "Disney® Frozen" -> "Disney Frozen"
 fn clean_title_for_search(title: &str) -> String {
     title
-        .replace('™', "")
-        .replace('®', "")
-        .replace('©', "")
+        .replace(['™', '®', '©'], "")
         .replace("(TM)", "")
         .replace("(R)", "")
         .replace("(C)", "")
@@ -2192,14 +2157,12 @@ fn extract_movie_count_from_title(title: &str) -> Option<usize> {
     let title_lower = title.to_lowercase();
 
     // First, check for number range pattern: "1-6" means 6 movies
-    if let Ok(re) = regex::Regex::new(r"(\d+)[-–](\d+)") {
-        if let Some(cap) = re.captures(&title_lower) {
-            if let Some(m) = cap.get(2) {
-                if let Ok(count) = m.as_str().parse::<usize>() {
-                    return Some(count);
-                }
-            }
-        }
+    if let Ok(re) = regex::Regex::new(r"(\d+)[-–](\d+)")
+        && let Some(cap) = re.captures(&title_lower)
+        && let Some(m) = cap.get(2)
+        && let Ok(count) = m.as_str().parse::<usize>()
+    {
+        return Some(count);
     }
 
     // Pattern: "N-Film", "N Filme", "N Movies", "N-Movie", "(N Filme)"
@@ -2211,14 +2174,12 @@ fn extract_movie_count_from_title(title: &str) -> Option<usize> {
     ];
 
     for pattern in patterns {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            if let Some(cap) = re.captures(&title_lower) {
-                if let Some(m) = cap.get(1) {
-                    if let Ok(count) = m.as_str().parse::<usize>() {
-                        return Some(count);
-                    }
-                }
-            }
+        if let Ok(re) = regex::Regex::new(pattern)
+            && let Some(cap) = re.captures(&title_lower)
+            && let Some(m) = cap.get(1)
+            && let Ok(count) = m.as_str().parse::<usize>()
+        {
+            return Some(count);
         }
     }
     None
@@ -2479,7 +2440,7 @@ fn extract_base_title_from_collection(title: &str) -> String {
     // Clean up - remove common prefixes
     let mut result = name
         .trim()
-        .trim_end_matches(|c: char| c == '-' || c == ':' || c == ' ')
+        .trim_end_matches(['-', ':', ' '])
         .trim_start_matches("the ")
         .trim_start_matches("die ")
         .trim()
@@ -2624,35 +2585,35 @@ fn parse_titles_from_movie_title(title: &str) -> Vec<String> {
     // e.g., "Deadpool 1 & 2" → ["Deadpool", "Deadpool 2"]
     // e.g., "Iron Man 1, 2 & 3" → ["Iron Man", "Iron Man 2", "Iron Man 3"]
     // e.g., "Gregs Tagebuch 1,2,3 & 4" → ["Gregs Tagebuch", "Gregs Tagebuch 2", "Gregs Tagebuch 3", "Gregs Tagebuch 4"]
-    if let Ok(re) = regex::Regex::new(r"^(.+?)\s+([\d,\s]+)[&+]\s*(\d+)$") {
-        if let Some(caps) = re.captures(title.trim()) {
-            let base_title = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
-            let numbers_part = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-            let last_num = caps.get(3).map(|m| m.as_str());
+    if let Ok(re) = regex::Regex::new(r"^(.+?)\s+([\d,\s]+)[&+]\s*(\d+)$")
+        && let Some(caps) = re.captures(title.trim())
+    {
+        let base_title = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
+        let numbers_part = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+        let last_num = caps.get(3).map(|m| m.as_str());
 
-            if !base_title.is_empty() {
-                // Parse all numbers from the comma-separated part
-                let number_re = regex::Regex::new(r"\d+").unwrap();
-                for num_match in number_re.find_iter(numbers_part) {
-                    let n = num_match.as_str();
-                    if n == "1" {
-                        titles.push(base_title.to_string());
-                    } else {
-                        titles.push(format!("{} {}", base_title, n));
-                    }
-                }
-
-                // Add last number
-                if let Some(n) = last_num {
+        if !base_title.is_empty() {
+            // Parse all numbers from the comma-separated part
+            let number_re = regex::Regex::new(r"\d+").unwrap();
+            for num_match in number_re.find_iter(numbers_part) {
+                let n = num_match.as_str();
+                if n == "1" {
+                    titles.push(base_title.to_string());
+                } else {
                     titles.push(format!("{} {}", base_title, n));
                 }
-
-                if titles.len() >= 2 {
-                    return titles;
-                }
             }
-            titles.clear();
+
+            // Add last number
+            if let Some(n) = last_num {
+                titles.push(format!("{} {}", base_title, n));
+            }
+
+            if titles.len() >= 2 {
+                return titles;
+            }
         }
+        titles.clear();
     }
 
     // Pattern 0b: Look for "+" separator (e.g., "Die Bourne Identität + Die Bourne Verschwörung")
@@ -2754,17 +2715,17 @@ fn parse_titles_from_movie_title(title: &str) -> Vec<String> {
         ];
 
         for pattern in patterns {
-            if let Ok(re) = regex::Regex::new(pattern) {
-                if let Some(caps) = re.captures(title) {
-                    for i in 1..=caps.len() - 1 {
-                        if let Some(m) = caps.get(i) {
-                            let part = m.as_str().trim();
-                            if !part.is_empty()
-                                && part.len() < 80
-                                && !titles.contains(&part.to_string())
-                            {
-                                titles.push(part.to_string());
-                            }
+            if let Ok(re) = regex::Regex::new(pattern)
+                && let Some(caps) = re.captures(title)
+            {
+                for i in 1..=caps.len() - 1 {
+                    if let Some(m) = caps.get(i) {
+                        let part = m.as_str().trim();
+                        if !part.is_empty()
+                            && part.len() < 80
+                            && !titles.contains(&part.to_string())
+                        {
+                            titles.push(part.to_string());
                         }
                     }
                 }
@@ -2832,8 +2793,7 @@ fn parse_collection_description(description: &str) -> Vec<ParsedTitle> {
                     && !titles.iter().any(|t: &ParsedTitle| t.title == cleaned)
                 {
                     let excerpt = if end_pos < segment.len() {
-                        let rest = segment[end_pos..]
-                            .trim_start_matches(|c| c == ':' || c == ';' || c == ' ');
+                        let rest = segment[end_pos..].trim_start_matches([':', ';', ' ']);
                         if !rest.is_empty() && rest.len() > 10 {
                             Some(rest.chars().take(200).collect::<String>())
                         } else {
@@ -2989,19 +2949,20 @@ fn parse_collection_description(description: &str) -> Vec<ParsedTitle> {
                 }
 
                 // Check if this looks like a title (starts with uppercase)
-                if let Some(first_char) = trimmed.chars().next() {
-                    if first_char.is_uppercase() && !is_common_phrase(trimmed) {
-                        let cleaned = clean_extracted_title(trimmed);
-                        if !cleaned.is_empty()
-                            && cleaned.len() > 3
-                            && !titles.iter().any(|t| t.title == cleaned)
-                        {
-                            titles.push(ParsedTitle {
-                                title: cleaned,
-                                excerpt: None,
-                            });
-                            break; // Only take first valid title per group
-                        }
+                if let Some(first_char) = trimmed.chars().next()
+                    && first_char.is_uppercase()
+                    && !is_common_phrase(trimmed)
+                {
+                    let cleaned = clean_extracted_title(trimmed);
+                    if !cleaned.is_empty()
+                        && cleaned.len() > 3
+                        && !titles.iter().any(|t| t.title == cleaned)
+                    {
+                        titles.push(ParsedTitle {
+                            title: cleaned,
+                            excerpt: None,
+                        });
+                        break; // Only take first valid title per group
                     }
                 }
             }
@@ -3084,11 +3045,11 @@ fn find_title_end(segment: &str) -> Option<usize> {
             // Check if next non-space char is lowercase (description start)
             let rest = &segment[byte_pos + 1..];
             let rest_trimmed = rest.trim_start();
-            if let Some(next_char) = rest_trimmed.chars().next() {
-                if next_char.is_lowercase() || (next_char.is_uppercase() && rest_trimmed.len() > 20)
-                {
-                    return Some(byte_pos);
-                }
+            if let Some(next_char) = rest_trimmed.chars().next()
+                && (next_char.is_lowercase()
+                    || (next_char.is_uppercase() && rest_trimmed.len() > 20))
+            {
+                return Some(byte_pos);
             }
             return Some(byte_pos);
         }
@@ -3160,9 +3121,7 @@ fn clean_extracted_title(title: &str) -> String {
     let mut cleaned = title.to_string();
 
     // Remove trailing punctuation
-    cleaned = cleaned
-        .trim_end_matches(|c| c == ':' || c == ';' || c == '-' || c == '.')
-        .to_string();
+    cleaned = cleaned.trim_end_matches([':', ';', '-', '.']).to_string();
 
     // Convert from ALL CAPS to Title Case (simple version)
     if cleaned.chars().all(|c| !c.is_lowercase()) {

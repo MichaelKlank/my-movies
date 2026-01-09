@@ -12,10 +12,11 @@ fn is_placeholder_barcode(barcode: &str) -> bool {
         return true;
     }
     // All same digit (e.g., "111111111111", "999999999999")
-    if let Some(first) = barcode.chars().next() {
-        if first.is_ascii_digit() && barcode.chars().all(|c| c == first) {
-            return true;
-        }
+    if let Some(first) = barcode.chars().next()
+        && first.is_ascii_digit()
+        && barcode.chars().all(|c| c == first)
+    {
+        return true;
     }
     false
 }
