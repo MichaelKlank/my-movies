@@ -25,6 +25,7 @@
     "series": "Serie",
     "scan": "Scansiona",
     "import": "Importa",
+    "backup": "Backup",
     "profile": "Profilo",
     "settings": "Impostazioni",
     "users": "Utenti",
@@ -260,6 +261,26 @@
     "imported": "importato",
     "supportedFormats": "Formati Supportati",
     "csvColumnsDesc": "Il file CSV deve contenere le seguenti colonne (come nell'esportazione My Movies Pro):",
-    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, e molto altro..."
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, e molto altro...",
+    "duplicates": {
+      "title": "Trova duplicati",
+      "description": "Cerca voci duplicate per codice a barre, ID TMDB o titolo.",
+      "searching": "Ricerca duplicati...",
+      "search": "Cerca duplicati",
+      "noDuplicates": "Nessun duplicato trovato!",
+      "found": "{{groups}} gruppi, {{count}} duplicati",
+      "selectAll": "Seleziona tutto ({{count}})",
+      "clearSelection": "Annulla selezione",
+      "selected": "{{count}} selezionato/i",
+      "deleteSelected": "Elimina selezionati ({{count}})",
+      "deleteAll": "Elimina tutti i duplicati",
+      "group": "Gruppo {{number}}",
+      "entries": "{{count}} voci",
+      "keep": "Mantieni",
+      "keepThis": "Mantieni questo",
+      "confirmDelete": "Eliminare davvero \"{{title}}\"?",
+      "confirmDeleteSelected": "Eliminare davvero {{count}} duplicati selezionati?",
+      "confirmDeleteAll": "Eliminare tutti i {{count}} duplicati? (La voce selezionata di ogni gruppo verrà mantenuta)"
+    }
   }
 }

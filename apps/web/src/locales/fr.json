@@ -25,6 +25,7 @@
     "series": "Séries",
     "scan": "Scanner",
     "import": "Importer",
+    "backup": "Sauvegarde",
     "profile": "Profil",
     "settings": "Paramètres",
     "users": "Utilisateurs",
@@ -260,6 +261,26 @@
     "imported": "importé",
     "supportedFormats": "Formats Supportés",
     "csvColumnsDesc": "Le fichier CSV doit contenir les colonnes suivantes (comme dans l'export My Movies Pro) :",
-    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, et bien plus..."
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes, et bien plus...",
+    "duplicates": {
+      "title": "Trouver les doublons",
+      "description": "Rechercher les entrées en double par code-barres, ID TMDB ou titre.",
+      "searching": "Recherche des doublons...",
+      "search": "Chercher les doublons",
+      "noDuplicates": "Aucun doublon trouvé !",
+      "found": "{{groups}} groupes, {{count}} doublons",
+      "selectAll": "Tout sélectionner ({{count}})",
+      "clearSelection": "Désélectionner",
+      "selected": "{{count}} sélectionné(s)",
+      "deleteSelected": "Supprimer la sélection ({{count}})",
+      "deleteAll": "Supprimer tous les doublons",
+      "group": "Groupe {{number}}",
+      "entries": "{{count}} entrées",
+      "keep": "Conserver",
+      "keepThis": "Conserver celui-ci",
+      "confirmDelete": "Vraiment supprimer \"{{title}}\" ?",
+      "confirmDeleteSelected": "Vraiment supprimer {{count}} doublons sélectionnés ?",
+      "confirmDeleteAll": "Supprimer tous les {{count}} doublons ? (L'entrée sélectionnée de chaque groupe sera conservée)"
+    }
   }
 }

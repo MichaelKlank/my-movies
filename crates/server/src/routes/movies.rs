@@ -70,7 +70,7 @@ pub async fn list(
         }
     };
 
-    let limit = filter.limit.unwrap_or(50);
+    let limit = filter.limit; // None = no limit
     let offset = filter.offset.unwrap_or(0);
 
     match state.movie_service.list(claims.sub, filter).await {
@@ -79,7 +79,7 @@ pub async fn list(
             Json(json!({
                 "items": movies,
                 "total": total,
-                "limit": limit,
+                "limit": limit.unwrap_or(total as i64), // Report actual count if no limit
                 "offset": offset
             })),
         )
@@ -180,20 +180,93 @@ pub async fn delete(
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct RefreshTmdbQuery {
-    #[serde(default)]
-    pub force: bool, // If true, reload all data even if already present
-}
-
-pub async fn refresh_tmdb(
+/// Delete all movies for the current user
+pub async fn delete_all(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-    Path(id): Path<Uuid>,
-    Query(params): Query<RefreshTmdbQuery>,
 ) -> impl IntoResponse {
-    // Get the movie first
-    let movie = match state.movie_service.get_by_id(claims.sub, id).await {
+    match state.movie_service.delete_all(claims.sub).await {
+        Ok(count) => {
+            // Broadcast to WebSocket clients
+            let msg = json!({
+                "type": "all_movies_deleted",
+                "payload": { "count": count }
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            (
+                StatusCode::OK,
+                Json(json!({ "deleted": count, "message": format!("{} movies deleted", count) })),
+            )
+                .into_response()
+        }
+        Err(e) => (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// Export movie for JSON (without binary poster data)
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ExportMovie {
+    pub id: String,
+    pub barcode: Option<String>,
+    pub tmdb_id: Option<i64>,
+    pub title: String,
+    pub original_title: Option<String>,
+    pub sort_title: Option<String>,
+    pub description: Option<String>,
+    pub production_year: Option<i32>,
+    pub disc_type: Option<String>,
+    pub running_time: Option<i32>,
+    pub genres: Option<String>,
+    pub director: Option<String>,
+    pub actors: Option<String>,
+    pub watched: bool,
+    pub location: Option<String>,
+    pub rating: Option<String>,
+    pub personal_rating: Option<f64>,
+    pub notes: Option<String>,
+    pub is_collection: bool,
+    pub parent_collection_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ExportData {
+    pub version: String,
+    pub exported_at: String,
+    pub total_movies: usize,
+    pub movies: Vec<ExportMovie>,
+}
+
+/// Import result
+#[derive(Debug, serde::Serialize)]
+pub struct JsonImportResult {
+    pub imported: usize,
+    pub skipped: usize,
+    pub errors: Vec<String>,
+}
+
+/// Export all movies as ZIP with JSON metadata and poster images
+pub async fn export(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+) -> impl IntoResponse {
+    use std::io::{Cursor, Write};
+    use zip::ZipWriter;
+    use zip::write::SimpleFileOptions;
+
+    // Get ALL movies - no limit!
+    let filter = MovieFilter {
+        exclude_collection_children: Some(false),
+        ..Default::default()
+    };
+
+    let movies = match state.movie_service.list(claims.sub, filter).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -204,23 +277,553 @@ pub async fn refresh_tmdb(
         }
     };
 
-    // Get user's preferences
-    let user = match state.auth_service.get_user(claims.sub).await {
-        Ok(u) => u,
-        Err(_) => {
+    // Get list of movie IDs that have poster data
+    // (list() doesn't include poster_data for performance, so we need to check separately)
+    let poster_ids_result = state
+        .movie_service
+        .get_movie_ids_with_poster(claims.sub)
+        .await;
+
+    let movies_with_poster: std::collections::HashSet<uuid::Uuid> = match &poster_ids_result {
+        Ok(ids) => {
+            tracing::info!("get_movie_ids_with_poster returned {} IDs", ids.len());
+            ids.clone().into_iter().collect()
+        }
+        Err(e) => {
+            tracing::error!("get_movie_ids_with_poster failed: {:?}", e);
+            std::collections::HashSet::new()
+        }
+    };
+
+    tracing::info!(
+        "Export: {} movies total, {} have posters (HashSet size: {})",
+        movies.len(),
+        poster_ids_result.as_ref().map(|v| v.len()).unwrap_or(0),
+        movies_with_poster.len()
+    );
+
+    // Create ZIP in memory
+    let mut zip_buffer = Cursor::new(Vec::new());
+    {
+        let mut zip = ZipWriter::new(&mut zip_buffer);
+        let options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .compression_level(Some(6));
+
+        let mut export_movies: Vec<ExportMovie> = Vec::new();
+        let mut posters_included = 0;
+
+        let mut checked_count = 0;
+        let mut fetch_errors = 0;
+
+        for movie in &movies {
+            let movie_id = movie.id.to_string();
+            let has_poster = movies_with_poster.contains(&movie.id);
+
+            // Add poster to ZIP if exists - use get_poster_data() to fetch only poster bytes
+            if has_poster {
+                checked_count += 1;
+                match state
+                    .movie_service
+                    .get_poster_data(claims.sub, movie.id)
+                    .await
+                {
+                    Ok(Some(poster_data)) => {
+                        let poster_filename = format!("posters/{}.jpg", movie_id);
+                        match zip.start_file(&poster_filename, options) {
+                            Ok(_) => {
+                                if zip.write_all(&poster_data).is_ok() {
+                                    posters_included += 1;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to start file in ZIP: {}", e);
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        // Poster was expected but not found
+                        fetch_errors += 1;
+                        if fetch_errors <= 5 {
+                            tracing::warn!("Poster not found for movie {}", movie_id);
+                        }
+                    }
+                    Err(e) => {
+                        fetch_errors += 1;
+                        if fetch_errors <= 5 {
+                            tracing::warn!(
+                                "Failed to fetch poster for movie {}: {:?}",
+                                movie_id,
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+
+            export_movies.push(ExportMovie {
+                id: movie_id.clone(),
+                barcode: movie.barcode.clone(),
+                tmdb_id: movie.tmdb_id,
+                title: movie.title.clone(),
+                original_title: movie.original_title.clone(),
+                sort_title: movie.sort_title.clone(),
+                description: movie.description.clone(),
+                production_year: movie.production_year,
+                disc_type: movie.disc_type.clone(),
+                running_time: movie.running_time,
+                genres: movie.genres.clone(),
+                director: movie.director.clone(),
+                actors: movie.actors.clone(),
+                watched: movie.watched,
+                location: movie.location.clone(),
+                rating: movie.rating.clone(),
+                personal_rating: movie.personal_rating,
+                notes: movie.notes.clone(),
+                is_collection: movie.is_collection,
+                parent_collection_id: movie.parent_collection_id.map(|id| id.to_string()),
+                created_at: movie.created_at.to_rfc3339(),
+                updated_at: movie.updated_at.to_rfc3339(),
+            });
+        }
+
+        let export_data = ExportData {
+            version: "1.0".to_string(),
+            exported_at: chrono::Utc::now().to_rfc3339(),
+            total_movies: export_movies.len(),
+            movies: export_movies,
+        };
+
+        // Add movies.json to ZIP
+        let json_content = serde_json::to_string_pretty(&export_data).unwrap_or_default();
+        if zip.start_file("movies.json", options).is_ok() {
+            let _ = zip.write_all(json_content.as_bytes());
+        }
+
+        tracing::info!(
+            "Export created: {} movies, checked {} with posters, {} fetch errors, {} posters written to ZIP",
+            export_data.total_movies,
+            checked_count,
+            fetch_errors,
+            posters_included
+        );
+
+        let _ = zip.finish();
+    }
+
+    let zip_data = zip_buffer.into_inner();
+    let filename = format!(
+        "my-movies-backup-{}.zip",
+        chrono::Utc::now().format("%Y%m%d-%H%M%S")
+    );
+
+    (
+        StatusCode::OK,
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "application/zip".to_string(),
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{}\"", filename),
+            ),
+        ],
+        zip_data,
+    )
+        .into_response()
+}
+
+/// Import movies from JSON export
+pub async fn import_json(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Json(import_data): Json<ExportData>,
+) -> impl IntoResponse {
+    use std::collections::HashMap;
+
+    let mut imported = 0;
+    let mut skipped = 0;
+    let mut errors: Vec<String> = Vec::new();
+
+    // Map old IDs to new IDs (for collection relationships)
+    let mut id_map: HashMap<String, Uuid> = HashMap::new();
+
+    // First pass: Import all movies (collections first to establish parent relationships)
+    // Sort so collections come first
+    let mut movies_to_import = import_data.movies;
+    movies_to_import.sort_by(|a, b| b.is_collection.cmp(&a.is_collection));
+
+    for export_movie in movies_to_import {
+        // Check if movie with same barcode or tmdb_id already exists
+        let existing = if let Some(ref barcode) = export_movie.barcode {
+            if !barcode.is_empty() && !barcode.chars().all(|c| c == '0') {
+                state
+                    .movie_service
+                    .find_by_barcode(claims.sub, barcode)
+                    .await
+                    .ok()
+                    .flatten()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Also check by tmdb_id
+        let existing = existing.or_else(|| {
+            if let Some(tmdb_id) = export_movie.tmdb_id {
+                if tmdb_id > 0 {
+                    // We'd need an async block here, skip for now
+                    None
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+
+        if existing.is_some() {
+            skipped += 1;
+            // Still map the old ID to the existing movie's ID
+            if let Some(ref existing_movie) = existing {
+                id_map.insert(export_movie.id.clone(), existing_movie.id);
+            }
+            continue;
+        }
+
+        // Resolve parent_collection_id from old ID to new ID
+        let parent_collection_id = export_movie
+            .parent_collection_id
+            .as_ref()
+            .and_then(|old_id| id_map.get(old_id).copied());
+
+        // Create the movie
+        let create_movie = CreateMovie {
+            barcode: export_movie.barcode.clone(),
+            tmdb_id: export_movie.tmdb_id,
+            title: export_movie.title.clone(),
+            original_title: export_movie.original_title.clone(),
+            production_year: export_movie.production_year,
+            disc_type: export_movie.disc_type.clone(),
+        };
+
+        match state.movie_service.create(claims.sub, create_movie).await {
+            Ok(new_movie) => {
+                // Map old ID to new ID
+                id_map.insert(export_movie.id.clone(), new_movie.id);
+
+                // Update additional fields that aren't in CreateMovie
+                let update = UpdateMovie {
+                    title: None,
+                    original_title: None,
+                    sort_title: export_movie.sort_title.clone(),
+                    description: export_movie.description.clone(),
+                    production_year: None,
+                    disc_type: None,
+                    running_time: export_movie.running_time,
+                    genres: export_movie.genres.clone(),
+                    director: export_movie.director.clone(),
+                    actors: export_movie.actors.clone(),
+                    watched: Some(export_movie.watched),
+                    location: export_movie.location.clone(),
+                    rating: export_movie.rating.clone(),
+                    personal_rating: export_movie.personal_rating,
+                    notes: export_movie.notes.clone(),
+                    is_collection: Some(export_movie.is_collection),
+                    parent_collection_id,
+                    ..Default::default()
+                };
+
+                if let Err(e) = state
+                    .movie_service
+                    .update(claims.sub, new_movie.id, update)
+                    .await
+                {
+                    errors.push(format!("Error updating '{}': {}", export_movie.title, e));
+                }
+
+                imported += 1;
+            }
+            Err(e) => {
+                errors.push(format!("Error importing '{}': {}", export_movie.title, e));
+            }
+        }
+    }
+
+    // Broadcast to WebSocket clients
+    let msg = json!({
+        "type": "collection_imported",
+        "payload": { "count": imported }
+    });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    (
+        StatusCode::OK,
+        Json(JsonImportResult {
+            imported,
+            skipped,
+            errors,
+        }),
+    )
+}
+
+/// Import movies from ZIP backup (with poster images)
+pub async fn import_zip(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    use std::collections::HashMap;
+    use std::io::{Cursor, Read};
+    use zip::ZipArchive;
+
+    // Get the file from multipart
+    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+        let name = field.name().unwrap_or("").to_string();
+
+        if name == "file" {
+            let data = match field.bytes().await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": format!("Failed to read file: {}", e) })),
+                    )
+                        .into_response();
+                }
+            };
+
+            // Open ZIP archive
+            let cursor = Cursor::new(data.to_vec());
+            let mut archive = match ZipArchive::new(cursor) {
+                Ok(a) => a,
+                Err(e) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": format!("Invalid ZIP file: {}", e) })),
+                    )
+                        .into_response();
+                }
+            };
+
+            // Read movies.json from ZIP
+            let export_data: ExportData = {
+                let mut json_file = match archive.by_name("movies.json") {
+                    Ok(f) => f,
+                    Err(_) => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(json!({ "error": "ZIP file does not contain movies.json" })),
+                        )
+                            .into_response();
+                    }
+                };
+
+                let mut json_content = String::new();
+                if let Err(e) = json_file.read_to_string(&mut json_content) {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": format!("Failed to read movies.json: {}", e) })),
+                    )
+                        .into_response();
+                }
+
+                match serde_json::from_str(&json_content) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(json!({ "error": format!("Invalid movies.json: {}", e) })),
+                        )
+                            .into_response();
+                    }
+                }
+            };
+
+            // Extract poster images from ZIP into a map
+            let mut posters: HashMap<String, Vec<u8>> = HashMap::new();
+            for i in 0..archive.len() {
+                if let Ok(mut file) = archive.by_index(i) {
+                    let name = file.name().to_string();
+                    if name.starts_with("posters/") && name.ends_with(".jpg") {
+                        // Extract movie ID from filename (posters/uuid.jpg)
+                        if let Some(id_str) = name
+                            .strip_prefix("posters/")
+                            .and_then(|s| s.strip_suffix(".jpg"))
+                        {
+                            let mut poster_data = Vec::new();
+                            if file.read_to_end(&mut poster_data).is_ok() {
+                                posters.insert(id_str.to_string(), poster_data);
+                            }
+                        }
+                    }
+                }
+            }
+
+            tracing::info!(
+                "ZIP import: {} movies, {} posters found",
+                export_data.total_movies,
+                posters.len()
+            );
+
+            // Import movies
+            let mut imported = 0;
+            let mut skipped = 0;
+            let mut errors: Vec<String> = Vec::new();
+            let mut id_map: HashMap<String, Uuid> = HashMap::new();
+
+            // Sort so collections come first
+            let mut movies_to_import = export_data.movies;
+            movies_to_import.sort_by(|a, b| b.is_collection.cmp(&a.is_collection));
+
+            for export_movie in movies_to_import {
+                // Check if movie with same barcode already exists
+                let existing = if let Some(ref barcode) = export_movie.barcode {
+                    if !barcode.is_empty() && !barcode.chars().all(|c| c == '0') {
+                        state
+                            .movie_service
+                            .find_by_barcode(claims.sub, barcode)
+                            .await
+                            .ok()
+                            .flatten()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if existing.is_some() {
+                    skipped += 1;
+                    if let Some(ref existing_movie) = existing {
+                        id_map.insert(export_movie.id.clone(), existing_movie.id);
+                    }
+                    continue;
+                }
+
+                // Resolve parent_collection_id from old ID to new ID
+                let parent_collection_id = export_movie
+                    .parent_collection_id
+                    .as_ref()
+                    .and_then(|old_id| id_map.get(old_id).copied());
+
+                // Create the movie
+                let create_movie = CreateMovie {
+                    barcode: export_movie.barcode.clone(),
+                    tmdb_id: export_movie.tmdb_id,
+                    title: export_movie.title.clone(),
+                    original_title: export_movie.original_title.clone(),
+                    production_year: export_movie.production_year,
+                    disc_type: export_movie.disc_type.clone(),
+                };
+
+                match state.movie_service.create(claims.sub, create_movie).await {
+                    Ok(new_movie) => {
+                        id_map.insert(export_movie.id.clone(), new_movie.id);
+
+                        // Get poster data if available
+                        let poster_data = posters.get(&export_movie.id).cloned();
+
+                        // Update additional fields and poster
+                        let update = UpdateMovie {
+                            title: None,
+                            original_title: None,
+                            sort_title: export_movie.sort_title.clone(),
+                            description: export_movie.description.clone(),
+                            production_year: None,
+                            disc_type: None,
+                            running_time: export_movie.running_time,
+                            genres: export_movie.genres.clone(),
+                            director: export_movie.director.clone(),
+                            actors: export_movie.actors.clone(),
+                            watched: Some(export_movie.watched),
+                            location: export_movie.location.clone(),
+                            rating: export_movie.rating.clone(),
+                            personal_rating: export_movie.personal_rating,
+                            notes: export_movie.notes.clone(),
+                            is_collection: Some(export_movie.is_collection),
+                            parent_collection_id,
+                            poster_data,
+                            ..Default::default()
+                        };
+
+                        if let Err(e) = state
+                            .movie_service
+                            .update(claims.sub, new_movie.id, update)
+                            .await
+                        {
+                            errors.push(format!("Error updating '{}': {}", export_movie.title, e));
+                        }
+
+                        imported += 1;
+                    }
+                    Err(e) => {
+                        errors.push(format!("Error importing '{}': {}", export_movie.title, e));
+                    }
+                }
+            }
+
+            // Broadcast to WebSocket clients
+            let msg = json!({
+                "type": "collection_imported",
+                "payload": { "count": imported }
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": "Failed to get user" })),
+                StatusCode::OK,
+                Json(json!({
+                    "imported": imported,
+                    "skipped": skipped,
+                    "posters_restored": posters.len(),
+                    "errors": errors
+                })),
             )
                 .into_response();
         }
-    };
-    let language = user.language.as_deref();
-    let include_adult = user.include_adult;
+    }
 
-    // Special handling for collections - get poster from TMDB collection or first child movie
+    (
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "error": "No file provided" })),
+    )
+        .into_response()
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct RefreshTmdbQuery {
+    #[serde(default)]
+    pub force: bool, // If true, reload all data even if already present
+}
+
+/// Result of TMDB refresh operation
+pub enum TmdbRefreshResult {
+    Success(Movie),
+    NotFound(String),
+    Error(String),
+}
+
+/// Internal function to refresh TMDB data for a movie
+/// Used by both the refresh_tmdb route handler and the batch enrichment process
+pub async fn refresh_movie_tmdb_internal(
+    state: &Arc<AppState>,
+    user_id: Uuid,
+    movie: &Movie,
+    language: Option<&str>,
+    include_adult: bool,
+    force: bool,
+) -> TmdbRefreshResult {
+    // Special handling for collections
     if movie.is_collection {
-        return handle_collection_refresh(state, claims.sub, id, &movie, language).await;
+        return match handle_collection_refresh_internal(state, user_id, movie.id, movie, language)
+            .await
+        {
+            Ok(m) => TmdbRefreshResult::Success(m),
+            Err(e) => TmdbRefreshResult::Error(e),
+        };
     }
 
     // Try to get TMDB details - first as movie, then as TV series
@@ -259,10 +862,9 @@ pub async fn refresh_tmdb(
             .await
         {
             Ok(results) if !results.is_empty() => {
-                let first = &results[0];
                 tmdb_details = state
                     .tmdb_service
-                    .get_movie_details(first.id, language)
+                    .get_movie_details(results[0].id, language)
                     .await
                     .ok();
             }
@@ -271,24 +873,17 @@ pub async fn refresh_tmdb(
 
         // If no movie found, try as TV series
         if tmdb_details.is_none() {
-            // Extract clean series name (remove "Season X" etc.) and clean trademark symbols
             let series_name = clean_title_for_search(&extract_tv_series_name(&movie.title));
-            tracing::debug!("Movie not found, trying TV search for: {}", series_name);
 
             match state.tmdb_service.search_tv(&series_name, language).await {
                 Ok(results) if !results.is_empty() => {
-                    let first = &results[0];
                     tv_details = state
                         .tmdb_service
-                        .get_tv_details(first.id, language)
+                        .get_tv_details(results[0].id, language)
                         .await
                         .ok();
                     if tv_details.is_some() {
                         is_tv_series = true;
-                        tracing::debug!(
-                            "Found TV series: {:?}",
-                            tv_details.as_ref().map(|d| &d.name)
-                        );
                     }
                 }
                 _ => {}
@@ -296,22 +891,20 @@ pub async fn refresh_tmdb(
         }
 
         // If still nothing found, try with cleaned title
-        // This handles cases like "Sarah Waters' Fingersmith (Doppel-DVD)" -> "Fingersmith"
         if tmdb_details.is_none() && tv_details.is_none() {
             let mut search_titles: Vec<String> = Vec::new();
 
-            // Strategy 1: Use extract_base_title_from_collection (removes format indicators etc.)
+            // Strategy 1: Use extract_base_title_from_collection
             let clean_title = extract_base_title_from_collection(&movie.title);
             if !clean_title.is_empty() && clean_title.to_lowercase() != movie.title.to_lowercase() {
                 search_titles.push(clean_title);
             }
 
-            // Strategy 2: Extract title after possessive (any apostrophe-like character)
+            // Strategy 2: Extract title after possessive
             let title_clone = movie.title.clone();
             for apostrophe in &["'s ", "' ", "'s ", "' ", "ʼs ", "ʼ "] {
                 if let Some(pos) = title_clone.find(apostrophe) {
                     let after = &title_clone[pos + apostrophe.len()..];
-                    // Remove parenthetical suffix
                     let cleaned = if let Some(paren_pos) = after.find(" (") {
                         after[..paren_pos].trim()
                     } else {
@@ -332,8 +925,6 @@ pub async fn refresh_tmdb(
                 }
             }
 
-            tracing::debug!("Trying cleaned titles for TMDB search: {:?}", search_titles);
-
             for search_title in search_titles {
                 // Try movie search
                 if tmdb_details.is_none()
@@ -343,18 +934,12 @@ pub async fn refresh_tmdb(
                         .await
                     && !results.is_empty()
                 {
-                    let first = &results[0];
                     tmdb_details = state
                         .tmdb_service
-                        .get_movie_details(first.id, language)
+                        .get_movie_details(results[0].id, language)
                         .await
                         .ok();
                     if tmdb_details.is_some() {
-                        tracing::debug!(
-                            "Found movie with cleaned title '{}': {:?}",
-                            search_title,
-                            tmdb_details.as_ref().map(|d| &d.title)
-                        );
                         break;
                     }
                 }
@@ -365,19 +950,13 @@ pub async fn refresh_tmdb(
                     && let Ok(results) = state.tmdb_service.search_tv(&search_title, language).await
                     && !results.is_empty()
                 {
-                    let first = &results[0];
                     tv_details = state
                         .tmdb_service
-                        .get_tv_details(first.id, language)
+                        .get_tv_details(results[0].id, language)
                         .await
                         .ok();
                     if tv_details.is_some() {
                         is_tv_series = true;
-                        tracing::debug!(
-                            "Found TV series with cleaned title '{}': {:?}",
-                            search_title,
-                            tv_details.as_ref().map(|d| &d.name)
-                        );
                         break;
                     }
                 }
@@ -387,11 +966,7 @@ pub async fn refresh_tmdb(
 
     // Check if we found anything
     if tmdb_details.is_none() && tv_details.is_none() {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "No TMDB data found for this movie or TV series" })),
-        )
-            .into_response();
+        return TmdbRefreshResult::NotFound(format!("No TMDB data found: {}", movie.title));
     }
 
     // Build update based on whether we found a movie or TV series
@@ -409,7 +984,6 @@ pub async fn refresh_tmdb(
         budget,
         revenue,
     ) = if let Some(ref details) = tmdb_details {
-        // It's a movie
         let credits = state
             .tmdb_service
             .get_movie_credits(details.id, language)
@@ -454,7 +1028,6 @@ pub async fn refresh_tmdb(
             details.revenue,
         )
     } else if let Some(ref details) = tv_details {
-        // It's a TV series
         let credits = state
             .tmdb_service
             .get_tv_credits(details.id, language)
@@ -484,7 +1057,6 @@ pub async fn refresh_tmdb(
                 .join(", ")
         });
 
-        // Use average episode runtime
         let runtime = details
             .episode_run_time
             .as_ref()
@@ -498,23 +1070,18 @@ pub async fn refresh_tmdb(
             details.poster_path.clone(),
             genres,
             runtime,
-            creators, // Use creators as "director" for TV
+            creators,
             actors,
-            None, // TV series don't have IMDB ID in this response
-            None, // No budget for TV
-            None, // No revenue for TV
+            None,
+            None,
+            None,
         )
     } else {
-        // Should never reach here due to earlier check
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "No TMDB data found" })),
-        )
-            .into_response();
+        return TmdbRefreshResult::NotFound(format!("No TMDB data found: {}", movie.title));
     };
 
     // Download poster image if available
-    let should_download_poster = params.force || movie.poster_data.is_none();
+    let should_download_poster = force || movie.poster_data.is_none();
 
     let poster_data = if should_download_poster {
         if let Some(ref path) = poster_path {
@@ -532,42 +1099,262 @@ pub async fn refresh_tmdb(
         ..Default::default()
     };
 
-    // Only update fields if they're missing or force=true
-    if params.force || movie.imdb_id.is_none() {
+    if force || movie.imdb_id.is_none() {
         update.imdb_id = imdb_id;
     }
-    if params.force || movie.original_title.is_none() {
+    if force || movie.original_title.is_none() {
         update.original_title = original_title;
     }
-    if params.force || movie.description.is_none() {
+    if force || movie.description.is_none() {
         update.description = description;
     }
-    if params.force || movie.tagline.is_none() {
+    if force || movie.tagline.is_none() {
         update.tagline = tagline;
     }
-    if params.force || movie.running_time.is_none() {
+    if force || movie.running_time.is_none() {
         update.running_time = runtime;
     }
-    if params.force || movie.director.is_none() {
+    if force || movie.director.is_none() {
         update.director = director;
     }
-    if params.force || movie.actors.is_none() {
+    if force || movie.actors.is_none() {
         update.actors = actors;
     }
-    if params.force || movie.genres.is_none() {
+    if force || movie.genres.is_none() {
         update.genres = genres;
     }
     if !is_tv_series {
-        if params.force || movie.budget.is_none() {
+        if force || movie.budget.is_none() {
             update.budget = budget;
         }
-        if params.force || movie.revenue.is_none() {
+        if force || movie.revenue.is_none() {
             update.revenue = revenue;
         }
     }
 
-    // First update the movie data
-    let updated_movie = match state.movie_service.update(claims.sub, id, update).await {
+    // Update the movie data
+    let updated_movie = match state.movie_service.update(user_id, movie.id, update).await {
+        Ok(m) => m,
+        Err(e) => {
+            return TmdbRefreshResult::Error(format!("Failed to update {}: {}", movie.title, e));
+        }
+    };
+
+    // Update poster data if we downloaded it
+    let final_movie = if let Some(data) = poster_data {
+        match state
+            .movie_service
+            .update_movie_poster_data(user_id, movie.id, Some(data))
+            .await
+        {
+            Ok(m) => m,
+            Err(_) => updated_movie,
+        }
+    } else {
+        updated_movie
+    };
+
+    TmdbRefreshResult::Success(final_movie)
+}
+
+/// Internal version of handle_collection_refresh that returns a Result
+/// Contains all strategies for finding collection posters
+async fn handle_collection_refresh_internal(
+    state: &Arc<AppState>,
+    user_id: Uuid,
+    collection_id: Uuid,
+    collection: &Movie,
+    language: Option<&str>,
+) -> Result<Movie, String> {
+    let lang = language.unwrap_or("de-DE");
+
+    // Strategy 1: Try to find a TMDB collection and use its poster
+    let collection_search_term = extract_collection_name(&collection.title);
+    if let Ok(collections) = state
+        .tmdb_service
+        .search_collections(&collection_search_term, Some(lang))
+        .await
+        && let Some(tmdb_collection) = collections.into_iter().next()
+        && let Some(ref poster_path) = tmdb_collection.poster_path
+    {
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await
+                .map_err(|e| e.to_string())?;
+            return state
+                .movie_service
+                .get_by_id(user_id, collection_id)
+                .await
+                .map_err(|e| e.to_string());
+        }
+    }
+
+    // Strategy 2: Get poster from first child movie
+    let filter = MovieFilter {
+        exclude_collection_children: Some(false),
+        ..Default::default()
+    };
+
+    if let Ok(all_movies) = state.movie_service.list(user_id, filter).await {
+        let child_movies: Vec<_> = all_movies
+            .into_iter()
+            .filter(|m| m.parent_collection_id == Some(collection_id))
+            .collect();
+
+        if let Some(first_child) = child_movies.first() {
+            // Strategy 2a: If first child has a TMDB ID, get poster from TMDB
+            if let Some(tmdb_id) = first_child.tmdb_id
+                && let Ok(details) = state
+                    .tmdb_service
+                    .get_movie_details(tmdb_id, language)
+                    .await
+                && let Some(ref poster_path) = details.poster_path
+            {
+                if let Some(poster_data) = download_poster_image(poster_path).await {
+                    state
+                        .movie_service
+                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    return state
+                        .movie_service
+                        .get_by_id(user_id, collection_id)
+                        .await
+                        .map_err(|e| e.to_string());
+                }
+            }
+
+            // Strategy 2b: Copy existing poster from first child
+            if let Ok(child_with_poster) =
+                state.movie_service.get_by_id(user_id, first_child.id).await
+                && let Some(poster_data) = child_with_poster.poster_data
+            {
+                state
+                    .movie_service
+                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return state
+                    .movie_service
+                    .get_by_id(user_id, collection_id)
+                    .await
+                    .map_err(|e| e.to_string());
+            }
+
+            // Strategy 2c: Search TMDB by first child's title
+            if first_child.tmdb_id.is_none() {
+                let clean_title = clean_title_for_search(&first_child.title);
+                if let Ok(results) = state
+                    .tmdb_service
+                    .search_movies(&clean_title, first_child.production_year, language, false)
+                    .await
+                    && let Some(first_result) = results.into_iter().next()
+                    && let Some(ref poster_path) = first_result.poster_path
+                {
+                    if let Some(poster_data) = download_poster_image(poster_path).await {
+                        state
+                            .movie_service
+                            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        return state
+                            .movie_service
+                            .get_by_id(user_id, collection_id)
+                            .await
+                            .map_err(|e| e.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Strategy 3: Extract movie titles from the collection title itself
+    let extracted_titles = extract_titles_from_collection_title(&collection.title);
+    if let Some(first_title) = extracted_titles.first() {
+        let clean_title = clean_title_for_search(first_title);
+        if let Ok(results) = state
+            .tmdb_service
+            .search_movies(&clean_title, collection.production_year, language, false)
+            .await
+            && let Some(first_result) = results.into_iter().next()
+            && let Some(ref poster_path) = first_result.poster_path
+        {
+            if let Some(poster_data) = download_poster_image(poster_path).await {
+                state
+                    .movie_service
+                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return state
+                    .movie_service
+                    .get_by_id(user_id, collection_id)
+                    .await
+                    .map_err(|e| e.to_string());
+            }
+        }
+    }
+
+    // Strategy 4: Search TMDB with the base collection title
+    let base_title = extract_base_title_from_collection(&collection.title);
+    let clean_base = clean_title_for_search(&base_title);
+
+    // Try movie search
+    if let Ok(results) = state
+        .tmdb_service
+        .search_movies(&clean_base, None, language, false)
+        .await
+        && let Some(first_result) = results.into_iter().next()
+        && let Some(ref poster_path) = first_result.poster_path
+    {
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await
+                .map_err(|e| e.to_string())?;
+            return state
+                .movie_service
+                .get_by_id(user_id, collection_id)
+                .await
+                .map_err(|e| e.to_string());
+        }
+    }
+
+    // Try TV search
+    if let Ok(results) = state.tmdb_service.search_tv(&clean_base, language).await
+        && !results.is_empty()
+        && let Some(ref poster_path) = results[0].poster_path
+    {
+        if let Some(poster_data) = download_poster_image(poster_path).await {
+            state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await
+                .map_err(|e| e.to_string())?;
+            return state
+                .movie_service
+                .get_by_id(user_id, collection_id)
+                .await
+                .map_err(|e| e.to_string());
+        }
+    }
+
+    Err(format!(
+        "Could not find poster for collection: {}",
+        collection.title
+    ))
+}
+
+pub async fn refresh_tmdb(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Path(id): Path<Uuid>,
+    Query(params): Query<RefreshTmdbQuery>,
+) -> impl IntoResponse {
+    // Get the movie first
+    let movie = match state.movie_service.get_by_id(claims.sub, id).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -578,31 +1365,49 @@ pub async fn refresh_tmdb(
         }
     };
 
-    // Then update poster data if we downloaded it
-    let final_movie = if let Some(data) = poster_data {
-        match state
-            .movie_service
-            .update_movie_poster_data(claims.sub, id, Some(data))
-            .await
-        {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("Failed to save poster data: {}", e);
-                updated_movie
-            }
+    // Get user's preferences
+    let user = match state.auth_service.get_user(claims.sub).await {
+        Ok(u) => u,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to get user" })),
+            )
+                .into_response();
         }
-    } else {
-        updated_movie
     };
+    let language = user.language.as_deref();
+    let include_adult = user.include_adult;
 
-    // Broadcast to WebSocket clients
-    let msg = json!({
-        "type": "movie_updated",
-        "payload": final_movie
-    });
-    let _ = state.ws_broadcast.send(msg.to_string());
-
-    (StatusCode::OK, Json(json!(final_movie))).into_response()
+    // Use the internal function for the actual refresh
+    match refresh_movie_tmdb_internal(
+        &state,
+        claims.sub,
+        &movie,
+        language,
+        include_adult,
+        params.force,
+    )
+    .await
+    {
+        TmdbRefreshResult::Success(final_movie) => {
+            // Broadcast to WebSocket clients
+            let msg = json!({
+                "type": "movie_updated",
+                "payload": final_movie
+            });
+            let _ = state.ws_broadcast.send(msg.to_string());
+            (StatusCode::OK, Json(json!(final_movie))).into_response()
+        }
+        TmdbRefreshResult::NotFound(msg) => {
+            (StatusCode::NOT_FOUND, Json(json!({ "error": msg }))).into_response()
+        }
+        TmdbRefreshResult::Error(msg) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": msg })),
+        )
+            .into_response(),
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -1836,263 +2641,6 @@ pub async fn get_collection_movies(
 
 // ============ Helper Functions ============
 
-/// Handle TMDB refresh for collections - get poster from TMDB collection or first child movie
-async fn handle_collection_refresh(
-    state: Arc<AppState>,
-    user_id: uuid::Uuid,
-    collection_id: uuid::Uuid,
-    collection: &Movie,
-    language: Option<&str>,
-) -> axum::response::Response {
-    let lang = language.unwrap_or("de-DE");
-
-    // Strategy 1: Try to find a TMDB collection and use its poster
-    let collection_search_term = extract_collection_name(&collection.title);
-    tracing::debug!("Searching TMDB collection for: {}", collection_search_term);
-
-    if let Ok(collections) = state
-        .tmdb_service
-        .search_collections(&collection_search_term, Some(lang))
-        .await
-        && let Some(tmdb_collection) = collections.into_iter().next()
-        && let Some(ref poster_path) = tmdb_collection.poster_path
-    {
-        tracing::debug!("Found TMDB collection poster: {}", poster_path);
-        if let Some(poster_data) = download_poster_image(poster_path).await {
-            let _ = state
-                .movie_service
-                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                .await;
-
-            return (
-                StatusCode::OK,
-                Json(json!({
-                    "message": "Collection poster updated from TMDB collection",
-                    "source": "tmdb_collection",
-                    "collection_name": tmdb_collection.name,
-                })),
-            )
-                .into_response();
-        }
-    }
-
-    // Strategy 2: Get poster from first child movie
-    let filter = MovieFilter {
-        exclude_collection_children: Some(false),
-        ..Default::default()
-    };
-
-    if let Ok(all_movies) = state.movie_service.list(user_id, filter).await {
-        // Find movies that belong to this collection
-        let child_movies: Vec<_> = all_movies
-            .into_iter()
-            .filter(|m| m.parent_collection_id == Some(collection_id))
-            .collect();
-
-        tracing::debug!(
-            "Found {} child movies for collection {}",
-            child_movies.len(),
-            collection_id
-        );
-
-        if let Some(first_child) = child_movies.first() {
-            tracing::debug!(
-                "Found first child movie: {} (tmdb_id: {:?})",
-                first_child.title,
-                first_child.tmdb_id
-            );
-
-            // Strategy 2a: If first child has a TMDB ID, try to get poster from TMDB (preferred)
-            if let Some(tmdb_id) = first_child.tmdb_id
-                && let Ok(details) = state
-                    .tmdb_service
-                    .get_movie_details(tmdb_id, language)
-                    .await
-                && let Some(ref poster_path) = details.poster_path
-            {
-                tracing::debug!(
-                    "Downloading poster from first child's TMDB: {}",
-                    poster_path
-                );
-                if let Some(poster_data) = download_poster_image(poster_path).await {
-                    let _ = state
-                        .movie_service
-                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                        .await;
-
-                    return (
-                        StatusCode::OK,
-                        Json(json!({
-                            "message": "Collection poster updated from first movie's TMDB data",
-                            "source": "first_child_tmdb",
-                            "movie_title": first_child.title,
-                        })),
-                    )
-                        .into_response();
-                }
-            }
-
-            // Strategy 2b: Try to copy existing poster from first child
-            // Note: list() doesn't include poster_data, so we need to fetch the full movie
-            if let Ok(child_with_poster) =
-                state.movie_service.get_by_id(user_id, first_child.id).await
-                && let Some(poster_data) = child_with_poster.poster_data
-            {
-                tracing::debug!(
-                    "Copying existing poster from first child movie: {}",
-                    first_child.title
-                );
-                let _ = state
-                    .movie_service
-                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                    .await;
-
-                return (
-                    StatusCode::OK,
-                    Json(json!({
-                        "message": "Collection poster updated from first movie",
-                        "source": "first_child",
-                        "movie_title": first_child.title,
-                    })),
-                )
-                    .into_response();
-            }
-
-            // Strategy 2c: Search TMDB by first child's title if it has no TMDB ID
-            if first_child.tmdb_id.is_none() {
-                let clean_title = clean_title_for_search(&first_child.title);
-                tracing::debug!("Searching TMDB for first child by title: {}", clean_title);
-
-                if let Ok(results) = state
-                    .tmdb_service
-                    .search_movies(&clean_title, first_child.production_year, language, false)
-                    .await
-                    && let Some(first_result) = results.into_iter().next()
-                    && let Some(ref poster_path) = first_result.poster_path
-                {
-                    tracing::debug!(
-                        "Found poster via TMDB search for '{}': {}",
-                        clean_title,
-                        poster_path
-                    );
-                    if let Some(poster_data) = download_poster_image(poster_path).await {
-                        let _ = state
-                            .movie_service
-                            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                            .await;
-
-                        return (
-                            StatusCode::OK,
-                            Json(json!({
-                                "message": "Collection poster updated via TMDB search",
-                                "source": "tmdb_search",
-                                "movie_title": first_result.title,
-                            })),
-                        )
-                            .into_response();
-                    }
-                }
-            }
-        }
-    }
-
-    // Strategy 3: Extract movie titles from the collection title itself
-    // e.g., "Angel Has Fallen / London Has Fallen / Olympus Has Fallen"
-    tracing::debug!(
-        "No child movies found, trying to extract titles from collection title: {}",
-        collection.title
-    );
-
-    let extracted_titles = extract_titles_from_collection_title(&collection.title);
-    if let Some(first_title) = extracted_titles.first() {
-        let clean_title = clean_title_for_search(first_title);
-        tracing::debug!("Searching TMDB for extracted title: '{}'", clean_title);
-
-        if let Ok(results) = state
-            .tmdb_service
-            .search_movies(&clean_title, collection.production_year, language, false)
-            .await
-            && let Some(first_result) = results.into_iter().next()
-            && let Some(ref poster_path) = first_result.poster_path
-        {
-            tracing::debug!(
-                "Found poster via extracted title '{}': {}",
-                clean_title,
-                poster_path
-            );
-            if let Some(poster_data) = download_poster_image(poster_path).await {
-                let _ = state
-                    .movie_service
-                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                    .await;
-
-                return (
-                    StatusCode::OK,
-                    Json(json!({
-                        "message": "Collection poster updated via extracted title",
-                        "source": "extracted_title",
-                        "movie_title": first_result.title,
-                    })),
-                )
-                    .into_response();
-            }
-        }
-    }
-
-    // Strategy 4: If no titles extracted, try searching TMDB with the collection title itself
-    // e.g., "Die Welt der Märchen 1" -> search for "Die Welt der Märchen"
-    let base_title = extract_base_title_from_collection(&collection.title);
-    let clean_base = clean_title_for_search(&base_title);
-    tracing::debug!(
-        "Trying TMDB search with base collection title: '{}'",
-        clean_base
-    );
-
-    if let Ok(results) = state
-        .tmdb_service
-        .search_movies(&clean_base, None, language, false)
-        .await
-        && let Some(first_result) = results.into_iter().next()
-        && let Some(ref poster_path) = first_result.poster_path
-    {
-        tracing::debug!(
-            "Found poster via base title search '{}': {}",
-            clean_base,
-            poster_path
-        );
-        if let Some(poster_data) = download_poster_image(poster_path).await {
-            let _ = state
-                .movie_service
-                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                .await;
-
-            return (
-                StatusCode::OK,
-                Json(json!({
-                    "message": "Collection poster updated via base title search",
-                    "source": "base_title_search",
-                    "movie_title": first_result.title,
-                })),
-            )
-                .into_response();
-        }
-    }
-
-    (
-        StatusCode::NOT_FOUND,
-        Json(json!({
-            "error": "Could not find a poster for this collection. Try adding one manually.",
-            "debug": {
-                "collection_id": collection_id.to_string(),
-                "title": collection.title,
-                "base_title": clean_base,
-                "extracted_titles": extracted_titles
-            }
-        })),
-    )
-        .into_response()
-}
-
 /// Extract individual movie titles from a collection title
 /// e.g., "Angel Has Fallen / London Has Fallen / Olympus Has Fallen" -> ["Angel Has Fallen", "London Has Fallen", "Olympus Has Fallen"]
 /// e.g., "Die Bourne Identität + Die Bourne Verschwörung" -> ["Die Bourne Identität", "Die Bourne Verschwörung"]
@@ -2291,7 +2839,7 @@ fn extract_collection_name(title: &str) -> String {
 /// e.g., "Fast & Furious: 8-Movie-Collection" -> "Fast & Furious"
 /// e.g., "The Complete Matrix Trilogy" -> "Matrix"
 /// e.g., "Sarah Waters' Fingersmith (Doppel-DVD)" -> "Fingersmith"
-fn extract_base_title_from_collection(title: &str) -> String {
+pub fn extract_base_title_from_collection(title: &str) -> String {
     let mut name = title.to_string();
 
     // Remove format indicators in parentheses: (Doppel-DVD), (2-DVD), (Blu-ray), etc.

@@ -25,6 +25,7 @@
     "series": "시리즈",
     "scan": "스캔",
     "import": "가져오기",
+    "backup": "백업",
     "profile": "프로필",
     "settings": "설정",
     "users": "사용자",
@@ -260,6 +261,26 @@
     "imported": "가져옴",
     "supportedFormats": "지원 형식",
     "csvColumnsDesc": "CSV 파일에는 다음 열이 있어야 합니다 (My Movies Pro 내보내기와 동일):",
-    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes 등..."
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes 등...",
+    "duplicates": {
+      "title": "중복 찾기",
+      "description": "바코드, TMDB ID 또는 제목으로 중복 항목을 검색합니다.",
+      "searching": "중복 검색 중...",
+      "search": "중복 검색",
+      "noDuplicates": "중복을 찾을 수 없습니다!",
+      "found": "{{groups}}개 그룹, {{count}}개 중복",
+      "selectAll": "모두 선택 ({{count}})",
+      "clearSelection": "선택 해제",
+      "selected": "{{count}}개 선택됨",
+      "deleteSelected": "선택 항목 삭제 ({{count}})",
+      "deleteAll": "모든 중복 삭제",
+      "group": "그룹 {{number}}",
+      "entries": "{{count}}개 항목",
+      "keep": "유지",
+      "keepThis": "이것 유지",
+      "confirmDelete": "정말로 \"{{title}}\"을(를) 삭제하시겠습니까?",
+      "confirmDeleteSelected": "정말로 {{count}}개의 선택된 중복을 삭제하시겠습니까?",
+      "confirmDeleteAll": "모든 {{count}}개의 중복을 삭제하시겠습니까? (각 그룹에서 선택된 항목은 유지됩니다)"
+    }
   }
 }

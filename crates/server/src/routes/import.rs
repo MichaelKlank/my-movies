@@ -6,10 +6,10 @@ use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResp
 use serde_json::json;
 use tokio::time::{Duration, sleep};
 
-use my_movies_core::models::{Claims, MovieFilter, UpdateMovie};
-use my_movies_core::services::TmdbService;
+use my_movies_core::models::{Claims, MovieFilter};
 
 use crate::AppState;
+use crate::routes::movies::{refresh_movie_tmdb_internal, TmdbRefreshResult};
 
 /// Global state for TMDB enrichment
 static ENRICH_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -18,43 +18,6 @@ static ENRICH_TOTAL: AtomicU32 = AtomicU32::new(0);
 static ENRICH_CURRENT: AtomicU32 = AtomicU32::new(0);
 static ENRICH_UPDATED: AtomicU32 = AtomicU32::new(0);
 static ENRICH_ERRORS: AtomicU32 = AtomicU32::new(0);
-
-/// Download poster image from TMDB URL and return as bytes
-async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
-    // Build full TMDB image URL (use w500 for good quality)
-    let image_url = TmdbService::poster_url(poster_path, "w500");
-
-    // Download the image
-    match reqwest::get(&image_url).await {
-        Ok(response) => {
-            if response.status().is_success() {
-                match response.bytes().await {
-                    Ok(bytes) => {
-                        let data = bytes.to_vec();
-                        // Validate it's actually an image (basic check)
-                        if data.len() >= 8 {
-                            Some(data)
-                        } else {
-                            tracing::warn!("Downloaded poster too small: {} bytes", data.len());
-                            None
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to read poster bytes: {}", e);
-                        None
-                    }
-                }
-            } else {
-                tracing::warn!("Failed to download poster: HTTP {}", response.status());
-                None
-            }
-        }
-        Err(e) => {
-            tracing::warn!("Failed to download poster from {}: {}", image_url, e);
-            None
-        }
-    }
-}
 
 pub async fn import_csv(
     State(state): State<Arc<AppState>>,
@@ -147,14 +110,49 @@ pub async fn enrich_movies_tmdb(
     // Filter movies based on force parameter
     let movies_to_enrich: Vec<_> = if params.force {
         // If force=true, process all movies
+        tracing::info!("Force mode: processing all {} movies", movies.len());
         movies
     } else {
         // Otherwise, process movies without tmdb_id OR without poster_data
-        // (meaning they need TMDB data or poster image)
-        movies
+        // Note: poster_data is not loaded in list() for performance, so we need
+        // to query separately which movies have posters
+        let movies_with_poster: std::collections::HashSet<_> = state
+            .movie_service
+            .get_movie_ids_with_poster(claims.sub)
+            .await
+            .unwrap_or_default()
             .into_iter()
-            .filter(|m| m.tmdb_id.is_none() || m.poster_data.is_none())
-            .collect()
+            .collect();
+
+        let total_movies = movies.len();
+        let movies_with_tmdb: usize = movies.iter().filter(|m| m.tmdb_id.is_some()).count();
+        let posters_count = movies_with_poster.len();
+
+        tracing::info!(
+            "Enrichment filter: {} total movies, {} have TMDB ID, {} have poster",
+            total_movies,
+            movies_with_tmdb,
+            posters_count
+        );
+
+        let filtered: Vec<_> = movies
+            .into_iter()
+            .filter(|m| {
+                // Need enrichment if: no TMDB ID OR no poster data
+                let needs_tmdb = m.tmdb_id.is_none();
+                let needs_poster = !movies_with_poster.contains(&m.id);
+                needs_tmdb || needs_poster
+            })
+            .collect();
+
+        tracing::info!(
+            "After filter: {} movies need enrichment ({} missing TMDB, {} missing poster)",
+            filtered.len(),
+            filtered.iter().filter(|m| m.tmdb_id.is_none()).count(),
+            filtered.iter().filter(|m| !movies_with_poster.contains(&m.id)).count()
+        );
+
+        filtered
     };
 
     let total = movies_to_enrich.len();
@@ -235,146 +233,27 @@ pub async fn enrich_movies_tmdb(
                 let _ = state_clone.ws_broadcast.send(msg.to_string());
                 break;
             }
-            // Try to get TMDB details - priority: tmdb_id > imdb_id > title search
-            let tmdb_details = if let Some(tmdb_id) = movie.tmdb_id {
-                // Use existing TMDB ID
-                state_clone
-                    .tmdb_service
-                    .get_movie_details(tmdb_id, lang)
-                    .await
-                    .ok()
-            } else if let Some(imdb_id) = &movie.imdb_id {
-                // Try to find by IMDB ID
-                match state_clone.tmdb_service.find_by_imdb_id(imdb_id).await {
-                    Ok(Some(found)) => state_clone
-                        .tmdb_service
-                        .get_movie_details(found.id, lang)
-                        .await
-                        .ok(),
-                    _ => {
-                        // Fallback to title search
-                        let year = movie.production_year;
-                        match state_clone
-                            .tmdb_service
-                            .search_movies(&movie.title, year, lang, include_adult)
-                            .await
-                        {
-                            Ok(results) if !results.is_empty() => state_clone
-                                .tmdb_service
-                                .get_movie_details(results[0].id, lang)
-                                .await
-                                .ok(),
-                            _ => None,
-                        }
-                    }
-                }
-            } else {
-                // Search by title
-                let year = movie.production_year;
-                match state_clone
-                    .tmdb_service
-                    .search_movies(&movie.title, year, lang, include_adult)
-                    .await
-                {
-                    Ok(results) if !results.is_empty() => {
-                        let first = &results[0];
-                        state_clone
-                            .tmdb_service
-                            .get_movie_details(first.id, lang)
-                            .await
-                            .ok()
-                    }
-                    _ => None,
-                }
-            };
 
-            if let Some(details) = tmdb_details {
-                // Get credits
-                let credits = state_clone
-                    .tmdb_service
-                    .get_movie_credits(details.id, lang)
-                    .await
-                    .ok();
-
-                let director = credits.as_ref().and_then(|c| {
-                    c.crew
-                        .iter()
-                        .find(|p| p.job == "Director")
-                        .map(|p| p.name.clone())
-                });
-
-                let actors = credits.as_ref().map(|c| {
-                    c.cast
-                        .iter()
-                        .take(10)
-                        .map(|p| p.name.clone())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                });
-
-                let genres = details.genres.as_ref().map(|g| {
-                    g.iter()
-                        .map(|genre| genre.name.clone())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                });
-
-                // Download poster image if available
-                // Download if:
-                // - force=true (always download)
-                // - OR poster_data is None (no poster stored in DB yet)
-                let should_download_poster = force_clone || movie.poster_data.is_none();
-
-                let poster_data = if should_download_poster {
-                    if let Some(ref poster_path) = details.poster_path {
-                        download_poster_image(poster_path).await
-                    } else {
-                        None
-                    }
-                } else {
-                    None // Skip download if poster already in DB and not forcing
-                };
-
-                let update = UpdateMovie {
-                    tmdb_id: Some(details.id),
-                    imdb_id: details.imdb_id.clone(),
-                    original_title: details.original_title.clone(),
-                    description: details.overview.clone(),
-                    tagline: details.tagline.clone(),
-                    running_time: details.runtime,
-                    director,
-                    actors,
-                    genres,
-                    budget: details.budget,
-                    revenue: details.revenue,
-                    ..Default::default()
-                };
-
-                // First update the movie data
-                if state_clone
-                    .movie_service
-                    .update(user_id, movie.id, update)
-                    .await
-                    .is_ok()
-                {
-                    // Then update poster data if we downloaded it
-                    #[allow(clippy::collapsible_if)]
-                    if let Some(data) = poster_data {
-                        if state_clone
-                            .movie_service
-                            .update_movie_poster_data(user_id, movie.id, Some(data))
-                            .await
-                            .is_err()
-                        {
-                            tracing::warn!("Failed to save poster data for: {}", movie.title);
-                        }
-                    }
+            // Use the shared internal function for TMDB refresh
+            match refresh_movie_tmdb_internal(
+                &state_clone,
+                user_id,
+                movie,
+                lang,
+                include_adult,
+                force_clone,
+            )
+            .await
+            {
+                TmdbRefreshResult::Success(_) => {
                     enriched += 1;
-                } else {
-                    errors.push(format!("Failed to update: {}", movie.title));
                 }
-            } else {
-                errors.push(format!("No TMDB data found: {}", movie.title));
+                TmdbRefreshResult::NotFound(msg) => {
+                    errors.push(msg);
+                }
+                TmdbRefreshResult::Error(msg) => {
+                    errors.push(msg);
+                }
             }
 
             // Update global progress

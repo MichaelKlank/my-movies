@@ -130,7 +130,7 @@ impl MovieService {
     }
 
     pub async fn list(&self, user_id: Uuid, filter: MovieFilter) -> Result<Vec<Movie>> {
-        let limit = filter.limit.unwrap_or(50);
+        let limit = filter.limit; // None = no limit (return all)
         let offset = filter.offset.unwrap_or(0);
         let sort_by = filter.sort_by.unwrap_or_else(|| "title".to_string());
         let sort_order = filter.sort_order.unwrap_or_else(|| "asc".to_string());
@@ -209,7 +209,12 @@ impl MovieService {
             format!("{} COLLATE NOCASE {}", sort_column, order)
         };
 
-        query.push_str(&format!(" ORDER BY {} LIMIT ? OFFSET ?", order_clause));
+        // Add ORDER BY, and optionally LIMIT/OFFSET
+        if limit.is_some() {
+            query.push_str(&format!(" ORDER BY {} LIMIT ? OFFSET ?", order_clause));
+        } else {
+            query.push_str(&format!(" ORDER BY {}", order_clause));
+        }
 
         // Now bind all parameters in the correct order
         let mut q = sqlx::query_as::<_, Movie>(&query).bind(user_id);
@@ -248,7 +253,12 @@ impl MovieService {
             q = q.bind(year_to);
         }
 
-        let rows = q.bind(limit).bind(offset).fetch_all(&self.pool).await?;
+        // Only bind limit/offset if limit is specified
+        let rows = if let Some(lim) = limit {
+            q.bind(lim).bind(offset).fetch_all(&self.pool).await?
+        } else {
+            q.fetch_all(&self.pool).await?
+        };
         Ok(rows)
     }
 
@@ -428,6 +438,15 @@ impl MovieService {
                 .await?;
         }
 
+        if let Some(ref poster_data) = input.poster_data {
+            sqlx::query("UPDATE movies SET poster_data = ? WHERE id = ? AND user_id = ?")
+                .bind(poster_data)
+                .bind(id)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
         // Update timestamp
         sqlx::query("UPDATE movies SET updated_at = ? WHERE id = ? AND user_id = ?")
             .bind(Utc::now().to_rfc3339())
@@ -496,6 +515,41 @@ impl MovieService {
         }
 
         Ok(())
+    }
+
+    /// Delete all movies for a user
+    pub async fn delete_all(&self, user_id: Uuid) -> Result<u64> {
+        let result = sqlx::query("DELETE FROM movies WHERE user_id = ?")
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    /// Get IDs of movies that have poster data
+    /// Used to filter which movies need enrichment without loading full poster blobs
+    pub async fn get_movie_ids_with_poster(&self, user_id: Uuid) -> Result<Vec<Uuid>> {
+        // Query returns (id,) tuples where id is a Uuid blob
+        let rows: Vec<(Uuid,)> =
+            sqlx::query_as("SELECT id FROM movies WHERE user_id = ? AND poster_data IS NOT NULL")
+                .bind(user_id)
+                .fetch_all(&self.pool)
+                .await?;
+
+        Ok(rows.into_iter().map(|(id,)| id).collect())
+    }
+
+    /// Get only the poster data for a movie (for export without loading full Movie struct)
+    pub async fn get_poster_data(&self, user_id: Uuid, movie_id: Uuid) -> Result<Option<Vec<u8>>> {
+        let row: Option<(Vec<u8>,)> =
+            sqlx::query_as("SELECT poster_data FROM movies WHERE id = ? AND user_id = ? AND poster_data IS NOT NULL")
+                .bind(movie_id)
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        Ok(row.map(|(data,)| data))
     }
 
     pub async fn find_by_barcode(&self, user_id: Uuid, barcode: &str) -> Result<Option<Movie>> {
@@ -587,6 +641,7 @@ impl MovieService {
             let mut group = vec![movie.clone()];
 
             // Find duplicates by barcode (exclude empty and placeholder barcodes)
+            // Note: Same barcode = definitely same physical item, so disc_type check not needed
             if let Some(ref barcode) = movie.barcode
                 && !barcode.is_empty()
                 && !is_placeholder_barcode(barcode)
@@ -602,12 +657,15 @@ impl MovieService {
             }
 
             // Find duplicates by TMDB ID (exclude 0 as it's a placeholder)
+            // IMPORTANT: Only consider duplicates if they have the SAME disc_type
+            // (DVD vs Blu-Ray of the same movie are NOT duplicates)
             if let Some(tmdb_id) = movie.tmdb_id
                 && tmdb_id > 0
             {
                 for other in &movies {
                     if other.id != movie.id
                         && other.tmdb_id == Some(tmdb_id)
+                        && same_disc_type(&movie.disc_type, &other.disc_type)
                         && !group.iter().any(|m| m.id == other.id)
                     {
                         group.push(other.clone());
@@ -616,14 +674,22 @@ impl MovieService {
             }
 
             // Find duplicates by exact title match
+            // IMPORTANT: Must have same disc_type AND for TV series, must be same season
             for other in &movies {
                 if other.id != movie.id
                     && other.title.to_lowercase() == movie.title.to_lowercase()
+                    && same_disc_type(&movie.disc_type, &other.disc_type)
                     && !group.iter().any(|m| m.id == other.id)
                 {
+                    // Exact title match = definitely same, add to group
                     group.push(other.clone());
                 }
             }
+
+            // Also check for similar titles that might be different seasons of same show
+            // e.g., "Die Nanny - Staffel 1" vs "Die Nanny - Staffel 2" should NOT be duplicates
+            // But "Die Nanny Season One" and "Die Nanny: Staffel 1" SHOULD be duplicates
+            // Only exact title matches are considered duplicates (already handled above)
 
             if group.len() > 1 {
                 for m in &group {
@@ -635,4 +701,18 @@ impl MovieService {
 
         Ok(duplicate_groups)
     }
+}
+
+/// Helper function to check if two disc types are the same
+/// Treats None and empty string as the same
+fn same_disc_type(a: &Option<String>, b: &Option<String>) -> bool {
+    let a_normalized = a
+        .as_ref()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty());
+    let b_normalized = b
+        .as_ref()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty());
+    a_normalized == b_normalized
 }

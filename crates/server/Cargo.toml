@@ -49,3 +49,6 @@ reqwest = { workspace = true }
 
 # Regex for parsing collection descriptions
 regex = { workspace = true }
+
+# ZIP archive support for backup/restore
+zip = "2.2"

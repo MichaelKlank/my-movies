@@ -102,12 +102,12 @@ pub fn create_router(state: Arc<AppState>, static_dir: Option<&str>) -> Router {
         .route("/api/v1/auth/forgot-password", post(auth::forgot_password))
         .route("/api/v1/auth/reset-password", post(auth::reset_password))
         .route("/health", get(health_check))
-        // Protected routes with increased body limit for file uploads
+        // Protected routes with increased body limit for file uploads (500MB for ZIP backup)
         .nest(
             "/api/v1",
             protected_routes(state.clone())
-                .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
-                .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024)),
+                .layer(DefaultBodyLimit::max(500 * 1024 * 1024))
+                .layer(RequestBodyLimitLayer::new(500 * 1024 * 1024)),
         )
         // WebSocket
         .route("/ws", get(ws::websocket_handler))
@@ -150,6 +150,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/auth/avatar/:id", axum::routing::get(auth::get_avatar))
         // Movies
         .route("/movies", get(movies::list).post(movies::create))
+        .route("/movies/all", delete(movies::delete_all))
+        .route("/movies/export", get(movies::export))
+        .route("/movies/import-json", post(movies::import_json))
+        .route("/movies/import-zip", post(movies::import_zip))
         .route("/movies/check-duplicates", get(movies::check_duplicates))
         .route("/movies/duplicates", get(movies::find_all_duplicates))
         .route(

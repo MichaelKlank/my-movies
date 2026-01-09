@@ -48,17 +48,24 @@ impl SeriesService {
     }
 
     pub async fn list(&self, user_id: Uuid, filter: SeriesFilter) -> Result<Vec<Series>> {
-        let limit = filter.limit.unwrap_or(50);
+        let limit = filter.limit; // None = no limit
         let offset = filter.offset.unwrap_or(0);
 
-        let series = sqlx::query_as::<_, Series>(
-            "SELECT * FROM series WHERE user_id = ? ORDER BY title LIMIT ? OFFSET ?",
-        )
-        .bind(user_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let series = if let Some(lim) = limit {
+            sqlx::query_as::<_, Series>(
+                "SELECT * FROM series WHERE user_id = ? ORDER BY title LIMIT ? OFFSET ?",
+            )
+            .bind(user_id)
+            .bind(lim)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, Series>("SELECT * FROM series WHERE user_id = ? ORDER BY title")
+                .bind(user_id)
+                .fetch_all(&self.pool)
+                .await?
+        };
 
         Ok(series)
     }

@@ -1,6 +1,6 @@
 import { createRootRouteWithContext, Outlet, Link, useNavigate, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Film, LogOut, User, Users, Settings, Search, Home } from 'lucide-react'
+import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
@@ -86,6 +86,13 @@ function RootLayout() {
                 )}
               </button>
             )}
+            <Link
+              to="/import"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+              title={t('nav.backup')}
+            >
+              <HardDriveDownload className="h-5 w-5" />
+            </Link>
             <Link
               to="/me"
               className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
@@ -178,6 +185,14 @@ function RootLayout() {
           >
             <Home className="h-5 w-5" />
             <span className="text-xs">{t('nav.home')}</span>
+          </Link>
+          <Link
+            to="/import"
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
+            title={t('nav.backup')}
+          >
+            <HardDriveDownload className="h-5 w-5" />
+            <span className="text-xs">{t('nav.backup')}</span>
           </Link>
           <Link
             to="/me"

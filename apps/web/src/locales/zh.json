@@ -25,6 +25,7 @@
     "series": "剧集",
     "scan": "扫描",
     "import": "导入",
+    "backup": "备份",
     "profile": "个人资料",
     "settings": "设置",
     "users": "用户",
@@ -260,6 +261,26 @@
     "imported": "已导入",
     "supportedFormats": "支持的格式",
     "csvColumnsDesc": "CSV文件应包含以下列（如My Movies Pro导出）：",
-    "csvColumns": "Title、Original Title、Barcode、Production Year、Running Time、Director、Actors、Genres、Disc Type (DVD, Blu-ray, 4K UHD)、Location、Notes等..."
+    "csvColumns": "Title、Original Title、Barcode、Production Year、Running Time、Director、Actors、Genres、Disc Type (DVD, Blu-ray, 4K UHD)、Location、Notes等...",
+    "duplicates": {
+      "title": "查找重复",
+      "description": "根据条形码、TMDB ID或标题搜索重复条目。",
+      "searching": "正在搜索重复...",
+      "search": "搜索重复",
+      "noDuplicates": "未找到重复！",
+      "found": "{{groups}}个组，{{count}}个重复",
+      "selectAll": "全选 ({{count}})",
+      "clearSelection": "取消选择",
+      "selected": "已选择{{count}}个",
+      "deleteSelected": "删除选中 ({{count}})",
+      "deleteAll": "删除所有重复",
+      "group": "组 {{number}}",
+      "entries": "{{count}}个条目",
+      "keep": "保留",
+      "keepThis": "保留此项",
+      "confirmDelete": "确定删除 \"{{title}}\"？",
+      "confirmDeleteSelected": "确定删除{{count}}个选中的重复项？",
+      "confirmDeleteAll": "删除全部{{count}}个重复项？（每组中选中的条目将被保留）"
+    }
   }
 }

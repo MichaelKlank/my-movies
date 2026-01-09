@@ -101,8 +101,10 @@ pub struct Movie {
 
     // Poster image stored as BLOB in database
     // Skip serialization to avoid sending large BLOBs in JSON responses
+    // Use #[sqlx(default)] so it defaults to None when not in SELECT (list() excludes it)
+    // But loads correctly when using SELECT * (get_by_id, export)
     #[serde(skip)]
-    #[sqlx(skip)]
+    #[sqlx(default)]
     pub poster_data: Option<Vec<u8>>,
 
     // Timestamps
@@ -183,6 +185,7 @@ pub struct UpdateMovie {
     pub budget: Option<i64>,
     pub revenue: Option<i64>,
     pub spoken_languages: Option<String>,
+    pub poster_data: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Deserialize, Default)]

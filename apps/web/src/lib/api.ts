@@ -157,6 +157,50 @@ class ApiClient {
     return this.request<void>(`/movies/${id}`, { method: 'DELETE' })
   }
 
+  async deleteAllMovies() {
+    return this.request<{ deleted: number; message: string }>('/movies/all', { method: 'DELETE' })
+  }
+
+  async exportMovies() {
+    const headers: Record<string, string> = {}
+    const token = this.getToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
+    const response = await tauriFetch(`${API_BASE}/movies/export`, { headers })
+    if (!response.ok) {
+      throw new Error('Export failed')
+    }
+    return response.blob()
+  }
+
+  async importJson(jsonData: unknown) {
+    return this.request<{ imported: number; skipped: number; errors: string[] }>('/movies/import-json', {
+      method: 'POST',
+      body: jsonData,
+    })
+  }
+
+  async importZip(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const token = this.getToken()
+    const response = await tauriFetch(`${API_BASE}/movies/import-zip`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Import failed' }))
+      throw new Error(errorData.error || 'Import failed')
+    }
+    
+    return response.json() as Promise<{ imported: number; skipped: number; posters_restored: number; errors: string[] }>
+  }
+
   async refreshMovieTmdb(id: string, force: boolean = false) {
     const url = force 
       ? `/movies/${id}/refresh-tmdb?force=true`

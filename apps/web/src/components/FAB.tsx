@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, ScanLine, Keyboard, Search, ArrowUp, X, Upload } from 'lucide-react'
+import { Plus, ScanLine, Keyboard, Search, ArrowUp, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useI18n } from '@/hooks/useI18n'
 
@@ -63,11 +63,6 @@ export function FAB({ showScrollTop = false }: FABProps) {
   }
 
   const menuItems = [
-    {
-      icon: Upload,
-      label: t('fab.import'),
-      action: () => navigate({ to: '/import' }),
-    },
     {
       icon: ScanLine,
       label: t('fab.scanBarcode'),

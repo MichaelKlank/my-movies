@@ -25,6 +25,7 @@
     "series": "シリーズ",
     "scan": "スキャン",
     "import": "インポート",
+    "backup": "バックアップ",
     "profile": "プロフィール",
     "settings": "設定",
     "users": "ユーザー",
@@ -260,6 +261,26 @@
     "imported": "インポート済み",
     "supportedFormats": "対応フォーマット",
     "csvColumnsDesc": "CSVファイルには以下の列が必要です（My Movies Proエクスポートと同様）：",
-    "csvColumns": "Title、Original Title、Barcode、Production Year、Running Time、Director、Actors、Genres、Disc Type (DVD, Blu-ray, 4K UHD)、Location、Notesなど..."
+    "csvColumns": "Title、Original Title、Barcode、Production Year、Running Time、Director、Actors、Genres、Disc Type (DVD, Blu-ray, 4K UHD)、Location、Notesなど...",
+    "duplicates": {
+      "title": "重複を検索",
+      "description": "バーコード、TMDB ID、タイトルで重複エントリーを検索します。",
+      "searching": "重複を検索中...",
+      "search": "重複を検索",
+      "noDuplicates": "重複は見つかりませんでした！",
+      "found": "{{groups}}グループ、{{count}}件の重複",
+      "selectAll": "すべて選択 ({{count}})",
+      "clearSelection": "選択解除",
+      "selected": "{{count}}件選択中",
+      "deleteSelected": "選択を削除 ({{count}})",
+      "deleteAll": "すべての重複を削除",
+      "group": "グループ {{number}}",
+      "entries": "{{count}}件",
+      "keep": "保持",
+      "keepThis": "これを保持",
+      "confirmDelete": "本当に「{{title}}」を削除しますか？",
+      "confirmDeleteSelected": "本当に{{count}}件の選択した重複を削除しますか？",
+      "confirmDeleteAll": "すべて{{count}}件の重複を削除しますか？（各グループで選択されたエントリーは保持されます）"
+    }
   }
 }

@@ -4,7 +4,7 @@ import { api, ImportResult, Movie } from '@/lib/api'
 import { wsClient, WsMessage } from '@/lib/ws'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
-import { AlertCircle, Check, ChevronDown, Copy, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Copy, Download, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 export const Route = createFileRoute('/import')({
@@ -37,8 +37,19 @@ function ImportPage() {
   const [enrichComplete, setEnrichComplete] = useState<TmdbEnrichComplete | null>(null)
   const [isEnriching, setIsEnriching] = useState(false)
   const [showRefreshMenu, setShowRefreshMenu] = useState(false)
+  const [autoEnrichTmdb, setAutoEnrichTmdb] = useState(() => {
+    // Load preference from localStorage
+    const saved = localStorage.getItem('autoEnrichTmdb')
+    return saved !== null ? saved === 'true' : true // Default: enabled
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+  
+  // Save preference when changed
+  const handleAutoEnrichChange = (checked: boolean) => {
+    setAutoEnrichTmdb(checked)
+    localStorage.setItem('autoEnrichTmdb', String(checked))
+  }
 
   // Check if TMDB API key is configured (admin only, fails silently for non-admins)
   const { data: settings } = useQuery({
@@ -115,6 +126,15 @@ function ImportPage() {
       setEnrichComplete(null)
       setEnrichProgress(null)
       // WebSocket event (collection_imported) will handle cache invalidation
+      
+      // Auto-trigger TMDB enrichment if enabled and there are imported items
+      const totalImported = data.movies_imported + data.series_imported + data.collections_imported
+      if (autoEnrichTmdb && totalImported > 0 && tmdbApiConfigured) {
+        // Small delay to let the UI update first
+        setTimeout(() => {
+          enrichMutation.mutate(false) // false = only missing data
+        }, 500)
+      }
     },
   })
 
@@ -156,12 +176,14 @@ function ImportPage() {
       <h1 className="text-xl md:text-2xl font-bold">{t('import.title')}</h1>
 
       <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
-        <div className="text-center">
-          <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h2 className="mt-4 text-base md:text-lg font-semibold">{t('import.csvImport')}</h2>
-          <p className="mt-2 text-xs md:text-sm text-muted-foreground">
-            {t('import.csvImportDesc')}
-          </p>
+        <div className="flex items-start gap-4">
+          <Upload className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
+          <div className="flex-1">
+            <h2 className="font-semibold">CSV Import (Neue Sammlung)</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Importiere Filme aus einer CSV-Datei (z.B. von DVD Profiler oder anderen Programmen).
+            </p>
+          </div>
         </div>
 
         <input
@@ -175,20 +197,39 @@ function ImportPage() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-8 text-sm hover:border-primary hover:bg-accent active:bg-accent/80 min-h-touch"
+            className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-6 text-sm hover:border-primary hover:bg-accent active:bg-accent/80 min-h-touch"
           >
             <FileUp className="h-5 w-5" />
-            <span className="truncate">{selectedFile ? selectedFile.name : t('import.selectFile')}</span>
+            <span className="truncate">{selectedFile ? selectedFile.name : 'CSV-Datei auswählen'}</span>
           </button>
 
           {selectedFile && (
-            <button
-              onClick={handleImport}
-              disabled={importMutation.isPending}
-              className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
-            >
-              {importMutation.isPending ? t('import.importing') : t('import.title')}
-            </button>
+            <>
+              {/* Auto-TMDB Checkbox */}
+              <label className="flex items-center gap-3 p-3 rounded-md bg-muted/50 cursor-pointer hover:bg-muted/70">
+                <input
+                  type="checkbox"
+                  checked={autoEnrichTmdb}
+                  onChange={(e) => handleAutoEnrichChange(e.target.checked)}
+                  disabled={!tmdbApiConfigured}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium">TMDB Daten automatisch laden</span>
+                  <p className="text-xs text-muted-foreground">
+                    Nach dem Import werden Poster und Details automatisch von TMDB geladen
+                  </p>
+                </div>
+              </label>
+              
+              <button
+                onClick={handleImport}
+                disabled={importMutation.isPending}
+                className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
+              >
+                {importMutation.isPending ? t('import.importing') : t('import.title')}
+              </button>
+            </>
           )}
         </div>
 
@@ -231,6 +272,9 @@ function ImportPage() {
           </div>
         )}
       </div>
+
+      {/* ZIP Import Section (Backup Restore) */}
+      <ZipImportSection autoEnrichTmdb={autoEnrichTmdb} tmdbApiConfigured={tmdbApiConfigured} />
 
       {/* TMDB Enrichment Section */}
       <div className={`rounded-lg border bg-card p-6 space-y-4 ${!tmdbApiConfigured ? 'opacity-60' : ''}`}>
@@ -410,6 +454,12 @@ function ImportPage() {
       {/* Duplicates Section */}
       <DuplicatesSection />
 
+      {/* Export Section */}
+      <ExportSection />
+
+      {/* Danger Zone - Delete All */}
+      <DeleteAllSection />
+
       <div className="rounded-lg border bg-card p-6">
         <h3 className="font-semibold">{t('import.supportedFormats')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -423,9 +473,298 @@ function ImportPage() {
   )
 }
 
+function ZipImportSection({ autoEnrichTmdb, tmdbApiConfigured }: { autoEnrichTmdb: boolean; tmdbApiConfigured: boolean }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; posters_restored: number; errors: string[] } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
+
+  const importMutation = useMutation({
+    mutationFn: (file: File) => api.importZip(file),
+    onSuccess: (data) => {
+      setImportResult(data)
+      setSelectedFile(null)
+      queryClient.invalidateQueries({ queryKey: ['movies'] })
+      
+      // Auto-trigger TMDB enrichment if enabled (only for movies without poster)
+      if (autoEnrichTmdb && data.imported > 0 && tmdbApiConfigured && data.posters_restored < data.imported) {
+        setTimeout(() => {
+          api.enrichMoviesTmdb(false)
+        }, 500)
+      }
+    },
+  })
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setImportResult(null)
+    }
+  }
+
+  return (
+    <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-4">
+        <FileUp className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
+        <div className="flex-1">
+          <h2 className="font-semibold">ZIP Import (Backup wiederherstellen)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Importiere ein zuvor exportiertes ZIP-Backup. Alle Metadaten und Poster werden wiederhergestellt.
+            Bereits vorhandene Filme (nach Barcode) werden übersprungen.
+          </p>
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".zip"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      <div className="flex flex-col gap-3">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 rounded-md border border-dashed bg-background px-4 py-8 text-sm hover:border-primary hover:bg-accent active:bg-accent/80 min-h-touch"
+        >
+          <FileUp className="h-5 w-5" />
+          <span className="truncate">{selectedFile ? selectedFile.name : 'ZIP-Datei auswählen'}</span>
+        </button>
+
+        {selectedFile && (
+          <button
+            onClick={() => importMutation.mutate(selectedFile)}
+            disabled={importMutation.isPending}
+            className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
+          >
+            {importMutation.isPending ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Importiere...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                ZIP importieren
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      {importMutation.isError && (
+        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{importMutation.error instanceof Error ? importMutation.error.message : 'Import fehlgeschlagen'}</span>
+        </div>
+      )}
+
+      {importResult && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-700">
+            <Check className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Import abgeschlossen</p>
+              <ul className="mt-1 text-muted-foreground">
+                <li>{importResult.imported} Filme importiert</li>
+                <li>{importResult.posters_restored} Poster wiederhergestellt</li>
+                <li>{importResult.skipped} übersprungen (bereits vorhanden)</li>
+              </ul>
+            </div>
+          </div>
+
+          {importResult.errors.length > 0 && (
+            <div className="rounded-md bg-yellow-500/10 p-3 text-sm">
+              <p className="font-medium text-yellow-700">
+                {importResult.errors.length} Fehler:
+              </p>
+              <ul className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
+                {importResult.errors.slice(0, 10).map((error, i) => (
+                  <li key={i}>{error}</li>
+                ))}
+                {importResult.errors.length > 10 && (
+                  <li>... und {importResult.errors.length - 10} weitere</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExportSection() {
+  const [isExporting, setIsExporting] = useState(false)
+
+  const { data: moviesResponse } = useQuery({
+    queryKey: ['movies'],
+    queryFn: () => api.getMovies(),
+  })
+
+  const movieCount = moviesResponse?.total ?? 0
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const blob = await api.exportMovies()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `my-movies-backup-${new Date().toISOString().slice(0, 10)}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Export fehlgeschlagen')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-4">
+        <Download className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
+        <div className="flex-1">
+          <h2 className="font-semibold">Sammlung exportieren (Vollständiges Backup)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Exportiere deine gesamte Filmsammlung als ZIP-Datei. Alle Metadaten und Poster werden gesichert
+            und können vollständig wiederhergestellt werden.
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={handleExport}
+        disabled={isExporting || movieCount === 0}
+        className="flex items-center justify-center gap-2 w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/80 active:bg-secondary/60 disabled:opacity-50 min-h-touch"
+      >
+        {isExporting ? (
+          <>
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Exportiere...
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4" />
+            Als ZIP exportieren ({movieCount} Filme)
+          </>
+        )}
+      </button>
+    </div>
+  )
+}
+
+function DeleteAllSection() {
+  const { t } = useI18n()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const queryClient = useQueryClient()
+
+  const { data: moviesResponse } = useQuery({
+    queryKey: ['movies'],
+    queryFn: () => api.getMovies(),
+  })
+
+  const movieCount = moviesResponse?.total ?? 0
+
+  const deleteAllMutation = useMutation({
+    mutationFn: () => api.deleteAllMovies(),
+    onSuccess: (data) => {
+      setShowConfirm(false)
+      setConfirmText('')
+      queryClient.invalidateQueries({ queryKey: ['movies'] })
+      queryClient.invalidateQueries({ queryKey: ['duplicates'] })
+      alert(`${data.deleted} Filme wurden gelöscht.`)
+    },
+  })
+
+  const canDelete = confirmText.toLowerCase() === 'löschen'
+
+  return (
+    <div className="rounded-lg border border-destructive/30 bg-card p-6 space-y-4">
+      <div className="flex items-start gap-4">
+        <Trash2 className="h-8 w-8 text-destructive shrink-0 mt-1" />
+        <div className="flex-1">
+          <h2 className="font-semibold text-destructive">Gefahrenzone</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Lösche alle Filme aus deiner Sammlung. Diese Aktion kann nicht rückgängig gemacht werden!
+          </p>
+        </div>
+      </div>
+
+      {!showConfirm ? (
+        <button
+          onClick={() => setShowConfirm(true)}
+          disabled={movieCount === 0}
+          className="flex items-center justify-center gap-2 w-full rounded-md bg-destructive/10 text-destructive px-4 py-3 text-sm font-medium hover:bg-destructive/20 active:bg-destructive/30 disabled:opacity-50 min-h-touch"
+        >
+          <Trash2 className="h-4 w-4" />
+          Alle Filme löschen ({movieCount})
+        </button>
+      ) : (
+        <div className="space-y-3 p-4 rounded-md bg-destructive/5 border border-destructive/20">
+          <p className="text-sm font-medium text-destructive">
+            Bist du sicher? Diese Aktion löscht alle {movieCount} Filme unwiderruflich!
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Tippe "löschen" ein, um zu bestätigen:
+          </p>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="löschen"
+            className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-destructive"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowConfirm(false)
+                setConfirmText('')
+              }}
+              className="flex-1 px-4 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={() => deleteAllMutation.mutate()}
+              disabled={!canDelete || deleteAllMutation.isPending}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {deleteAllMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Endgültig löschen
+            </button>
+          </div>
+        </div>
+      )}
+
+      {deleteAllMutation.isError && (
+        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{deleteAllMutation.error instanceof Error ? deleteAllMutation.error.message : 'Fehler beim Löschen'}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DuplicatesSection() {
+  const { t } = useI18n()
   const [showDuplicates, setShowDuplicates] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Track which movie to keep in each group (by group index -> movie id)
+  const [keepIds, setKeepIds] = useState<Map<number, string>>(new Map())
   const [isDeleting, setIsDeleting] = useState(false)
   const queryClient = useQueryClient()
 
@@ -447,10 +786,16 @@ function DuplicatesSection() {
 
   const duplicateGroups = duplicatesData?.duplicate_groups ?? []
 
-  // Get all duplicate IDs (excluding first in each group)
-  const allDuplicateIds = duplicateGroups.flatMap(group => 
-    group.slice(1).map((m: Movie) => m.id)
-  )
+  // Get which movie to keep for a group (default: first one)
+  const getKeepIdForGroup = (groupIndex: number, group: Movie[]) => {
+    return keepIds.get(groupIndex) || group[0]?.id
+  }
+
+  // Get all IDs to delete (all except the "keep" one in each group)
+  const allDuplicateIds = duplicateGroups.flatMap((group, groupIndex) => {
+    const keepId = getKeepIdForGroup(groupIndex, group)
+    return group.filter((m: Movie) => m.id !== keepId).map((m: Movie) => m.id)
+  })
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -465,18 +810,20 @@ function DuplicatesSection() {
   }
 
   const selectAllDuplicates = () => {
+    // Select all movies except the ones we're keeping
     setSelectedIds(new Set(allDuplicateIds))
   }
 
   const clearSelection = () => {
     setSelectedIds(new Set())
+    setKeepIds(new Map()) // Reset keep selections too
   }
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return
     
     const count = selectedIds.size
-    if (!confirm(`${count} ausgewählte Duplikate wirklich löschen?`)) return
+    if (!confirm(t('import.duplicates.confirmDeleteSelected', { count }))) return
 
     setIsDeleting(true)
     try {
@@ -497,7 +844,7 @@ function DuplicatesSection() {
     if (allDuplicateIds.length === 0) return
     
     const count = allDuplicateIds.length
-    if (!confirm(`Alle ${count} Duplikate löschen? (Der erste Eintrag jeder Gruppe wird behalten)`)) return
+    if (!confirm(t('import.duplicates.confirmDeleteAll', { count }))) return
 
     setIsDeleting(true)
     try {
@@ -518,9 +865,9 @@ function DuplicatesSection() {
       <div className="flex items-start gap-4">
         <Copy className="h-8 w-8 text-muted-foreground shrink-0 mt-1" />
         <div className="flex-1">
-          <h2 className="font-semibold">Duplikate finden</h2>
+          <h2 className="font-semibold">{t('import.duplicates.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sucht nach doppelten Einträgen basierend auf Barcode, TMDB ID oder Titel.
+            {t('import.duplicates.description')}
           </p>
         </div>
       </div>
@@ -537,12 +884,12 @@ function DuplicatesSection() {
         {isLoading ? (
           <>
             <RefreshCw className="h-4 w-4 animate-spin" />
-            Suche Duplikate...
+            {t('import.duplicates.searching')}
           </>
         ) : (
           <>
             <Copy className="h-4 w-4" />
-            Duplikate suchen
+            {t('import.duplicates.search')}
           </>
         )}
       </button>
@@ -552,14 +899,14 @@ function DuplicatesSection() {
           {duplicateGroups.length === 0 ? (
             <div className="flex items-start gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-700">
               <Check className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>Keine Duplikate gefunden!</span>
+              <span>{t('import.duplicates.noDuplicates')}</span>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-start gap-2 rounded-md bg-yellow-500/10 p-3 text-sm text-yellow-700 flex-1">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span>{duplicateGroups.length} Gruppen, {allDuplicateIds.length} Duplikate</span>
+                  <span>{t('import.duplicates.found', { groups: duplicateGroups.length, count: allDuplicateIds.length })}</span>
                 </div>
               </div>
 
@@ -569,7 +916,7 @@ function DuplicatesSection() {
                   onClick={selectAllDuplicates}
                   className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80"
                 >
-                  Alle auswählen ({allDuplicateIds.length})
+                  {t('import.duplicates.selectAll', { count: allDuplicateIds.length })}
                 </button>
                 {selectedIds.size > 0 && (
                   <>
@@ -577,10 +924,10 @@ function DuplicatesSection() {
                       onClick={clearSelection}
                       className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80"
                     >
-                      Auswahl aufheben
+                      {t('import.duplicates.clearSelection')}
                     </button>
                     <span className="text-xs text-muted-foreground">
-                      {selectedIds.size} ausgewählt
+                      {t('import.duplicates.selected', { count: selectedIds.size })}
                     </span>
                   </>
                 )}
@@ -596,7 +943,7 @@ function DuplicatesSection() {
                     ) : (
                       <Trash2 className="h-3 w-3" />
                     )}
-                    Ausgewählte löschen ({selectedIds.size})
+                    {t('import.duplicates.deleteSelected', { count: selectedIds.size })}
                   </button>
                 )}
                 <button
@@ -609,99 +956,121 @@ function DuplicatesSection() {
                   ) : (
                     <Trash2 className="h-3 w-3" />
                   )}
-                  Alle Duplikate löschen
+                  {t('import.duplicates.deleteAll')}
                 </button>
               </div>
 
               <div className="space-y-4 max-h-[500px] overflow-auto">
-                {duplicateGroups.map((group, groupIndex) => (
-                  <div key={groupIndex} className="rounded-md border p-4 space-y-3">
-                    <h4 className="font-medium text-sm">
-                      Gruppe {groupIndex + 1}: {group[0]?.title}
-                      <span className="text-muted-foreground font-normal ml-2">
-                        ({group.length} Einträge)
-                      </span>
-                    </h4>
-                    <div className="space-y-2">
-                      {group.map((movie: Movie, movieIndex: number) => {
-                        const isDuplicate = movieIndex > 0
-                        const isSelected = selectedIds.has(movie.id)
-                        
-                        return (
-                          <div
-                            key={movie.id}
-                            className={`flex items-center gap-3 p-2 rounded transition-colors ${
-                              isSelected 
-                                ? 'bg-destructive/10 border border-destructive/30' 
-                                : isDuplicate 
-                                  ? 'bg-yellow-500/5 hover:bg-yellow-500/10' 
-                                  : 'bg-green-500/5'
-                            }`}
-                          >
-                            {isDuplicate ? (
+                {duplicateGroups.map((group, groupIndex) => {
+                  const keepId = getKeepIdForGroup(groupIndex, group)
+                  
+                  return (
+                    <div key={groupIndex} className="rounded-md border p-4 space-y-3">
+                      <h4 className="font-medium text-sm">
+                        {t('import.duplicates.group', { number: groupIndex + 1 })}: {group[0]?.title}
+                        <span className="text-muted-foreground font-normal ml-2">
+                          ({t('import.duplicates.entries', { count: group.length })})
+                        </span>
+                      </h4>
+                      <div className="space-y-2">
+                        {group.map((movie: Movie) => {
+                          const isKeep = movie.id === keepId
+                          const isSelected = selectedIds.has(movie.id)
+                          
+                          return (
+                            <div
+                              key={movie.id}
+                              className={`flex items-center gap-3 p-2 rounded transition-colors ${
+                                isSelected 
+                                  ? 'bg-destructive/10 border border-destructive/30' 
+                                  : isKeep 
+                                    ? 'bg-green-500/5' 
+                                    : 'bg-yellow-500/5 hover:bg-yellow-500/10'
+                              }`}
+                            >
+                              {/* Radio button to select which one to keep */}
                               <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleSelection(movie.id)}
-                                className="h-4 w-4 rounded border-gray-300"
+                                type="radio"
+                                name={`keep-group-${groupIndex}`}
+                                checked={isKeep}
+                                onChange={() => {
+                                  setKeepIds(prev => new Map(prev).set(groupIndex, movie.id))
+                                  // Remove this movie from selected (can't delete what we're keeping)
+                                  setSelectedIds(prev => {
+                                    const next = new Set(prev)
+                                    next.delete(movie.id)
+                                    return next
+                                  })
+                                }}
+                                className="h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                                title={t('import.duplicates.keepThis')}
                               />
-                            ) : (
-                              <div className="w-4 h-4 flex items-center justify-center">
-                                <Check className="h-3 w-3 text-green-600" />
-                              </div>
-                            )}
-                            <div className="w-10 h-14 rounded overflow-hidden bg-muted flex-shrink-0">
-                              <PosterImage
-                                posterPath={null}
-                                movieId={movie.id}
-                                size="w92"
-                                alt={movie.title}
-                                className="w-full h-full object-cover"
-                                updatedAt={movie.updated_at}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {movie.title}
-                                {!isDuplicate && (
-                                  <span className="ml-2 text-xs text-green-600 font-normal">(Behalten)</span>
-                                )}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {movie.production_year && `${movie.production_year} · `}
-                                {movie.disc_type && `${movie.disc_type} · `}
-                                {movie.barcode && `${movie.barcode}`}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Link
-                                to="/movies/$movieId"
-                                params={{ movieId: movie.id }}
-                                className="text-xs text-primary hover:underline"
-                              >
-                                Details
-                              </Link>
-                              {isDuplicate && (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`"${movie.title}" wirklich löschen?`)) {
-                                      deleteMutation.mutate(movie.id)
-                                    }
-                                  }}
-                                  disabled={deleteMutation.isPending || isDeleting}
-                                  className="p-1 text-destructive hover:bg-destructive/10 rounded"
-                                  title="Löschen"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                              {/* Checkbox to select for deletion (only if not the "keep" one) */}
+                              {!isKeep ? (
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleSelection(movie.id)}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                  <Check className="h-3 w-3 text-green-600" />
+                                </div>
                               )}
+                              <div className="w-10 h-14 rounded overflow-hidden bg-muted flex-shrink-0">
+                                <PosterImage
+                                  posterPath={null}
+                                  movieId={movie.id}
+                                  size="w92"
+                                  alt={movie.title}
+                                  className="w-full h-full object-cover"
+                                  updatedAt={movie.updated_at}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">
+                                  {movie.title}
+                                  {isKeep && (
+                                    <span className="ml-2 text-xs text-green-600 font-normal">({t('import.duplicates.keep')})</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {movie.production_year && `${movie.production_year} · `}
+                                  {movie.disc_type && `${movie.disc_type} · `}
+                                  {movie.barcode && `${movie.barcode}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  to="/movies/$movieId"
+                                  params={{ movieId: movie.id }}
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  {t('movies.details')}
+                                </Link>
+                                {!isKeep && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(t('import.duplicates.confirmDelete', { title: movie.title }))) {
+                                        deleteMutation.mutate(movie.id)
+                                      }
+                                    }}
+                                    disabled={deleteMutation.isPending || isDeleting}
+                                    className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                                    title={t('common.delete')}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           )}

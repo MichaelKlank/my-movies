@@ -25,6 +25,7 @@
     "series": "Сериалы",
     "scan": "Сканировать",
     "import": "Импорт",
+    "backup": "Резервная копия",
     "profile": "Профиль",
     "settings": "Настройки",
     "users": "Пользователи",
@@ -260,6 +261,26 @@
     "imported": "импортировано",
     "supportedFormats": "Поддерживаемые Форматы",
     "csvColumnsDesc": "CSV-файл должен содержать следующие столбцы (как в экспорте My Movies Pro):",
-    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes и многое другое..."
+    "csvColumns": "Title, Original Title, Barcode, Production Year, Running Time, Director, Actors, Genres, Disc Type (DVD, Blu-ray, 4K UHD), Location, Notes и многое другое...",
+    "duplicates": {
+      "title": "Найти дубликаты",
+      "description": "Поиск дубликатов по штрих-коду, TMDB ID или названию.",
+      "searching": "Поиск дубликатов...",
+      "search": "Искать дубликаты",
+      "noDuplicates": "Дубликаты не найдены!",
+      "found": "{{groups}} групп, {{count}} дубликатов",
+      "selectAll": "Выбрать все ({{count}})",
+      "clearSelection": "Снять выделение",
+      "selected": "{{count}} выбрано",
+      "deleteSelected": "Удалить выбранные ({{count}})",
+      "deleteAll": "Удалить все дубликаты",
+      "group": "Группа {{number}}",
+      "entries": "{{count}} записей",
+      "keep": "Оставить",
+      "keepThis": "Оставить этот",
+      "confirmDelete": "Действительно удалить \"{{title}}\"?",
+      "confirmDeleteSelected": "Действительно удалить {{count}} выбранных дубликатов?",
+      "confirmDeleteAll": "Удалить все {{count}} дубликатов? (Выбранная запись в каждой группе будет сохранена)"
+    }
   }
 }
