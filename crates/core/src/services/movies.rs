@@ -142,7 +142,7 @@ impl MovieService {
             release_date, running_time, director, actors, production_companies, production_countries, \
             studios, rating, personal_rating, disc_type, media_type, discs, region_codes, video_standard, \
             aspect_ratio, audio_tracks, subtitles, is_3d, mastered_in_4k, genres, categories, tags, \
-            movie_group, watched, digital_copies, status, condition, slip_cover, cover_type, edition, \
+            movie_group, is_collection, parent_collection_id, watched, digital_copies, status, condition, slip_cover, cover_type, edition, \
             extra_features, purchase_date, price, currency, purchase_place, value_date, value_price, \
             value_currency, lent_to, lent_due, location, notes, budget, revenue, spoken_languages, \
             added_date, created_at, updated_at FROM movies WHERE user_id = ?",
@@ -162,6 +162,14 @@ impl MovieService {
 
         if filter.watched.is_some() {
             query.push_str(" AND watched = ?");
+        }
+
+        if filter.is_collection.is_some() {
+            query.push_str(" AND is_collection = ?");
+        }
+
+        if filter.exclude_collection_children == Some(true) {
+            query.push_str(" AND parent_collection_id IS NULL");
         }
 
         if filter.year_from.is_some() {
@@ -191,10 +199,16 @@ impl MovieService {
         } else {
             "ASC"
         };
-        query.push_str(&format!(
-            " ORDER BY {} {} LIMIT ? OFFSET ?",
-            sort_column, order
-        ));
+
+        // Use COALESCE to handle NULL sort_title (fall back to title)
+        // Use COLLATE NOCASE for case-insensitive sorting
+        let order_clause = if sort_column == "sort_title" {
+            format!("COALESCE(sort_title, title) COLLATE NOCASE {}", order)
+        } else {
+            format!("{} COLLATE NOCASE {}", sort_column, order)
+        };
+
+        query.push_str(&format!(" ORDER BY {} LIMIT ? OFFSET ?", order_clause));
 
         // Now bind all parameters in the correct order
         let mut q = sqlx::query_as::<_, Movie>(&query).bind(user_id);
@@ -218,6 +232,12 @@ impl MovieService {
         if let Some(watched) = filter.watched {
             q = q.bind(watched);
         }
+
+        if let Some(is_collection) = filter.is_collection {
+            q = q.bind(is_collection);
+        }
+
+        // Note: exclude_collection_children doesn't need a bind (IS NULL check)
 
         if let Some(year_from) = filter.year_from {
             q = q.bind(year_from);
@@ -374,6 +394,33 @@ impl MovieService {
         if let Some(revenue) = input.revenue {
             sqlx::query("UPDATE movies SET revenue = ? WHERE id = ? AND user_id = ?")
                 .bind(revenue)
+                .bind(id)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        if let Some(ref disc_type) = input.disc_type {
+            sqlx::query("UPDATE movies SET disc_type = ? WHERE id = ? AND user_id = ?")
+                .bind(disc_type)
+                .bind(id)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        if let Some(is_collection) = input.is_collection {
+            sqlx::query("UPDATE movies SET is_collection = ? WHERE id = ? AND user_id = ?")
+                .bind(is_collection)
+                .bind(id)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        if let Some(ref parent_collection_id) = input.parent_collection_id {
+            sqlx::query("UPDATE movies SET parent_collection_id = ? WHERE id = ? AND user_id = ?")
+                .bind(parent_collection_id)
                 .bind(id)
                 .bind(user_id)
                 .execute(&self.pool)

@@ -199,6 +199,26 @@ class ApiClient {
     return this.request<DuplicateCheckResult>(`/movies/check-duplicates?${params}`)
   }
 
+  // Collection Analysis
+  async analyzeCollection(id: string) {
+    return this.request<CollectionAnalysisResult>(`/movies/${id}/analyze-collection`)
+  }
+
+  async splitCollection(id: string, selectedMovies: SelectedMovie[], keepOriginal: boolean = true, collectionPosterPath?: string) {
+    return this.request<SplitCollectionResult>(`/movies/${id}/split-collection`, {
+      method: 'POST',
+      body: { 
+        selected_movies: selectedMovies, 
+        keep_original: keepOriginal,
+        collection_poster_path: collectionPosterPath,
+      },
+    })
+  }
+
+  async getCollectionMovies(collectionId: string) {
+    return this.request<Movie[]>(`/movies/${collectionId}/collection-movies`)
+  }
+
   async findAllDuplicates() {
     return this.request<DuplicateGroupsResult>('/movies/duplicates')
   }
@@ -262,6 +282,10 @@ class ApiClient {
 
   async cancelEnrichTmdb() {
     return this.request<{ message: string }>('/import/enrich-tmdb/cancel', { method: 'POST' })
+  }
+
+  async getEnrichStatus() {
+    return this.request<EnrichStatus>('/import/enrich-tmdb/status')
   }
 
   // Settings (admin only)
@@ -382,6 +406,8 @@ export interface Movie {
   edition?: string
   budget?: number
   revenue?: number
+  is_collection: boolean
+  parent_collection_id?: string
   created_at: string
   updated_at: string
 }
@@ -401,6 +427,8 @@ export interface MovieFilter {
   genre?: string
   disc_type?: string
   watched?: string
+  is_collection?: string
+  exclude_collection_children?: string
   sort_by?: string
   sort_order?: string
   limit?: string
@@ -499,6 +527,14 @@ export interface EnrichResult {
   errors: string[]
 }
 
+export interface EnrichStatus {
+  is_running: boolean
+  total?: number
+  current?: number
+  updated?: number
+  errors_count?: number
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
@@ -523,6 +559,51 @@ export interface SettingStatus {
   is_configured: boolean
   source: 'environment' | 'database' | 'none'
   value_preview?: string
+}
+
+// Collection Analysis
+export interface CollectionAnalysisResult {
+  is_collection: boolean
+  confidence: number
+  tmdb_collection?: TmdbCollectionOverview
+  extracted_titles: ExtractedTitle[]
+  total_movies: number
+}
+
+export interface TmdbCollectionOverview {
+  id: number
+  name: string
+  poster_path?: string
+  backdrop_path?: string
+}
+
+export interface ExtractedTitle {
+  title: string
+  tmdb_match?: TmdbSearchResult
+  tmdb_tv_match?: TmdbTvMatch
+  description_excerpt?: string
+  is_tv_series: boolean
+}
+
+export interface TmdbTvMatch {
+  id: number
+  name: string
+  original_name?: string
+  overview?: string
+  poster_path?: string
+  first_air_date?: string
+  vote_average?: number
+}
+
+export interface SelectedMovie {
+  title: string
+  tmdb_id?: number
+}
+
+export interface SplitCollectionResult {
+  message: string
+  created_movies: string[]
+  errors: string[]
 }
 
 export interface TmdbTestResult {

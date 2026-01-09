@@ -59,6 +59,10 @@ pub struct Movie {
     #[sqlx(rename = "movie_group")]
     pub group: Option<String>,
 
+    // Collection support
+    pub is_collection: bool,
+    pub parent_collection_id: Option<Uuid>,
+
     // User Status
     pub watched: bool,
     pub digital_copies: Option<String>,
@@ -155,6 +159,8 @@ pub struct UpdateMovie {
     pub categories: Option<String>,
     pub tags: Option<String>,
     pub group: Option<String>,
+    pub is_collection: Option<bool>,
+    pub parent_collection_id: Option<Uuid>,
     pub watched: Option<bool>,
     pub digital_copies: Option<String>,
     pub status: Option<String>,
@@ -185,6 +191,8 @@ pub struct MovieFilter {
     pub genre: Option<String>,
     pub disc_type: Option<String>,
     pub watched: Option<bool>,
+    pub is_collection: Option<bool>,
+    pub exclude_collection_children: Option<bool>, // Hide movies that belong to a collection
     pub year_from: Option<i32>,
     pub year_to: Option<i32>,
     pub sort_by: Option<String>,

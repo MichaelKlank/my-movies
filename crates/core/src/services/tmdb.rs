@@ -17,7 +17,7 @@ pub struct TmdbSearchResult {
     pub total_pages: i32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TmdbMovie {
     pub id: i64,
     pub title: String,
@@ -100,6 +100,31 @@ pub struct TmdbCrew {
     pub department: String,
 }
 
+// Collection types
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TmdbCollectionSearchResult {
+    pub results: Vec<TmdbCollectionOverview>,
+    pub total_results: i32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TmdbCollectionOverview {
+    pub id: i64,
+    pub name: String,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TmdbCollection {
+    pub id: i64,
+    pub name: String,
+    pub overview: Option<String>,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+    pub parts: Vec<TmdbMovie>,
+}
+
 // TV Series types
 #[derive(Debug, Deserialize)]
 pub struct TmdbTvSearchResult {
@@ -134,6 +159,13 @@ pub struct TmdbTvDetails {
     pub status: Option<String>,
     pub networks: Option<Vec<TmdbNetwork>>,
     pub genres: Option<Vec<TmdbGenre>>,
+    pub created_by: Option<Vec<TmdbCreator>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TmdbCreator {
+    pub id: i64,
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -175,41 +207,68 @@ impl TmdbService {
         language: Option<&str>,
         include_adult: bool,
     ) -> Result<Vec<TmdbMovie>> {
+        self.search_movies_paginated(query, year, language, include_adult, 1)
+            .await
+    }
+
+    /// Search for movies with pagination support
+    /// max_pages limits how many pages to fetch (each page has ~20 results)
+    pub async fn search_movies_paginated(
+        &self,
+        query: &str,
+        year: Option<i32>,
+        language: Option<&str>,
+        include_adult: bool,
+        max_pages: u32,
+    ) -> Result<Vec<TmdbMovie>> {
         let lang = language.unwrap_or("de-DE");
         let api_key = self.get_api_key()?;
-        let mut url = format!(
-            "{}/search/movie?api_key={}&query={}&language={}&include_adult={}",
-            TMDB_BASE_URL,
-            api_key,
-            urlencoding::encode(query),
-            lang,
-            include_adult
-        );
+        let mut all_results = Vec::new();
 
-        if let Some(y) = year {
-            url.push_str(&format!("&year={}", y));
+        for page in 1..=max_pages {
+            let mut url = format!(
+                "{}/search/movie?api_key={}&query={}&language={}&include_adult={}&page={}",
+                TMDB_BASE_URL,
+                api_key,
+                urlencoding::encode(query),
+                lang,
+                include_adult,
+                page
+            );
+
+            if let Some(y) = year {
+                url.push_str(&format!("&year={}", y));
+            }
+
+            let response = self
+                .client
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+            if !response.status().is_success() {
+                return Err(Error::ExternalApi(format!(
+                    "TMDB API error: {}",
+                    response.status()
+                )));
+            }
+
+            let result: TmdbSearchResult = response
+                .json()
+                .await
+                .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+            let results_count = result.results.len();
+            all_results.extend(result.results);
+
+            // Stop if we've reached the last page (less than 20 results)
+            if results_count < 20 {
+                break;
+            }
         }
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| Error::ExternalApi(e.to_string()))?;
-
-        if !response.status().is_success() {
-            return Err(Error::ExternalApi(format!(
-                "TMDB API error: {}",
-                response.status()
-            )));
-        }
-
-        let result: TmdbSearchResult = response
-            .json()
-            .await
-            .map_err(|e| Error::ExternalApi(e.to_string()))?;
-
-        Ok(result.results)
+        Ok(all_results)
     }
 
     /// Find a movie by external ID (e.g., IMDB ID)
@@ -348,6 +407,103 @@ impl TmdbService {
             .send()
             .await
             .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+        response
+            .json()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))
+    }
+
+    /// Get TV series credits (cast and crew)
+    pub async fn get_tv_credits(
+        &self,
+        tmdb_id: i64,
+        language: Option<&str>,
+    ) -> Result<TmdbCredits> {
+        let lang = language.unwrap_or("de-DE");
+        let api_key = self.get_api_key()?;
+        let url = format!(
+            "{}/tv/{}/credits?api_key={}&language={}",
+            TMDB_BASE_URL, tmdb_id, api_key, lang
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+        response
+            .json()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))
+    }
+
+    /// Search for collections (e.g., "Alien Collection")
+    pub async fn search_collections(
+        &self,
+        query: &str,
+        language: Option<&str>,
+    ) -> Result<Vec<TmdbCollectionOverview>> {
+        let lang = language.unwrap_or("de-DE");
+        let api_key = self.get_api_key()?;
+        let url = format!(
+            "{}/search/collection?api_key={}&query={}&language={}",
+            TMDB_BASE_URL,
+            api_key,
+            urlencoding::encode(query),
+            lang
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(Error::ExternalApi(format!(
+                "TMDB API error: {}",
+                response.status()
+            )));
+        }
+
+        let result: TmdbCollectionSearchResult = response
+            .json()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+        Ok(result.results)
+    }
+
+    /// Get collection details with all movies in the collection
+    pub async fn get_collection_details(
+        &self,
+        collection_id: i64,
+        language: Option<&str>,
+    ) -> Result<TmdbCollection> {
+        let lang = language.unwrap_or("de-DE");
+        let api_key = self.get_api_key()?;
+        let url = format!(
+            "{}/collection/{}?api_key={}&language={}",
+            TMDB_BASE_URL, collection_id, api_key, lang
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Error::ExternalApi(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(Error::ExternalApi(format!(
+                "TMDB API error: {}",
+                response.status()
+            )));
+        }
 
         response
             .json()

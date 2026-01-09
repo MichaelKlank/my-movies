@@ -163,6 +163,19 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             post(movies::set_poster_from_url),
         )
         .route("/movies/:id/poster", axum::routing::get(movies::get_poster))
+        // Collection analysis (for box sets)
+        .route(
+            "/movies/:id/analyze-collection",
+            get(movies::analyze_collection),
+        )
+        .route(
+            "/movies/:id/split-collection",
+            post(movies::split_collection),
+        )
+        .route(
+            "/movies/:id/collection-movies",
+            get(movies::get_collection_movies),
+        )
         // Series
         .route("/series", get(series::list).post(series::create))
         .route(
@@ -201,6 +214,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             "/import/enrich-tmdb/cancel",
             post(import::cancel_enrich_tmdb),
         )
+        .route("/import/enrich-tmdb/status", get(import::get_enrich_status))
         // Settings (admin only)
         .route("/settings", get(settings::get_settings))
         .route(

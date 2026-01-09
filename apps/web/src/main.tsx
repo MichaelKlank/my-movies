@@ -16,6 +16,7 @@ const router = createRouter({
   context: {
     auth: undefined!,
   },
+  defaultPreloadStaleTime: 0,
 })
 
 // Register router for type safety

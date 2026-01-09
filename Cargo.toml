@@ -48,6 +48,9 @@ dotenvy = "0.15"
 # CSV import
 csv = "1.3"
 
+# Regex for parsing
+regex = "1.10"
+
 # Tauri
 tauri = { version = "2.1" }
 tauri-build = { version = "2.0" }

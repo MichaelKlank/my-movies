@@ -46,3 +46,6 @@ tokio-stream = "0.1"
 
 # HTTP client (for downloading poster images)
 reqwest = { workspace = true }
+
+# Regex for parsing collection descriptions
+regex = { workspace = true }

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use axum::extract::{Multipart, Query};
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
@@ -11,9 +11,13 @@ use my_movies_core::services::TmdbService;
 
 use crate::AppState;
 
-/// Global cancellation flag for TMDB enrichment
+/// Global state for TMDB enrichment
 static ENRICH_CANCELLED: AtomicBool = AtomicBool::new(false);
 static ENRICH_RUNNING: AtomicBool = AtomicBool::new(false);
+static ENRICH_TOTAL: AtomicU32 = AtomicU32::new(0);
+static ENRICH_CURRENT: AtomicU32 = AtomicU32::new(0);
+static ENRICH_UPDATED: AtomicU32 = AtomicU32::new(0);
+static ENRICH_ERRORS: AtomicU32 = AtomicU32::new(0);
 
 /// Download poster image from TMDB URL and return as bytes
 async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
@@ -175,9 +179,13 @@ pub async fn enrich_movies_tmdb(
             .into_response();
     }
 
-    // Reset cancellation flag and mark as running
+    // Reset cancellation flag and mark as running, init progress
     ENRICH_CANCELLED.store(false, Ordering::SeqCst);
     ENRICH_RUNNING.store(true, Ordering::SeqCst);
+    ENRICH_TOTAL.store(total as u32, Ordering::SeqCst);
+    ENRICH_CURRENT.store(0, Ordering::SeqCst);
+    ENRICH_UPDATED.store(0, Ordering::SeqCst);
+    ENRICH_ERRORS.store(0, Ordering::SeqCst);
 
     // Send initial status
     let msg = json!({
@@ -369,6 +377,11 @@ pub async fn enrich_movies_tmdb(
                 errors.push(format!("No TMDB data found: {}", movie.title));
             }
 
+            // Update global progress
+            ENRICH_CURRENT.store((index + 1) as u32, Ordering::SeqCst);
+            ENRICH_UPDATED.store(enriched as u32, Ordering::SeqCst);
+            ENRICH_ERRORS.store(errors.len() as u32, Ordering::SeqCst);
+
             // Send progress every 10 movies or at the end
             if (index + 1) % 10 == 0 || index == total - 1 {
                 let msg = json!({
@@ -387,7 +400,7 @@ pub async fn enrich_movies_tmdb(
             sleep(Duration::from_millis(250)).await;
         }
 
-        // Mark as not running
+        // Mark as not running and reset progress
         ENRICH_RUNNING.store(false, Ordering::SeqCst);
 
         // Send completion (only if not cancelled - cancellation sends its own message)
@@ -441,4 +454,36 @@ pub async fn cancel_enrich_tmdb(Extension(claims): Extension<Claims>) -> impl In
         Json(json!({ "message": "Cancellation requested" })),
     )
         .into_response()
+}
+
+/// Get current enrichment status (for checking on page load)
+pub async fn get_enrich_status() -> impl IntoResponse {
+    let is_running = ENRICH_RUNNING.load(Ordering::SeqCst);
+
+    if is_running {
+        let total = ENRICH_TOTAL.load(Ordering::SeqCst);
+        let current = ENRICH_CURRENT.load(Ordering::SeqCst);
+        let updated = ENRICH_UPDATED.load(Ordering::SeqCst);
+        let errors = ENRICH_ERRORS.load(Ordering::SeqCst);
+
+        (
+            StatusCode::OK,
+            Json(json!({
+                "is_running": true,
+                "total": total,
+                "current": current,
+                "updated": updated,
+                "errors_count": errors
+            })),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::OK,
+            Json(json!({
+                "is_running": false
+            })),
+        )
+            .into_response()
+    }
 }

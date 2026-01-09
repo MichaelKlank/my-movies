@@ -14,4 +14,4 @@ pub use import::ImportService;
 pub use movies::MovieService;
 pub use series::SeriesService;
 pub use settings::{SettingSource, SettingStatus, SettingsService};
-pub use tmdb::TmdbService;
+pub use tmdb::{TmdbService, TmdbMovie, TmdbCollectionOverview};

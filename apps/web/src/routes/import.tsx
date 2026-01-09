@@ -50,6 +50,29 @@ function ImportPage() {
   const tmdbSetting = settings?.find(s => s.key === 'tmdb_api_key')
   const tmdbApiConfigured = !settings ? true : (tmdbSetting?.is_configured ?? true)
 
+  // Check if enrichment is already running (on page load/reload)
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const status = await api.getEnrichStatus()
+        if (status.is_running) {
+          setIsEnriching(true)
+          setEnrichProgress({
+            current: status.current ?? 0,
+            total: status.total ?? 0,
+            enriched: status.updated ?? 0,
+            errors_count: status.errors_count ?? 0,
+          })
+          setEnrichComplete(null)
+        }
+      } catch (e) {
+        // Ignore errors - status check is optional
+        console.debug('Could not check enrich status:', e)
+      }
+    }
+    checkStatus()
+  }, [])
+
   // Subscribe to WebSocket events for TMDB enrichment
   useEffect(() => {
     const unsubscribe = wsClient.subscribe((message: WsMessage) => {

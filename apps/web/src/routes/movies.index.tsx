@@ -1,12 +1,19 @@
-import { createFileRoute, redirect, Link } from '@tanstack/react-router'
+import { createFileRoute, redirect, Link, useNavigate, getRouteApi } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Film, Search, Check, X, SlidersHorizontal } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { PosterImage } from '@/components/PosterImage'
 import { FAB } from '@/components/FAB'
 import { useSearchToolbar } from './__root'
+import type { MoviesSearchParams } from './movies'
+
+// Get parent route API for search params (defined in movies.tsx)
+const moviesRouteApi = getRouteApi('/movies')
+
+// Key for storing scroll position
+const SCROLL_KEY = 'movies-list-scroll'
 
 export const Route = createFileRoute('/movies/')({
   beforeLoad: ({ context }) => {
@@ -29,8 +36,11 @@ function getStoredCardSize(): CardSize {
 
 function MoviesPage() {
   const { t } = useI18n()
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<MovieFilter>({})
+  const navigate = useNavigate()
+  const searchParams = moviesRouteApi.useSearch()
+  
+  // Local search input state (for typing before submitting)
+  const [searchInput, setSearchInput] = useState(searchParams.search || '')
   const [activeLetter, setActiveLetter] = useState<string | null>(null)
   const [cardSize, setCardSize] = useState<CardSize>(getStoredCardSize)
   const { showToolbar, setShowToolbar, setHasActiveFilter } = useSearchToolbar()
@@ -39,13 +49,40 @@ function MoviesPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const filterDropdownRef = useRef<HTMLDivElement>(null)
 
+  // Build filter from URL params
+  const filter: MovieFilter = useMemo(() => ({
+    search: searchParams.search,
+    watched: searchParams.watched,
+    disc_type: searchParams.disc_type,
+    is_collection: searchParams.is_collection,
+  }), [searchParams])
+
   // Check if any filter is active
-  const hasActiveFilter = filter.watched !== undefined || filter.disc_type !== undefined || filter.search !== undefined
+  const hasActiveFilter = searchParams.watched !== undefined || 
+    searchParams.disc_type !== undefined || 
+    searchParams.is_collection !== undefined || 
+    searchParams.search !== undefined
 
   // Update the context when filter state changes
   useEffect(() => {
     setHasActiveFilter(hasActiveFilter)
   }, [hasActiveFilter, setHasActiveFilter])
+
+  // Update URL params helper
+  const updateSearchParams = useCallback((updates: Partial<MoviesSearchParams>) => {
+    const newParams = { ...searchParams, ...updates }
+    // Remove undefined values
+    Object.keys(newParams).forEach(key => {
+      if (newParams[key as keyof MoviesSearchParams] === undefined) {
+        delete newParams[key as keyof MoviesSearchParams]
+      }
+    })
+    navigate({ 
+      to: '/movies',
+      search: newParams,
+      replace: true // Don't add to history for filter changes
+    })
+  }, [searchParams, navigate])
 
   // Listen for cardSize changes from localStorage (set in Me page)
   useEffect(() => {
@@ -119,18 +156,60 @@ function MoviesPage() {
     return ALPHABET.filter(letter => moviesByLetter[letter]?.length > 0)
   }, [moviesByLetter])
 
+  // Save scroll position on scroll - listen on the main scrollable container
+  useEffect(() => {
+    const mainElement = document.querySelector('main')
+    if (!mainElement) return
+    
+    const handleScroll = () => {
+      sessionStorage.setItem(SCROLL_KEY, mainElement.scrollTop.toString())
+    }
+    
+    mainElement.addEventListener('scroll', handleScroll, { passive: true })
+    return () => mainElement.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Restore scroll position when coming back from movie detail
+  useEffect(() => {
+    const shouldRestore = sessionStorage.getItem('movies-should-restore-scroll')
+    const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+    
+    if (!isLoading && movies.length > 0 && shouldRestore === 'true' && savedScroll) {
+      const scrollY = parseInt(savedScroll, 10)
+      sessionStorage.removeItem('movies-should-restore-scroll')
+      
+      const mainElement = document.querySelector('main')
+      if (!mainElement) return
+      
+      // Use multiple attempts to ensure scroll works after DOM settles
+      const attemptScroll = (attempts: number) => {
+        if (attempts <= 0) return
+        requestAnimationFrame(() => {
+          mainElement.scrollTop = scrollY
+          if (Math.abs(mainElement.scrollTop - scrollY) > 50 && attempts > 1) {
+            setTimeout(() => attemptScroll(attempts - 1), 50)
+          }
+        })
+      }
+      
+      setTimeout(() => attemptScroll(5), 50)
+    } else if (shouldRestore === 'true') {
+      sessionStorage.removeItem('movies-should-restore-scroll')
+    }
+  }, [isLoading, movies.length])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setFilter(prev => ({ ...prev, search: search || undefined }))
+    updateSearchParams({ search: searchInput || undefined })
   }
 
-  const handleFilterChange = (newFilter: Partial<MovieFilter>) => {
-    setFilter(prev => ({ ...prev, ...newFilter }))
+  const handleFilterChange = (newFilter: Partial<MoviesSearchParams>) => {
+    updateSearchParams(newFilter)
   }
 
   const clearAllFilters = () => {
-    setSearch('')
-    setFilter({})
+    setSearchInput('')
+    navigate({ to: '/movies', search: {}, replace: true })
   }
 
   const isManualScrolling = useRef(false)
@@ -208,27 +287,29 @@ function MoviesPage() {
             {/* Single row: Search + Filter button + Done */}
             <div className="flex items-center gap-2">
               {/* Search input */}
-              <div className="relative flex-1">
+              <form onSubmit={handleSearch} className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 md:h-4 w-3.5 md:w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder={t('movies.searchPlaceholder')}
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearch(e)}
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
                   className="w-full rounded-full border-0 bg-muted/60 pl-7 md:pl-9 pr-3 py-1.5 md:py-2 text-xs md:text-sm focus:bg-muted focus:outline-none"
                 />
-                {search && (
+                {searchInput && (
                   <button
                     type="button"
-                    onClick={() => setSearch('')}
+                    onClick={() => {
+                      setSearchInput('')
+                      updateSearchParams({ search: undefined })
+                    }}
                     className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 )}
-              </div>
+              </form>
 
               {/* Filter button with dropdown */}
               <div className="relative" ref={filterDropdownRef}>
@@ -239,26 +320,51 @@ function MoviesPage() {
                 >
                   <SlidersHorizontal className="h-4 w-4" />
                   {/* Badge for active filters */}
-                  {(filter.watched !== undefined || filter.disc_type !== undefined) && (
+                  {(searchParams.watched !== undefined || searchParams.disc_type !== undefined || searchParams.is_collection !== undefined) && (
                     <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-primary" />
                   )}
                 </button>
 
                 {/* Filter dropdown */}
                 {showFilterDropdown && (
-                  <div className="absolute right-0 top-full mt-2 bg-card border rounded-lg shadow-lg p-3 min-w-[200px] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="absolute right-0 top-full mt-2 bg-card border rounded-lg shadow-lg p-3 min-w-[220px] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                     {/* Watched filter */}
                     <div className="mb-3">
                       <p className="text-xs text-muted-foreground mb-2">{t('movies.watched')}</p>
                       <div className="flex bg-muted rounded-full w-fit">
                         <button
-                          onClick={() => handleFilterChange({ watched: filter.watched === 'true' ? undefined : 'true' })}
-                          className={`px-3 py-1.5 m-0.5 text-xs rounded-full transition-colors ${filter.watched === 'true' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                          onClick={() => handleFilterChange({ watched: searchParams.watched === 'true' ? undefined : 'true' })}
+                          className={`px-3 py-1.5 m-0.5 text-xs rounded-full transition-colors ${searchParams.watched === 'true' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                         >✓</button>
                         <button
-                          onClick={() => handleFilterChange({ watched: filter.watched === 'false' ? undefined : 'false' })}
-                          className={`px-3 py-1.5 m-0.5 text-xs rounded-full transition-colors ${filter.watched === 'false' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                          onClick={() => handleFilterChange({ watched: searchParams.watched === 'false' ? undefined : 'false' })}
+                          className={`px-3 py-1.5 m-0.5 text-xs rounded-full transition-colors ${searchParams.watched === 'false' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                         >○</button>
+                      </div>
+                    </div>
+
+                    {/* Type filter (Film/Collection) */}
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">{t('movies.type')}</p>
+                      <div className="flex bg-muted rounded-full w-fit">
+                        <button
+                          onClick={() => handleFilterChange({ is_collection: undefined })}
+                          className={`px-2.5 py-1.5 m-0.5 text-xs rounded-full transition-colors ${
+                            searchParams.is_collection === undefined ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                          }`}
+                        >{t('movies.allTypes')}</button>
+                        <button
+                          onClick={() => handleFilterChange({ is_collection: searchParams.is_collection === 'false' ? undefined : 'false' })}
+                          className={`px-2.5 py-1.5 m-0.5 text-xs rounded-full transition-colors ${
+                            searchParams.is_collection === 'false' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                          }`}
+                        >{t('movies.movie')}</button>
+                        <button
+                          onClick={() => handleFilterChange({ is_collection: searchParams.is_collection === 'true' ? undefined : 'true' })}
+                          className={`px-2.5 py-1.5 m-0.5 text-xs rounded-full transition-colors ${
+                            searchParams.is_collection === 'true' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                          }`}
+                        >{t('movies.collection')}</button>
                       </div>
                     </div>
 
@@ -269,9 +375,9 @@ function MoviesPage() {
                         {[['', '∗'], ['Blu-ray', 'BD'], ['DVD', 'DVD'], ['uhdbluray', '4K']].map(([val, label]) => (
                           <button
                             key={val}
-                            onClick={() => handleFilterChange({ disc_type: (!val && !filter.disc_type) || filter.disc_type === val ? undefined : val || undefined })}
+                            onClick={() => handleFilterChange({ disc_type: (!val && !searchParams.disc_type) || searchParams.disc_type === val ? undefined : val || undefined })}
                             className={`px-2.5 py-1.5 m-0.5 text-xs rounded-full transition-colors ${
-                              (val === '' && !filter.disc_type) || filter.disc_type === val ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                              (val === '' && !searchParams.disc_type) || searchParams.disc_type === val ? 'bg-background shadow-sm' : 'text-muted-foreground'
                             }`}
                           >{label}</button>
                         ))}
@@ -279,7 +385,7 @@ function MoviesPage() {
                     </div>
 
                     {/* Clear filters */}
-                    {(filter.watched !== undefined || filter.disc_type !== undefined) && (
+                    {(searchParams.watched !== undefined || searchParams.disc_type !== undefined || searchParams.is_collection !== undefined) && (
                       <button
                         onClick={() => {
                           clearAllFilters()
@@ -311,7 +417,7 @@ function MoviesPage() {
       )}
 
       {/* Alphabet Navigation - Vertical on right (both mobile and desktop) */}
-      {!filter.search && availableLetters.length > 0 && (
+      {!searchParams.search && availableLetters.length > 0 && (
         <nav className="fixed right-1 md:right-4 z-40 flex flex-col"
           style={{
             top: showToolbar ? 'calc(6.5rem + env(safe-area-inset-top, 0px))' : 'calc(5rem + env(safe-area-inset-top, 0px))',
@@ -360,7 +466,7 @@ function MoviesPage() {
             <Film className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-4 text-muted-foreground text-sm md:text-base">{t('movies.notFound')}</p>
           </div>
-        ) : filter.search ? (
+        ) : searchParams.search ? (
           // Flat grid when searching
           <div className={`grid gap-3 md:gap-4 ${gridClasses[cardSize]}`}>
             {movies.map(movie => (
@@ -402,10 +508,16 @@ function MoviesPage() {
 function MovieCard({ movie, size }: { movie: Movie; size: CardSize }) {
   const showDetails = size !== 'small'
   
+  const handleClick = () => {
+    // Mark that we should restore scroll when coming back
+    sessionStorage.setItem('movies-should-restore-scroll', 'true')
+  }
+  
   return (
     <Link
       to="/movies/$movieId"
       params={{ movieId: movie.id }}
+      onClick={handleClick}
       className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary text-left transition-all hover:shadow-lg active:shadow-md w-full block"
     >
       <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
