@@ -1,11 +1,11 @@
 import { createRootRouteWithContext, Outlet, Link, useNavigate, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload } from 'lucide-react'
+import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
 import { Avatar } from '@/components/Avatar'
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useRef, useEffect } from 'react'
 
 // Context for search toolbar visibility (used by movies page)
 interface SearchToolbarContextType {
@@ -32,10 +32,108 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
 })
 
-function RootLayout() {
-  const { isAuthenticated, user, logout } = useAuth()
+// Avatar Dropdown Menu Component
+function AvatarMenu() {
+  const { user, logout } = useAuth()
   const { t } = useI18n()
   const navigate = useNavigate()
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  const handleLogout = () => {
+    setIsOpen(false)
+    logout()
+    navigate({ to: '/login' })
+  }
+
+  const handleNavigate = (to: string) => {
+    setIsOpen(false)
+    navigate({ to })
+  }
+
+  if (!user) return null
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1 rounded-md p-1 hover:bg-accent transition-colors"
+      >
+        <Avatar user={user} size="sm" />
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border bg-card shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          {/* User info header */}
+          <div className="px-4 py-3 border-b">
+            <p className="font-medium truncate">{user.username}</p>
+            <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+          </div>
+
+          {/* Menu items */}
+          <div className="py-1">
+            <button
+              onClick={() => handleNavigate('/me')}
+              className="flex items-center gap-3 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+            >
+              <User className="h-4 w-4" />
+              {t('nav.profile')}
+            </button>
+
+            {user.role === 'admin' && (
+              <>
+                <button
+                  onClick={() => handleNavigate('/users')}
+                  className="flex items-center gap-3 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+                >
+                  <Users className="h-4 w-4" />
+                  {t('nav.users')}
+                </button>
+                <button
+                  onClick={() => handleNavigate('/settings')}
+                  className="flex items-center gap-3 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+                >
+                  <Settings className="h-4 w-4" />
+                  {t('nav.settings')}
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Logout */}
+          <div className="border-t py-1">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors text-left"
+            >
+              <LogOut className="h-4 w-4" />
+              {t('nav.logout')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RootLayout() {
+  const { isAuthenticated, user } = useAuth()
+  const { t } = useI18n()
   const location = useLocation()
   
   // Search toolbar state (shared with movies page)
@@ -44,11 +142,6 @@ function RootLayout() {
 
   // Set up WebSocket sync for real-time updates
   useWebSocketSync()
-
-  const handleLogout = () => {
-    logout()
-    navigate({ to: '/login' })
-  }
 
   // Check if we're on the movies page
   const isMoviesPage = location.pathname === '/movies' || location.pathname === '/movies/'
@@ -93,42 +186,8 @@ function RootLayout() {
             >
               <HardDriveDownload className="h-5 w-5" />
             </Link>
-            <Link
-              to="/me"
-              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-              title={t('nav.profile')}
-            >
-              {user ? (
-                <Avatar user={user} size="sm" />
-              ) : (
-                <User className="h-5 w-5" />
-              )}
-            </Link>
-            {user?.role === 'admin' && (
-              <>
-                <Link
-                  to="/users"
-                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-                  title={t('nav.users')}
-                >
-                  <Users className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="/settings"
-                  className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
-                  title={t('nav.settings')}
-                >
-                  <Settings className="h-5 w-5" />
-                </Link>
-              </>
-            )}
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent min-h-touch min-w-touch"
-              title={t('nav.logout')}
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+            {/* Avatar dropdown menu */}
+            <AvatarMenu />
           </div>
         </div>
       </header>
@@ -139,12 +198,7 @@ function RootLayout() {
         backgroundColor: 'hsl(var(--card))' // Ensure solid background
       }}>
         <div className="flex h-14 items-center justify-between px-4">
-          <div className="w-10" /> {/* Spacer for balance */}
-          <Link to="/movies" className="flex items-center gap-2 font-semibold">
-            <Film className="h-5 w-5" />
-            <span className="text-base">My Movies</span>
-          </Link>
-          {/* Search icon - only on movies page */}
+          {/* Search icon - only on movies page, otherwise spacer */}
           {isMoviesPage ? (
             <button
               onClick={() => setShowToolbar(!showToolbar)}
@@ -156,8 +210,14 @@ function RootLayout() {
               )}
             </button>
           ) : (
-            <div className="w-10" /> // Spacer when not on movies page
+            <div className="w-10" />
           )}
+          <Link to="/movies" className="flex items-center gap-2 font-semibold">
+            <Film className="h-5 w-5" />
+            <span className="text-base">My Movies</span>
+          </Link>
+          {/* Avatar dropdown menu - always on right */}
+          <AvatarMenu />
         </div>
       </header>
 
@@ -173,7 +233,7 @@ function RootLayout() {
         <Outlet />
       </main>
 
-      {/* Bottom Navigation Bar - Mobile only */}
+      {/* Bottom Navigation Bar - Mobile only (simplified - profile/settings/logout in avatar menu) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card z-50 shadow-lg pb-safe-bottom" style={{ 
         backgroundColor: 'hsl(var(--card))' // Ensure solid background
       }}>
@@ -194,46 +254,6 @@ function RootLayout() {
             <HardDriveDownload className="h-5 w-5" />
             <span className="text-xs">{t('nav.backup')}</span>
           </Link>
-          <Link
-            to="/me"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-            title={t('nav.profile')}
-          >
-            {user ? (
-              <Avatar user={user} size="sm" />
-            ) : (
-              <User className="h-5 w-5" />
-            )}
-            <span className="text-xs">{t('nav.profile')}</span>
-          </Link>
-          {user?.role === 'admin' && (
-            <>
-              <Link
-                to="/users"
-                className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-                title={t('nav.users')}
-              >
-                <Users className="h-5 w-5" />
-                <span className="text-xs">{t('nav.users')}</span>
-              </Link>
-              <Link
-                to="/settings"
-                className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
-                title={t('nav.settings')}
-              >
-                <Settings className="h-5 w-5" />
-                <span className="text-xs">{t('nav.settings')}</span>
-              </Link>
-            </>
-          )}
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch text-destructive hover:bg-destructive/10 active:bg-destructive/20"
-            title={t('nav.logout')}
-          >
-            <LogOut className="h-5 w-5" />
-            <span className="text-xs">{t('nav.logout')}</span>
-          </button>
         </div>
       </nav>
 

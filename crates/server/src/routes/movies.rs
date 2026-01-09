@@ -472,7 +472,7 @@ pub async fn import_json(
         };
 
         // Also check by tmdb_id
-        let existing = existing.or_else(|| {
+        let existing = existing.or({
             if let Some(tmdb_id) = export_movie.tmdb_id {
                 if tmdb_id > 0 {
                     // We'd need an async block here, skip for now
@@ -801,7 +801,7 @@ pub struct RefreshTmdbQuery {
 
 /// Result of TMDB refresh operation
 pub enum TmdbRefreshResult {
-    Success(Movie),
+    Success(Box<Movie>),
     NotFound(String),
     Error(String),
 }
@@ -821,7 +821,7 @@ pub async fn refresh_movie_tmdb_internal(
         return match handle_collection_refresh_internal(state, user_id, movie.id, movie, language)
             .await
         {
-            Ok(m) => TmdbRefreshResult::Success(m),
+            Ok(m) => TmdbRefreshResult::Success(Box::new(m)),
             Err(e) => TmdbRefreshResult::Error(e),
         };
     }
@@ -1154,7 +1154,7 @@ pub async fn refresh_movie_tmdb_internal(
         updated_movie
     };
 
-    TmdbRefreshResult::Success(final_movie)
+    TmdbRefreshResult::Success(Box::new(final_movie))
 }
 
 /// Internal version of handle_collection_refresh that returns a Result
@@ -1176,19 +1176,18 @@ async fn handle_collection_refresh_internal(
         .await
         && let Some(tmdb_collection) = collections.into_iter().next()
         && let Some(ref poster_path) = tmdb_collection.poster_path
+        && let Some(poster_data) = download_poster_image(poster_path).await
     {
-        if let Some(poster_data) = download_poster_image(poster_path).await {
-            state
-                .movie_service
-                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                .await
-                .map_err(|e| e.to_string())?;
-            return state
-                .movie_service
-                .get_by_id(user_id, collection_id)
-                .await
-                .map_err(|e| e.to_string());
-        }
+        state
+            .movie_service
+            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+            .await
+            .map_err(|e| e.to_string())?;
+        return state
+            .movie_service
+            .get_by_id(user_id, collection_id)
+            .await
+            .map_err(|e| e.to_string());
     }
 
     // Strategy 2: Get poster from first child movie
@@ -1211,19 +1210,18 @@ async fn handle_collection_refresh_internal(
                     .get_movie_details(tmdb_id, language)
                     .await
                 && let Some(ref poster_path) = details.poster_path
+                && let Some(poster_data) = download_poster_image(poster_path).await
             {
-                if let Some(poster_data) = download_poster_image(poster_path).await {
-                    state
-                        .movie_service
-                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                        .await
-                        .map_err(|e| e.to_string())?;
-                    return state
-                        .movie_service
-                        .get_by_id(user_id, collection_id)
-                        .await
-                        .map_err(|e| e.to_string());
-                }
+                state
+                    .movie_service
+                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return state
+                    .movie_service
+                    .get_by_id(user_id, collection_id)
+                    .await
+                    .map_err(|e| e.to_string());
             }
 
             // Strategy 2b: Copy existing poster from first child
@@ -1252,19 +1250,18 @@ async fn handle_collection_refresh_internal(
                     .await
                     && let Some(first_result) = results.into_iter().next()
                     && let Some(ref poster_path) = first_result.poster_path
+                    && let Some(poster_data) = download_poster_image(poster_path).await
                 {
-                    if let Some(poster_data) = download_poster_image(poster_path).await {
-                        state
-                            .movie_service
-                            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                            .await
-                            .map_err(|e| e.to_string())?;
-                        return state
-                            .movie_service
-                            .get_by_id(user_id, collection_id)
-                            .await
-                            .map_err(|e| e.to_string());
-                    }
+                    state
+                        .movie_service
+                        .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    return state
+                        .movie_service
+                        .get_by_id(user_id, collection_id)
+                        .await
+                        .map_err(|e| e.to_string());
                 }
             }
         }
@@ -1280,19 +1277,18 @@ async fn handle_collection_refresh_internal(
             .await
             && let Some(first_result) = results.into_iter().next()
             && let Some(ref poster_path) = first_result.poster_path
+            && let Some(poster_data) = download_poster_image(poster_path).await
         {
-            if let Some(poster_data) = download_poster_image(poster_path).await {
-                state
-                    .movie_service
-                    .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                    .await
-                    .map_err(|e| e.to_string())?;
-                return state
-                    .movie_service
-                    .get_by_id(user_id, collection_id)
-                    .await
-                    .map_err(|e| e.to_string());
-            }
+            state
+                .movie_service
+                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+                .await
+                .map_err(|e| e.to_string())?;
+            return state
+                .movie_service
+                .get_by_id(user_id, collection_id)
+                .await
+                .map_err(|e| e.to_string());
         }
     }
 
@@ -1307,38 +1303,36 @@ async fn handle_collection_refresh_internal(
         .await
         && let Some(first_result) = results.into_iter().next()
         && let Some(ref poster_path) = first_result.poster_path
+        && let Some(poster_data) = download_poster_image(poster_path).await
     {
-        if let Some(poster_data) = download_poster_image(poster_path).await {
-            state
-                .movie_service
-                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                .await
-                .map_err(|e| e.to_string())?;
-            return state
-                .movie_service
-                .get_by_id(user_id, collection_id)
-                .await
-                .map_err(|e| e.to_string());
-        }
+        state
+            .movie_service
+            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+            .await
+            .map_err(|e| e.to_string())?;
+        return state
+            .movie_service
+            .get_by_id(user_id, collection_id)
+            .await
+            .map_err(|e| e.to_string());
     }
 
     // Try TV search
     if let Ok(results) = state.tmdb_service.search_tv(&clean_base, language).await
         && !results.is_empty()
         && let Some(ref poster_path) = results[0].poster_path
+        && let Some(poster_data) = download_poster_image(poster_path).await
     {
-        if let Some(poster_data) = download_poster_image(poster_path).await {
-            state
-                .movie_service
-                .update_movie_poster_data(user_id, collection_id, Some(poster_data))
-                .await
-                .map_err(|e| e.to_string())?;
-            return state
-                .movie_service
-                .get_by_id(user_id, collection_id)
-                .await
-                .map_err(|e| e.to_string());
-        }
+        state
+            .movie_service
+            .update_movie_poster_data(user_id, collection_id, Some(poster_data))
+            .await
+            .map_err(|e| e.to_string())?;
+        return state
+            .movie_service
+            .get_by_id(user_id, collection_id)
+            .await
+            .map_err(|e| e.to_string());
     }
 
     Err(format!(

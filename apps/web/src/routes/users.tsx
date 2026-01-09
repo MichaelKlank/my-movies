@@ -15,10 +15,13 @@ import {
   UserPlus,
   Copy,
   Check,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { api, UserWithDate } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
+import { Avatar } from '@/components/Avatar'
 
 export const Route = createFileRoute('/users')({
   beforeLoad: ({ context }) => {

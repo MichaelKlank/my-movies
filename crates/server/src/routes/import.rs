@@ -9,7 +9,7 @@ use tokio::time::{Duration, sleep};
 use my_movies_core::models::{Claims, MovieFilter};
 
 use crate::AppState;
-use crate::routes::movies::{refresh_movie_tmdb_internal, TmdbRefreshResult};
+use crate::routes::movies::{TmdbRefreshResult, refresh_movie_tmdb_internal};
 
 /// Global state for TMDB enrichment
 static ENRICH_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -149,7 +149,10 @@ pub async fn enrich_movies_tmdb(
             "After filter: {} movies need enrichment ({} missing TMDB, {} missing poster)",
             filtered.len(),
             filtered.iter().filter(|m| m.tmdb_id.is_none()).count(),
-            filtered.iter().filter(|m| !movies_with_poster.contains(&m.id)).count()
+            filtered
+                .iter()
+                .filter(|m| !movies_with_poster.contains(&m.id))
+                .count()
         );
 
         filtered
