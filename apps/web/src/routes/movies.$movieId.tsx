@@ -236,15 +236,21 @@ function MovieDetailPage() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 relative">
+      {/* Floating back button */}
       <button
         onClick={() => router.history.back()}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground min-h-touch"
+        className="fixed z-40 flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-sm border shadow-lg px-4 py-2 text-sm font-medium hover:bg-card active:bg-accent transition-colors left-4 md:left-8"
+        style={{
+          top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+        }}
       >
         <ArrowLeft className="h-4 w-4" />
-        <span className="hidden sm:inline">{t('common.back')} {t('nav.movies')}</span>
-        <span className="sm:hidden">{t('common.back')}</span>
+        <span className="hidden sm:inline">{t('common.back')}</span>
       </button>
+
+      {/* Spacer for the floating button */}
+      <div className="h-6" />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[350px_1fr] gap-6 md:gap-8">
         {/* Poster */}
