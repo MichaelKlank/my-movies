@@ -167,7 +167,11 @@
     "shareResetLink": "Condividi questo link con il nuovo utente per permettergli di impostare la password:",
     "copyLink": "Copia link",
     "usernameTooShort": "Il nome utente deve avere almeno 2 caratteri",
-    "invalidEmail": "Indirizzo e-mail non valido"
+    "invalidEmail": "Indirizzo e-mail non valido",
+    "cardView": "Vista schede",
+    "tableView": "Vista tabella",
+    "makeUser": "Rendi utente",
+    "makeAdmin": "Rendi admin"
   },
   "settings": {
     "title": "Impostazioni",
@@ -281,6 +285,17 @@
       "confirmDelete": "Eliminare davvero \"{{title}}\"?",
       "confirmDeleteSelected": "Eliminare davvero {{count}} duplicati selezionati?",
       "confirmDeleteAll": "Eliminare tutti i {{count}} duplicati? (La voce selezionata di ogni gruppo verrà mantenuta)"
+    },
+    "deleteAll": {
+      "title": "Zona pericolosa",
+      "description": "Elimina tutti i film dalla tua collezione. Questa azione non può essere annullata!",
+      "button": "Elimina tutti i film ({{count}})",
+      "confirmQuestion": "Sei sicuro? Questa azione eliminerà definitivamente tutti i {{count}} film!",
+      "confirmWord": "elimina",
+      "typeToConfirm": "Digita \"{{word}}\" per confermare:",
+      "confirmButton": "Elimina definitivamente",
+      "success": "{{count}} film sono stati eliminati.",
+      "error": "Errore durante l'eliminazione"
     }
   }
 }

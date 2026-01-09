@@ -167,7 +167,11 @@
     "shareResetLink": "Partagez ce lien avec le nouvel utilisateur pour qu'il puisse définir son mot de passe :",
     "copyLink": "Copier le lien",
     "usernameTooShort": "Le nom d'utilisateur doit comporter au moins 2 caractères",
-    "invalidEmail": "Adresse e-mail invalide"
+    "invalidEmail": "Adresse e-mail invalide",
+    "cardView": "Vue carte",
+    "tableView": "Vue tableau",
+    "makeUser": "Passer utilisateur",
+    "makeAdmin": "Passer admin"
   },
   "settings": {
     "title": "Paramètres",
@@ -281,6 +285,17 @@
       "confirmDelete": "Vraiment supprimer \"{{title}}\" ?",
       "confirmDeleteSelected": "Vraiment supprimer {{count}} doublons sélectionnés ?",
       "confirmDeleteAll": "Supprimer tous les {{count}} doublons ? (L'entrée sélectionnée de chaque groupe sera conservée)"
+    },
+    "deleteAll": {
+      "title": "Zone de danger",
+      "description": "Supprimez tous les films de votre collection. Cette action ne peut pas être annulée !",
+      "button": "Supprimer tous les films ({{count}})",
+      "confirmQuestion": "Êtes-vous sûr ? Cette action supprimera définitivement tous les {{count}} films !",
+      "confirmWord": "supprimer",
+      "typeToConfirm": "Tapez \"{{word}}\" pour confirmer :",
+      "confirmButton": "Supprimer définitivement",
+      "success": "{{count}} films ont été supprimés.",
+      "error": "Erreur lors de la suppression"
     }
   }
 }

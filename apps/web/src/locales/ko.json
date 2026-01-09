@@ -167,7 +167,11 @@
     "shareResetLink": "새 사용자가 비밀번호를 설정할 수 있도록 이 링크를 공유하세요:",
     "copyLink": "링크 복사",
     "usernameTooShort": "사용자 이름은 2자 이상이어야 합니다",
-    "invalidEmail": "잘못된 이메일 주소"
+    "invalidEmail": "잘못된 이메일 주소",
+    "cardView": "카드 보기",
+    "tableView": "테이블 보기",
+    "makeUser": "사용자로 변경",
+    "makeAdmin": "관리자로 변경"
   },
   "settings": {
     "title": "설정",
@@ -281,6 +285,17 @@
       "confirmDelete": "정말로 \"{{title}}\"을(를) 삭제하시겠습니까?",
       "confirmDeleteSelected": "정말로 {{count}}개의 선택된 중복을 삭제하시겠습니까?",
       "confirmDeleteAll": "모든 {{count}}개의 중복을 삭제하시겠습니까? (각 그룹에서 선택된 항목은 유지됩니다)"
+    },
+    "deleteAll": {
+      "title": "위험 구역",
+      "description": "컬렉션의 모든 영화를 삭제합니다. 이 작업은 취소할 수 없습니다!",
+      "button": "모든 영화 삭제 ({{count}})",
+      "confirmQuestion": "정말 확실합니까? 이 작업은 {{count}}개의 영화를 모두 영구적으로 삭제합니다!",
+      "confirmWord": "삭제",
+      "typeToConfirm": "확인하려면 \"{{word}}\"을(를) 입력하세요:",
+      "confirmButton": "영구 삭제",
+      "success": "{{count}}개의 영화가 삭제되었습니다.",
+      "error": "영화 삭제 중 오류가 발생했습니다"
     }
   }
 }

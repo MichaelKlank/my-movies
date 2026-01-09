@@ -32,10 +32,21 @@ export const Route = createFileRoute('/users')({
   component: UsersPage,
 })
 
+type ViewMode = 'table' | 'cards'
+
 function UsersPage() {
   const { user } = useAuth()
   const { t } = useI18n()
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('users-view-mode')
+    return (saved === 'table' || saved === 'cards') ? saved : 'cards'
+  })
+
+  const toggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem('users-view-mode', mode)
+  }
 
   // Only admins can access users
   if (user?.role !== 'admin') {
@@ -70,51 +81,82 @@ function UsersPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-3 text-3xl font-bold">
-            <Users className="h-8 w-8" />
+          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold">
+            <Users className="h-7 w-7 sm:h-8 sm:w-8" />
             {t('users.title')}
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t('users.subtitle')}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
-        >
-          <UserPlus className="h-4 w-4" />
-          {t('users.createUser')}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex rounded-md border bg-muted/50 p-1">
+            <button
+              onClick={() => toggleViewMode('cards')}
+              className={`flex items-center justify-center h-8 w-8 rounded transition-colors ${
+                viewMode === 'cards' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+              }`}
+              title={t('users.cardView')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => toggleViewMode('table')}
+              className={`flex items-center justify-center h-8 w-8 rounded transition-colors ${
+                viewMode === 'table' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+              }`}
+              title={t('users.tableView')}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 min-h-touch"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('users.createUser')}</span>
+          </button>
+        </div>
       </div>
 
       {showCreateModal && (
         <CreateUserModal onClose={() => setShowCreateModal(false)} />
       )}
 
-      <div className="rounded-lg border">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.user')}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.email')}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.role')}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">{t('users.registered')}</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">{t('users.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users?.map((u) => (
-              <UserRow key={u.id} userData={u} currentUserId={user.id} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {users?.length === 0 && (
+      {users?.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
           {t('users.noUsersFound')}
+        </div>
+      ) : viewMode === 'cards' ? (
+        /* Card View */
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {users?.map((u) => (
+            <UserCard key={u.id} userData={u} currentUserId={user.id} />
+          ))}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-lg border overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 text-left text-sm font-medium">{t('users.user')}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">{t('users.email')}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">{t('users.role')}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">{t('users.registered')}</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">{t('users.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users?.map((u) => (
+                <UserRow key={u.id} userData={u} currentUserId={user.id} />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -212,6 +254,112 @@ function UserRow({ userData, currentUserId }: { userData: UserWithDate; currentU
           </div>
         </td>
       </tr>
+
+      {showPasswordModal && (
+        <PasswordModal
+          user={userData}
+          onClose={() => setShowPasswordModal(false)}
+        />
+      )}
+
+      {showDeleteModal && (
+        <DeleteModal
+          user={userData}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={() => deleteMutation.mutate(userData.id)}
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
+    </>
+  )
+}
+
+function UserCard({ userData, currentUserId }: { userData: UserWithDate; currentUserId: string }) {
+  const { t } = useI18n()
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  const isCurrentUser = userData.id === currentUserId
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'user' }) =>
+      api.updateUserRole(userId, role),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => api.deleteUser(userId),
+    onSuccess: () => {
+      setShowDeleteModal(false)
+    },
+  })
+
+  const toggleRole = () => {
+    const newRole = userData.role === 'admin' ? 'user' : 'admin'
+    updateRoleMutation.mutate({ userId: userData.id, role: newRole })
+  }
+
+  return (
+    <>
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        {/* User header */}
+        <div className="flex items-start gap-3">
+          <Avatar user={userData} size="lg" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold truncate">{userData.username}</h3>
+              {isCurrentUser && (
+                <span className="text-xs text-muted-foreground">({t('users.you')})</span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground truncate">{userData.email}</p>
+          </div>
+          <RoleBadge role={userData.role} />
+        </div>
+
+        {/* User info */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4 shrink-0" />
+          <span>{t('users.registered')}: {new Date(userData.created_at).toLocaleDateString('de-DE')}</span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 pt-2 border-t">
+          <button
+            onClick={toggleRole}
+            disabled={isCurrentUser || updateRoleMutation.isPending}
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            title={userData.role === 'admin' ? t('users.makeUser') : t('users.makeAdmin')}
+          >
+            {updateRoleMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : userData.role === 'admin' ? (
+              <ShieldOff className="h-4 w-4" />
+            ) : (
+              <Shield className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">
+              {userData.role === 'admin' ? t('users.makeUser') : t('users.makeAdmin')}
+            </span>
+          </button>
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted transition-colors"
+            title={t('users.setPassword')}
+          >
+            <Key className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('users.setPassword')}</span>
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={isCurrentUser}
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            title={t('common.delete')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
       {showPasswordModal && (
         <PasswordModal

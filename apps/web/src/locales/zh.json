@@ -167,7 +167,11 @@
     "shareResetLink": "将此链接分享给新用户，以便他们设置密码：",
     "copyLink": "复制链接",
     "usernameTooShort": "用户名必须至少有2个字符",
-    "invalidEmail": "无效的电子邮箱地址"
+    "invalidEmail": "无效的电子邮箱地址",
+    "cardView": "卡片视图",
+    "tableView": "表格视图",
+    "makeUser": "设为用户",
+    "makeAdmin": "设为管理员"
   },
   "settings": {
     "title": "设置",
@@ -281,6 +285,17 @@
       "confirmDelete": "确定删除 \"{{title}}\"？",
       "confirmDeleteSelected": "确定删除{{count}}个选中的重复项？",
       "confirmDeleteAll": "删除全部{{count}}个重复项？（每组中选中的条目将被保留）"
+    },
+    "deleteAll": {
+      "title": "危险区域",
+      "description": "删除您收藏中的所有电影。此操作无法撤消！",
+      "button": "删除所有电影（{{count}}）",
+      "confirmQuestion": "您确定吗？此操作将永久删除所有{{count}}部电影！",
+      "confirmWord": "删除",
+      "typeToConfirm": "输入\"{{word}}\"以确认：",
+      "confirmButton": "永久删除",
+      "success": "已删除{{count}}部电影。",
+      "error": "删除电影时出错"
     }
   }
 }

@@ -113,7 +113,11 @@
     "shareResetLink": "Teile diesen Link mit dem neuen Benutzer, damit er sein Passwort setzen kann:",
     "copyLink": "Link kopieren",
     "usernameTooShort": "Benutzername muss mindestens 2 Zeichen lang sein",
-    "invalidEmail": "Ungültige E-Mail-Adresse"
+    "invalidEmail": "Ungültige E-Mail-Adresse",
+    "cardView": "Kartenansicht",
+    "tableView": "Tabellenansicht",
+    "makeUser": "Zum Benutzer machen",
+    "makeAdmin": "Zum Admin machen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -292,6 +296,17 @@
       "confirmDelete": "\"{{title}}\" wirklich löschen?",
       "confirmDeleteSelected": "{{count}} ausgewählte Duplikate wirklich löschen?",
       "confirmDeleteAll": "Alle {{count}} Duplikate löschen? (Der ausgewählte Eintrag jeder Gruppe wird behalten)"
+    },
+    "deleteAll": {
+      "title": "Gefahrenzone",
+      "description": "Lösche alle Filme aus deiner Sammlung. Diese Aktion kann nicht rückgängig gemacht werden!",
+      "button": "Alle Filme löschen ({{count}})",
+      "confirmQuestion": "Bist du sicher? Diese Aktion löscht alle {{count}} Filme unwiderruflich!",
+      "confirmWord": "löschen",
+      "typeToConfirm": "Tippe \"{{word}}\" ein, um zu bestätigen:",
+      "confirmButton": "Endgültig löschen",
+      "success": "{{count}} Filme wurden gelöscht.",
+      "error": "Fehler beim Löschen"
     }
   }
 }

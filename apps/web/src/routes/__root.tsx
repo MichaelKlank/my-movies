@@ -1,6 +1,6 @@
 import { createRootRouteWithContext, Outlet, Link, useNavigate, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload, ChevronDown } from 'lucide-react'
+import { Film, LogOut, User, Users, Settings, Search, Home, HardDriveDownload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
 import { useWebSocketSync } from '@/hooks/useWebSocket'
@@ -71,10 +71,9 @@ function AvatarMenu() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 rounded-md p-1 hover:bg-accent transition-colors"
+        className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-accent transition-colors"
       >
-        <Avatar user={user} size="sm" />
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Avatar user={user} size="md" />
       </button>
 
       {isOpen && (
@@ -132,7 +131,7 @@ function AvatarMenu() {
 }
 
 function RootLayout() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { t } = useI18n()
   const location = useLocation()
   

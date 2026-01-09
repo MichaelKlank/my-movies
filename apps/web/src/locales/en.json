@@ -178,7 +178,11 @@
     "shareResetLink": "Share this link with the new user so they can set their password:",
     "copyLink": "Copy link",
     "usernameTooShort": "Username must be at least 2 characters long",
-    "invalidEmail": "Invalid email address"
+    "invalidEmail": "Invalid email address",
+    "cardView": "Card view",
+    "tableView": "Table view",
+    "makeUser": "Make user",
+    "makeAdmin": "Make admin"
   },
   "settings": {
     "title": "Settings",
@@ -292,6 +296,17 @@
       "confirmDelete": "Really delete \"{{title}}\"?",
       "confirmDeleteSelected": "Really delete {{count}} selected duplicates?",
       "confirmDeleteAll": "Delete all {{count}} duplicates? (The selected entry in each group will be kept)"
+    },
+    "deleteAll": {
+      "title": "Danger Zone",
+      "description": "Delete all movies from your collection. This action cannot be undone!",
+      "button": "Delete all movies ({{count}})",
+      "confirmQuestion": "Are you sure? This will permanently delete all {{count}} movies!",
+      "confirmWord": "delete",
+      "typeToConfirm": "Type \"{{word}}\" to confirm:",
+      "confirmButton": "Delete permanently",
+      "success": "{{count}} movies were deleted.",
+      "error": "Error deleting movies"
     }
   }
 }

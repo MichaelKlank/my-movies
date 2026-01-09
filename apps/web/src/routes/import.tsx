@@ -680,20 +680,21 @@ function DeleteAllSection() {
       setConfirmText('')
       queryClient.invalidateQueries({ queryKey: ['movies'] })
       queryClient.invalidateQueries({ queryKey: ['duplicates'] })
-      alert(`${data.deleted} Filme wurden gelöscht.`)
+      alert(t('import.deleteAll.success', { count: data.deleted }))
     },
   })
 
-  const canDelete = confirmText.toLowerCase() === 'löschen'
+  const confirmWord = t('import.deleteAll.confirmWord')
+  const canDelete = confirmText.toLowerCase() === confirmWord.toLowerCase()
 
   return (
     <div className="rounded-lg border border-destructive/30 bg-card p-6 space-y-4">
       <div className="flex items-start gap-4">
         <Trash2 className="h-8 w-8 text-destructive shrink-0 mt-1" />
         <div className="flex-1">
-          <h2 className="font-semibold text-destructive">Gefahrenzone</h2>
+          <h2 className="font-semibold text-destructive">{t('import.deleteAll.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Lösche alle Filme aus deiner Sammlung. Diese Aktion kann nicht rückgängig gemacht werden!
+            {t('import.deleteAll.description')}
           </p>
         </div>
       </div>
@@ -705,21 +706,21 @@ function DeleteAllSection() {
           className="flex items-center justify-center gap-2 w-full rounded-md bg-destructive/10 text-destructive px-4 py-3 text-sm font-medium hover:bg-destructive/20 active:bg-destructive/30 disabled:opacity-50 min-h-touch"
         >
           <Trash2 className="h-4 w-4" />
-          Alle Filme löschen ({movieCount})
+          {t('import.deleteAll.button', { count: movieCount })}
         </button>
       ) : (
         <div className="space-y-3 p-4 rounded-md bg-destructive/5 border border-destructive/20">
           <p className="text-sm font-medium text-destructive">
-            Bist du sicher? Diese Aktion löscht alle {movieCount} Filme unwiderruflich!
+            {t('import.deleteAll.confirmQuestion', { count: movieCount })}
           </p>
           <p className="text-xs text-muted-foreground">
-            Tippe "löschen" ein, um zu bestätigen:
+            {t('import.deleteAll.typeToConfirm', { word: confirmWord })}
           </p>
           <input
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="löschen"
+            placeholder={confirmWord}
             className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-destructive"
             autoFocus
           />
@@ -731,7 +732,7 @@ function DeleteAllSection() {
               }}
               className="flex-1 px-4 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80"
             >
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               onClick={() => deleteAllMutation.mutate()}
@@ -743,7 +744,7 @@ function DeleteAllSection() {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Endgültig löschen
+              {t('import.deleteAll.confirmButton')}
             </button>
           </div>
         </div>
@@ -752,7 +753,7 @@ function DeleteAllSection() {
       {deleteAllMutation.isError && (
         <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>{deleteAllMutation.error instanceof Error ? deleteAllMutation.error.message : 'Fehler beim Löschen'}</span>
+          <span>{deleteAllMutation.error instanceof Error ? deleteAllMutation.error.message : t('import.deleteAll.error')}</span>
         </div>
       )}
     </div>

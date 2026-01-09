@@ -167,7 +167,11 @@
     "shareResetLink": "このリンクを新しいユーザーと共有して、パスワードを設定してもらいます：",
     "copyLink": "リンクをコピー",
     "usernameTooShort": "ユーザー名は2文字以上必要です",
-    "invalidEmail": "無効なメールアドレスです"
+    "invalidEmail": "無効なメールアドレスです",
+    "cardView": "カード表示",
+    "tableView": "テーブル表示",
+    "makeUser": "ユーザーにする",
+    "makeAdmin": "管理者にする"
   },
   "settings": {
     "title": "設定",
@@ -281,6 +285,17 @@
       "confirmDelete": "本当に「{{title}}」を削除しますか？",
       "confirmDeleteSelected": "本当に{{count}}件の選択した重複を削除しますか？",
       "confirmDeleteAll": "すべて{{count}}件の重複を削除しますか？（各グループで選択されたエントリーは保持されます）"
+    },
+    "deleteAll": {
+      "title": "危険ゾーン",
+      "description": "コレクションのすべての映画を削除します。この操作は元に戻せません！",
+      "button": "すべての映画を削除（{{count}}）",
+      "confirmQuestion": "本当によろしいですか？この操作で{{count}}本の映画がすべて完全に削除されます！",
+      "confirmWord": "削除",
+      "typeToConfirm": "確認するには「{{word}}」と入力してください：",
+      "confirmButton": "完全に削除",
+      "success": "{{count}}本の映画が削除されました。",
+      "error": "映画の削除中にエラーが発生しました"
     }
   }
 }
