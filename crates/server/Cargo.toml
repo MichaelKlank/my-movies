@@ -52,3 +52,6 @@ regex = { workspace = true }
 
 # ZIP archive support for backup/restore
 zip = "2.2"
+
+# Image processing for thumbnails
+image = "0.25"

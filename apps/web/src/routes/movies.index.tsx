@@ -1,10 +1,10 @@
-import { createFileRoute, redirect, Link, useNavigate, getRouteApi } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate, getRouteApi } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { Film, Search, Check, X, SlidersHorizontal } from 'lucide-react'
+import { Film, Search, X, SlidersHorizontal } from 'lucide-react'
 import { api, MovieFilter, Movie } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
-import { PosterImage } from '@/components/PosterImage'
+import { VirtualizedMovieGrid, VirtualizedMovieGridGrouped, VirtualizedMovieGridGroupedHandle } from '@/components/VirtualizedMovieGrid'
 import { FAB } from '@/components/FAB'
 import { useSearchToolbar } from './__root'
 import type { MoviesSearchParams } from './movies'
@@ -45,7 +45,7 @@ function MoviesPage() {
   const [cardSize, setCardSize] = useState<CardSize>(getStoredCardSize)
   const { showToolbar, setShowToolbar, setHasActiveFilter } = useSearchToolbar()
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
+  const gridRef = useRef<VirtualizedMovieGridGroupedHandle>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const filterDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -214,64 +214,52 @@ function MoviesPage() {
 
   const isManualScrolling = useRef(false)
 
-  const scrollToLetter = (letter: string) => {
-    const element = sectionRefs.current[letter]
-    if (element) {
-      // Disable observer updates during manual scroll
+  const scrollToLetter = useCallback((letter: string) => {
+    if (gridRef.current) {
       isManualScrolling.current = true
       setActiveLetter(letter)
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      gridRef.current.scrollToLetter(letter)
       
       // Re-enable after scroll animation completes
       setTimeout(() => {
         isManualScrolling.current = false
-      }, 800)
+      }, 500)
     }
-  }
+  }, [])
 
-  // Track active letter using IntersectionObserver
+  // Track active letter based on visible header elements
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Skip if manually scrolling
-        if (isManualScrolling.current) return
-        
-        // Find the entry that's intersecting and closest to the top
-        const visibleEntries = entries.filter(e => e.isIntersecting)
-        if (visibleEntries.length > 0) {
-          // Sort by position, pick the one closest to top
-          visibleEntries.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-          const topEntry = visibleEntries[0]
-          const letter = topEntry.target.getAttribute('data-letter')
-          if (letter) {
-            setActiveLetter(letter)
-          }
+    if (searchParams.search) return // Don't track when searching
+    
+    const mainElement = document.querySelector('main')
+    if (!mainElement) return
+
+    const handleScroll = () => {
+      if (isManualScrolling.current) return
+      
+      // Find all visible header elements
+      const headers = mainElement.querySelectorAll('[data-letter]')
+      let closestLetter: string | null = null
+      let closestDistance = Infinity
+      
+      headers.forEach((header) => {
+        const rect = header.getBoundingClientRect()
+        // Check if header is near the top of the viewport (with some offset for the sticky header)
+        const distance = Math.abs(rect.top - 100)
+        if (rect.top < window.innerHeight && rect.bottom > 0 && distance < closestDistance) {
+          closestDistance = distance
+          closestLetter = header.getAttribute('data-letter')
         }
-      },
-      {
-        rootMargin: '-80px 0px -60% 0px', // Top offset for header, bottom cuts off lower part
-        threshold: 0
+      })
+      
+      if (closestLetter && closestLetter !== activeLetter) {
+        setActiveLetter(closestLetter)
       }
-    )
+    }
 
-    // Observe all section elements
-    availableLetters.forEach(letter => {
-      const element = sectionRefs.current[letter]
-      if (element) {
-        element.setAttribute('data-letter', letter)
-        observer.observe(element)
-      }
-    })
-
-    return () => observer.disconnect()
-  }, [availableLetters])
-
-  // Card size grid classes
-  const gridClasses = {
-    small: 'grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10',
-    medium: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8',
-    large: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-  }
+    mainElement.addEventListener('scroll', handleScroll, { passive: true })
+    return () => mainElement.removeEventListener('scroll', handleScroll)
+  }, [searchParams.search, activeLetter])
 
   return (
     <div className="relative">
@@ -467,35 +455,19 @@ function MoviesPage() {
             <p className="mt-4 text-muted-foreground text-sm md:text-base">{t('movies.notFound')}</p>
           </div>
         ) : searchParams.search ? (
-          // Flat grid when searching
-          <div className={`grid gap-3 md:gap-4 ${gridClasses[cardSize]}`}>
-            {movies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} size={cardSize} />
-            ))}
-          </div>
+          // Flat virtualized grid when searching
+          <VirtualizedMovieGrid 
+            movies={movies} 
+            cardSize={cardSize}
+          />
         ) : (
-          // Grouped by letter when not searching
-          <div className="space-y-6 md:space-y-8">
-            {availableLetters.map(letter => (
-              <section
-                key={letter}
-                ref={el => { sectionRefs.current[letter] = el }}
-                className="scroll-mt-20 md:scroll-mt-24"
-              >
-                <h2 className="text-base md:text-lg font-bold mb-3 md:mb-4 sticky top-0 bg-background/95 backdrop-blur py-2 z-10 border-b">
-                  {letter}
-                  <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
-                    ({moviesByLetter[letter]?.length})
-                  </span>
-                </h2>
-                <div className={`grid gap-3 md:gap-4 ${gridClasses[cardSize]}`}>
-                  {moviesByLetter[letter]?.map(movie => (
-                    <MovieCard key={movie.id} movie={movie} size={cardSize} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          // Virtualized grouped grid when not searching
+          <VirtualizedMovieGridGrouped
+            ref={gridRef}
+            moviesByLetter={moviesByLetter}
+            availableLetters={availableLetters}
+            cardSize={cardSize}
+          />
         )}
       </div>
 
@@ -505,58 +477,3 @@ function MoviesPage() {
   )
 }
 
-function MovieCard({ movie, size }: { movie: Movie; size: CardSize }) {
-  const showDetails = size !== 'small'
-  
-  const handleClick = () => {
-    // Mark that we should restore scroll when coming back
-    sessionStorage.setItem('movies-should-restore-scroll', 'true')
-  }
-  
-  return (
-    <Link
-      to="/movies/$movieId"
-      params={{ movieId: movie.id }}
-      onClick={handleClick}
-      className="group rounded-lg border bg-card overflow-hidden hover:border-primary active:border-primary text-left transition-all hover:shadow-lg active:shadow-md w-full block"
-    >
-      <div className="aspect-[2/3] bg-muted flex items-center justify-center relative overflow-hidden">
-        <PosterImage
-          posterPath={null}
-          movieId={movie.id}
-          size="w342"
-          alt={movie.title}
-          className="w-full h-full object-cover transition-transform group-hover:scale-105 group-active:scale-100"
-          updatedAt={movie.updated_at}
-        />
-        {movie.watched && (
-          <div className={`absolute top-1 right-1 rounded-full bg-green-500 p-0.5 ${size === 'small' ? 'top-0.5 right-0.5' : 'top-2 right-2 p-1'}`}>
-            <Check className={size === 'small' ? 'h-2 w-2 text-white' : 'h-3 w-3 text-white'} />
-          </div>
-        )}
-      </div>
-      {showDetails && (
-        <div className="p-2 md:p-3">
-          <h3 className="font-medium text-xs md:text-sm truncate group-active:text-primary">
-            {movie.title}
-          </h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            {movie.production_year && <span>{movie.production_year}</span>}
-            {movie.disc_type && (
-              <span className="rounded bg-secondary px-1">
-                {(() => {
-                  const type = movie.disc_type.toLowerCase()
-                  if (type === 'bluray') return 'BD'
-                  if (type === 'uhdbluray') return '4K'
-                  if (type === 'dvd') return 'DVD'
-                  if (type === 'hddvd') return 'HD DVD'
-                  return movie.disc_type
-                })()}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </Link>
-  )
-}

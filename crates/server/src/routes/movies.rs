@@ -1730,6 +1730,128 @@ pub async fn get_poster(
     }
 }
 
+/// Get thumbnail image for a movie (smaller version for grid view)
+pub async fn get_thumbnail(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<Claims>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    // Check thumbnail cache first
+    {
+        let cache = state.thumbnail_cache.read().await;
+        if let Some(data) = cache.get(&id) {
+            return Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "image/jpeg")
+                .header(header::CACHE_CONTROL, "public, max-age=86400") // Cache for 24h
+                .body(Body::from(data.clone()))
+                .unwrap()
+                .into_response();
+        }
+    }
+
+    // Verify movie belongs to user
+    if state.movie_service.get_by_id(claims.sub, id).await.is_err() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Movie not found" })),
+        )
+            .into_response();
+    }
+
+    // Get original poster data
+    match state
+        .movie_service
+        .get_movie_poster_data(claims.sub, id)
+        .await
+    {
+        Ok(Some(data)) => {
+            // Generate thumbnail
+            match generate_thumbnail(&data, 200, 300) {
+                Ok(thumbnail_data) => {
+                    // Cache the thumbnail
+                    {
+                        let mut cache = state.thumbnail_cache.write().await;
+                        // Limit cache size to ~100MB (assuming ~50KB per thumbnail = ~2000 thumbnails)
+                        if cache.len() > 2000 {
+                            // Remove oldest entries (simple strategy: clear half)
+                            let to_remove: Vec<_> =
+                                cache.keys().take(cache.len() / 2).cloned().collect();
+                            for key in to_remove {
+                                cache.remove(&key);
+                            }
+                        }
+                        cache.insert(id, thumbnail_data.clone());
+                    }
+
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header(header::CONTENT_TYPE, "image/jpeg")
+                        .header(header::CACHE_CONTROL, "public, max-age=86400")
+                        .body(Body::from(thumbnail_data))
+                        .unwrap()
+                        .into_response()
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to generate thumbnail for movie {}: {}", id, e);
+                    // Fall back to original image
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header(header::CONTENT_TYPE, "image/jpeg")
+                        .body(Body::from(data))
+                        .unwrap()
+                        .into_response()
+                }
+            }
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Poster not found" })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// Generate a thumbnail from image data
+fn generate_thumbnail(data: &[u8], max_width: u32, max_height: u32) -> Result<Vec<u8>, String> {
+    use image::ImageReader;
+    use std::io::Cursor;
+
+    // Load image from bytes
+    let img = ImageReader::new(Cursor::new(data))
+        .with_guessed_format()
+        .map_err(|e| format!("Failed to read image format: {}", e))?
+        .decode()
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+    // Resize maintaining aspect ratio
+    let thumbnail = img.thumbnail(max_width, max_height);
+
+    // Encode as JPEG with quality 80
+    let mut output = Cursor::new(Vec::new());
+    thumbnail
+        .write_to(&mut output, image::ImageFormat::Jpeg)
+        .map_err(|e| format!("Failed to encode thumbnail: {}", e))?;
+
+    Ok(output.into_inner())
+}
+
+/// Invalidate thumbnail cache for a movie (call when poster is updated)
+pub fn invalidate_thumbnail_cache(
+    cache: &tokio::sync::RwLock<std::collections::HashMap<Uuid, Vec<u8>>>,
+    movie_id: Uuid,
+) {
+    // Use try_write to avoid blocking
+    if let Ok(mut cache) = cache.try_write() {
+        cache.remove(&movie_id);
+    }
+}
+
 // ============ Collection Analysis Endpoints ============
 
 #[derive(Debug, Serialize)]

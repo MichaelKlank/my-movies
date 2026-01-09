@@ -42,10 +42,11 @@ function normalizeUrl(url: string): string {
   return `${API_BASE}${url.startsWith('/') ? url : '/' + url}`
 }
 
-// Queue for sequential image loading to avoid blocking the UI
+// Queue for parallel image loading with concurrency limit
 class ImageLoadQueue {
   private queue: Array<{ url: string; resolve: (url: string | null) => void; reject: (error: Error) => void }> = []
-  private loading = false
+  private activeLoads = 0
+  private maxConcurrent = 6 // Load up to 6 images in parallel
   private cache = new Map<string, string | null>() // Cache blob URLs by image URL
   private pending = new Map<string, Array<{ resolve: (url: string | null) => void; reject: (error: Error) => void }>>() // Track pending requests
 
@@ -102,14 +103,9 @@ class ImageLoadQueue {
     this.cache.clear()
   }
 
-  private async processQueue() {
-    if (this.loading || this.queue.length === 0) {
-      return
-    }
-
-    this.loading = true
-
-    while (this.queue.length > 0) {
+  private processQueue() {
+    // Start loading more items if we have capacity
+    while (this.activeLoads < this.maxConcurrent && this.queue.length > 0) {
       const item = this.queue.shift()!
       
       // Skip if already cached (item.url is already normalized)
@@ -125,25 +121,29 @@ class ImageLoadQueue {
         continue
       }
 
-      try {
-        const token = localStorage.getItem('token')
-        const response = await tauriFetch(item.url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
+      this.activeLoads++
+      this.loadImage(item)
+    }
+  }
 
-        if (!response.ok) {
-          // Cache null result to avoid retrying
-          this.cache.set(item.url, null)
-          item.resolve(null)
-          // Resolve all pending requests for this URL
-          const pending = this.pending.get(item.url)
-          if (pending) {
-            pending.forEach(p => p.resolve(null))
-            this.pending.delete(item.url)
-          }
-          continue
+  private async loadImage(item: { url: string; resolve: (url: string | null) => void; reject: (error: Error) => void }) {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await tauriFetch(item.url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) {
+        // Cache null result to avoid retrying
+        this.cache.set(item.url, null)
+        item.resolve(null)
+        // Resolve all pending requests for this URL
+        const pending = this.pending.get(item.url)
+        if (pending) {
+          pending.forEach(p => p.resolve(null))
+          this.pending.delete(item.url)
         }
-
+      } else {
         const blob = await response.blob()
         const blobUrl = URL.createObjectURL(blob)
         // Cache the blob URL
@@ -155,24 +155,23 @@ class ImageLoadQueue {
           pending.forEach(p => p.resolve(blobUrl))
           this.pending.delete(item.url)
         }
-      } catch (error) {
-        // Cache error as null to avoid retrying
-        this.cache.set(item.url, null)
-        const err = error instanceof Error ? error : new Error('Failed to load image')
-        item.reject(err)
-        // Reject all pending requests for this URL
-        const pending = this.pending.get(item.url)
-        if (pending) {
-          pending.forEach(p => p.reject(err))
-          this.pending.delete(item.url)
-        }
       }
-
-      // Small delay between loads to avoid overwhelming the browser
-      await new Promise(resolve => setTimeout(resolve, 50))
+    } catch (error) {
+      // Cache error as null to avoid retrying
+      this.cache.set(item.url, null)
+      const err = error instanceof Error ? error : new Error('Failed to load image')
+      item.reject(err)
+      // Reject all pending requests for this URL
+      const pending = this.pending.get(item.url)
+      if (pending) {
+        pending.forEach(p => p.reject(err))
+        this.pending.delete(item.url)
+      }
+    } finally {
+      this.activeLoads--
+      // Process more items from queue
+      this.processQueue()
     }
-
-    this.loading = false
   }
 }
 

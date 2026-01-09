@@ -8,9 +8,10 @@ interface PosterImageProps {
   alt: string
   className?: string
   updatedAt?: string // Timestamp to force reload when movie is updated
+  useThumbnail?: boolean // Use thumbnail endpoint for faster grid loading
 }
 
-export function PosterImage({ posterPath, movieId, size = 'w342', alt, className = '', updatedAt }: PosterImageProps) {
+export function PosterImage({ posterPath, movieId, size = 'w342', alt, className = '', updatedAt, useThumbnail = false }: PosterImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)
   const [shouldLoad, setShouldLoad] = useState(false)
@@ -27,7 +28,7 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
     const checkVisibility = () => {
       const rect = containerRef.current?.getBoundingClientRect()
       if (rect) {
-        const isVisible = rect.top < window.innerHeight + 1000 && rect.bottom > -1000
+        const isVisible = rect.top < window.innerHeight + 200 && rect.bottom > -200
         if (isVisible) {
           setShouldLoad(true)
           return true
@@ -51,8 +52,8 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
         })
       },
       {
-        // Start loading when element is within 10 viewport heights
-        rootMargin: '1000px 0px', // ~10 viewport heights (assuming ~100px per item)
+        // Start loading when element is within 2 viewport heights (smaller for virtual scrolling)
+        rootMargin: '200px 0px',
         threshold: 0,
       }
     )
@@ -90,11 +91,13 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
     // If movieId is provided, always try to load from database first
     // Use queue for sequential loading to avoid blocking UI
     // Add cache-busting query param if movie was updated
+    // Use thumbnail endpoint for faster grid loading
     if (movieId) {
       const currentMovieId = movieId // Capture for cleanup check
+      const endpoint = useThumbnail ? 'thumbnail' : 'poster'
       const url = wasUpdated 
-        ? `/api/v1/movies/${movieId}/poster?t=${Date.now()}`
-        : `/api/v1/movies/${movieId}/poster`
+        ? `/api/v1/movies/${movieId}/${endpoint}?t=${Date.now()}`
+        : `/api/v1/movies/${movieId}/${endpoint}`
       
       imageQueue.load(url)
         .then(url => {
@@ -164,7 +167,7 @@ export function PosterImage({ posterPath, movieId, size = 'w342', alt, className
       // Don't revoke blob URLs - they're managed by the imageQueue cache
       blobUrlRef.current = null
     }
-  }, [shouldLoad, posterPath, movieId, size, updatedAt])
+  }, [shouldLoad, posterPath, movieId, size, updatedAt, useThumbnail])
 
   // Extract size classes from className to apply to container
   const containerClasses = className.includes('w-full') && className.includes('h-full') 

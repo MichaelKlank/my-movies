@@ -36,6 +36,8 @@ pub struct AppState {
     pub import_service: ImportService,
     pub settings_service: SettingsService,
     pub ws_broadcast: tokio::sync::broadcast::Sender<String>,
+    /// Cache for generated thumbnails (movie_id -> thumbnail bytes)
+    pub thumbnail_cache: tokio::sync::RwLock<std::collections::HashMap<uuid::Uuid, Vec<u8>>>,
 }
 
 /// Configuration for starting the server
@@ -88,6 +90,7 @@ pub async fn create_app_state(config: &Config) -> anyhow::Result<Arc<AppState>> 
         import_service: ImportService::new(pool.clone()),
         settings_service,
         ws_broadcast: ws_tx,
+        thumbnail_cache: tokio::sync::RwLock::new(std::collections::HashMap::new()),
     });
 
     Ok(state)
@@ -172,6 +175,10 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             post(movies::set_poster_from_url),
         )
         .route("/movies/:id/poster", axum::routing::get(movies::get_poster))
+        .route(
+            "/movies/:id/thumbnail",
+            axum::routing::get(movies::get_thumbnail),
+        )
         // Collection analysis (for box sets)
         .route(
             "/movies/:id/analyze-collection",
