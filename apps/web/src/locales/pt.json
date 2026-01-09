@@ -65,7 +65,12 @@
     "includeAdultDesc": "Permitir a exibição de filmes com conteúdo adulto nos resultados de busca",
     "displaySettings": "Exibição",
     "cardSize": "Tamanho dos Cartões",
-    "cardSizeDesc": "Tamanho dos cartões de filmes na sua coleção"
+    "cardSizeDesc": "Tamanho dos cartões de filmes na sua coleção",
+    "theme": "Tema",
+    "themeDesc": "Escolha a aparência do aplicativo. Você pode selecionar claro, escuro ou seguir as configurações do sistema.",
+    "themeLight": "Claro",
+    "themeDark": "Escuro",
+    "themeSystem": "Sistema"
   },
   "dashboard": {
     "title": "Painel"
@@ -236,8 +241,9 @@
     "warning": "Todos os filmes, séries e coleções deste usuário também serão excluídos. Esta ação não pode ser desfeita."
   },
   "import": {
-    "title": "Importar",
+    "title": "Backup",
     "csvImport": "Importar CSV",
+    "importButton": "Importar",
     "csvImportDesc": "Importe filmes de um arquivo CSV. O arquivo deve conter colunas: title, barcode, production_year, etc.",
     "selectFile": "Selecionar arquivo CSV",
     "noFileSelected": "Nenhum arquivo selecionado",

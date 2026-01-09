@@ -65,7 +65,12 @@
     "includeAdultDesc": "Allow display of movies with adult content in search results",
     "displaySettings": "Display",
     "cardSize": "Card Size",
-    "cardSizeDesc": "Size of movie cards in your collection"
+    "cardSizeDesc": "Size of movie cards in your collection",
+    "theme": "Theme",
+    "themeDesc": "Choose how the app looks. You can select light, dark, or follow your system settings.",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
   },
   "dashboard": {
     "title": "Dashboard"
@@ -247,8 +252,9 @@
     "warning": "All movies, series and collections of this user will also be deleted. This action cannot be undone."
   },
   "import": {
-    "title": "Import",
+    "title": "Backup",
     "csvImport": "CSV Import",
+    "importButton": "Import",
     "csvImportDesc": "Import movies from a CSV file. The file should contain columns: title, barcode, production_year, etc.",
     "selectFile": "Select CSV File",
     "noFileSelected": "No file selected",

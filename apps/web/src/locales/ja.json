@@ -65,7 +65,12 @@
     "includeAdultDesc": "検索結果にアダルトコンテンツの映画の表示を許可",
     "displaySettings": "表示",
     "cardSize": "カードサイズ",
-    "cardSizeDesc": "コレクション内の映画カードのサイズ"
+    "cardSizeDesc": "コレクション内の映画カードのサイズ",
+    "theme": "テーマ",
+    "themeDesc": "アプリの外観を選択します。ライト、ダーク、またはシステム設定に従うことができます。",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "themeSystem": "システム"
   },
   "dashboard": {
     "title": "ダッシュボード"
@@ -236,8 +241,9 @@
     "warning": "このユーザーのすべての映画、シリーズ、コレクションも削除されます。この操作は元に戻せません。"
   },
   "import": {
-    "title": "インポート",
+    "title": "バックアップ",
     "csvImport": "CSVインポート",
+    "importButton": "インポート",
     "csvImportDesc": "CSVファイルから映画をインポートします。ファイルにはtitle、barcode、production_yearなどの列が必要です。",
     "selectFile": "CSVファイルを選択",
     "noFileSelected": "ファイルが選択されていません",

@@ -41,7 +41,7 @@
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
@@ -68,4 +68,24 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Dark mode adjustments for destructive backgrounds */
+.dark .bg-destructive\/5 {
+  background-color: hsl(0 72% 51% / 0.08);
+}
+.dark .bg-destructive\/10 {
+  background-color: hsl(0 72% 51% / 0.15);
+}
+.dark .bg-destructive\/20 {
+  background-color: hsl(0 72% 51% / 0.25);
+}
+.dark .bg-destructive\/30 {
+  background-color: hsl(0 72% 51% / 0.35);
+}
+.dark .border-destructive\/20 {
+  border-color: hsl(0 72% 51% / 0.3);
+}
+.dark .border-destructive\/30 {
+  border-color: hsl(0 72% 51% / 0.4);
 }

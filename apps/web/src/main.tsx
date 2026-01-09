@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { I18nProvider } from './hooks/useI18n'
+import { ThemeProvider } from './hooks/useTheme'
 import { LoadingScreen } from './components/LoadingScreen'
 import './lib/i18n' // Initialize i18n
 import './styles/globals.css'
@@ -56,13 +57,15 @@ function InnerApp() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <I18nProvider>
-          <InnerApp />
-        </I18nProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <I18nProvider>
+            <InnerApp />
+          </I18nProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   )
 }
 

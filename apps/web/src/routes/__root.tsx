@@ -165,11 +165,19 @@ function RootLayout() {
           </Link>
 
           <div className="flex items-center gap-1">
+            {/* Home button */}
+            <Link
+              to="/movies"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:text-primary min-h-touch min-w-touch"
+              title={t('nav.home')}
+            >
+              <Home className="h-5 w-5" />
+            </Link>
             {/* Search button for movies page */}
             {isMoviesPage && (
               <button
                 onClick={() => setShowToolbar(!showToolbar)}
-                className={`relative flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent ${showToolbar ? 'bg-accent' : ''}`}
+                className="relative flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent"
                 title={t('movies.search')}
               >
                 <Search className={`h-5 w-5 ${(showToolbar || hasActiveFilter) ? 'text-primary' : ''}`} />
@@ -179,8 +187,8 @@ function RootLayout() {
               </button>
             )}
             <Link
-              to="/import"
-              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:bg-accent min-h-touch min-w-touch"
+              to="/backup"
+              className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-accent [&.active]:text-primary min-h-touch min-w-touch"
               title={t('nav.backup')}
             >
               <HardDriveDownload className="h-5 w-5" />
@@ -239,15 +247,15 @@ function RootLayout() {
         <div className="flex items-center justify-around h-16">
           <Link
             to="/movies"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary"
             title={t('nav.home')}
           >
             <Home className="h-5 w-5" />
             <span className="text-xs">{t('nav.home')}</span>
           </Link>
           <Link
-            to="/import"
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary [&.active]:bg-accent/50"
+            to="/backup"
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-touch [&.active]:text-primary"
             title={t('nav.backup')}
           >
             <HardDriveDownload className="h-5 w-5" />

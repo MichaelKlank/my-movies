@@ -65,7 +65,12 @@
     "includeAdultDesc": "Consenti la visualizzazione di film con contenuti per adulti nei risultati di ricerca",
     "displaySettings": "Visualizzazione",
     "cardSize": "Dimensione Schede",
-    "cardSizeDesc": "Dimensione delle schede film nella tua collezione"
+    "cardSizeDesc": "Dimensione delle schede film nella tua collezione",
+    "theme": "Tema",
+    "themeDesc": "Scegli l'aspetto dell'app. Puoi selezionare chiaro, scuro o seguire le impostazioni di sistema.",
+    "themeLight": "Chiaro",
+    "themeDark": "Scuro",
+    "themeSystem": "Sistema"
   },
   "dashboard": {
     "title": "Dashboard"
@@ -236,8 +241,9 @@
     "warning": "Tutti i film, serie e collezioni di questo utente verranno eliminati. Questa azione non può essere annullata."
   },
   "import": {
-    "title": "Importa",
+    "title": "Backup",
     "csvImport": "Importa CSV",
+    "importButton": "Importa",
     "csvImportDesc": "Importa film da un file CSV. Il file deve contenere le colonne: title, barcode, production_year, ecc.",
     "selectFile": "Seleziona file CSV",
     "noFileSelected": "Nessun file selezionato",

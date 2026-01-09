@@ -109,11 +109,11 @@ export function FAB({ showScrollTop = false }: FABProps) {
                 item.action()
                 setIsOpen(false)
               }}
-              className="flex items-center gap-3 rounded-full bg-card border shadow-lg pl-4 pr-3 py-2 hover:bg-accent active:bg-accent/80 transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+              className="flex items-center gap-3 rounded-full bg-primary text-primary-foreground shadow-lg pl-4 pr-3 py-2 hover:bg-primary/90 active:bg-primary/80 transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-foreground/20">
                 <item.icon className="h-5 w-5" />
               </div>
             </button>

@@ -1,10 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
-import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus, ChevronDown, Grid3X3, Grid2X2, LayoutGrid } from 'lucide-react'
+import { User, Settings, Globe, Shield, Save, Loader2, Upload, X, ImagePlus, ChevronDown, Grid3X3, Grid2X2, LayoutGrid, Sun, Moon, Monitor } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useI18n } from '@/hooks/useI18n'
 import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { Avatar } from '@/components/Avatar'
 
 export const Route = createFileRoute('/me')({
@@ -42,6 +43,7 @@ function getStoredCardSize(): CardSize {
 function ProfilePage() {
   const { t } = useI18n()
   const { updateUser } = useAuth()
+  const { theme, setTheme } = useTheme()
   const queryClient = useQueryClient()
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [includeAdult, setIncludeAdult] = useState(false)
@@ -484,6 +486,52 @@ function ProfilePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Theme Settings */}
+        <div className="rounded-lg border bg-card p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sun className="h-5 w-5" />
+            <h2 className="text-lg md:text-xl font-semibold">{t('profile.theme')}</h2>
+          </div>
+          <p className="text-xs md:text-sm text-muted-foreground mb-4">
+            {t('profile.themeDesc')}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTheme('light')}
+              className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                theme === 'light' 
+                  ? 'border-primary bg-primary/5' 
+                  : 'border-muted hover:border-muted-foreground/30'
+              }`}
+            >
+              <Sun className="h-6 w-6 md:h-8 md:w-8" />
+              <span className="text-xs md:text-sm font-medium">{t('profile.themeLight')}</span>
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                theme === 'dark' 
+                  ? 'border-primary bg-primary/5' 
+                  : 'border-muted hover:border-muted-foreground/30'
+              }`}
+            >
+              <Moon className="h-6 w-6 md:h-8 md:w-8" />
+              <span className="text-xs md:text-sm font-medium">{t('profile.themeDark')}</span>
+            </button>
+            <button
+              onClick={() => setTheme('system')}
+              className={`flex-1 flex flex-col items-center gap-2 p-3 md:p-4 rounded-lg border-2 transition-colors ${
+                theme === 'system' 
+                  ? 'border-primary bg-primary/5' 
+                  : 'border-muted hover:border-muted-foreground/30'
+              }`}
+            >
+              <Monitor className="h-6 w-6 md:h-8 md:w-8" />
+              <span className="text-xs md:text-sm font-medium">{t('profile.themeSystem')}</span>
+            </button>
           </div>
         </div>
       </div>

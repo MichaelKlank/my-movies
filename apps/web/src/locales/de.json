@@ -65,7 +65,12 @@
     "includeAdultDesc": "Erlaube die Anzeige von Filmen mit Erwachsenen-Inhalten in Suchergebnissen",
     "displaySettings": "Anzeige",
     "cardSize": "Kartengröße",
-    "cardSizeDesc": "Größe der Filmkarten in der Sammlung"
+    "cardSizeDesc": "Größe der Filmkarten in der Sammlung",
+    "theme": "Design",
+    "themeDesc": "Wähle das Aussehen der App. Du kannst Hell, Dunkel oder die Systemeinstellung wählen.",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "themeSystem": "System"
   },
   "dashboard": {
     "title": "Dashboard"
@@ -247,8 +252,9 @@
     "analyzeError": "Fehler bei der Analyse"
   },
   "import": {
-    "title": "Import",
+    "title": "Backup",
     "csvImport": "CSV Import",
+    "importButton": "Importieren",
     "csvImportDesc": "Importiere Filme aus einer CSV-Datei. Die Datei sollte Spalten enthalten: title, barcode, production_year, etc.",
     "selectFile": "CSV-Datei auswählen",
     "noFileSelected": "Keine Datei ausgewählt",

@@ -65,7 +65,12 @@
     "includeAdultDesc": "允许在搜索结果中显示成人内容的电影",
     "displaySettings": "显示",
     "cardSize": "卡片大小",
-    "cardSizeDesc": "收藏中电影卡片的大小"
+    "cardSizeDesc": "收藏中电影卡片的大小",
+    "theme": "主题",
+    "themeDesc": "选择应用的外观。您可以选择浅色、深色或跟随系统设置。",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeSystem": "系统"
   },
   "dashboard": {
     "title": "仪表板"
@@ -236,8 +241,9 @@
     "warning": "此用户的所有电影、剧集和收藏也将被删除。此操作无法撤销。"
   },
   "import": {
-    "title": "导入",
+    "title": "备份",
     "csvImport": "CSV导入",
+    "importButton": "导入",
     "csvImportDesc": "从CSV文件导入电影。文件应包含列：title、barcode、production_year等。",
     "selectFile": "选择CSV文件",
     "noFileSelected": "未选择文件",

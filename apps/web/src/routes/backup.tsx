@@ -7,13 +7,13 @@ import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { AlertCircle, Check, ChevronDown, Copy, Download, FileUp, Image, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-export const Route = createFileRoute('/import')({
+export const Route = createFileRoute('/backup')({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated) {
       throw redirect({ to: '/login' })
     }
   },
-  component: ImportPage,
+  component: BackupPage,
 })
 
 interface TmdbEnrichProgress {
@@ -29,7 +29,7 @@ interface TmdbEnrichComplete {
   errors: string[]
 }
 
-function ImportPage() {
+function BackupPage() {
   const { t } = useI18n()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -227,7 +227,7 @@ function ImportPage() {
                 disabled={importMutation.isPending}
                 className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
               >
-                {importMutation.isPending ? t('import.importing') : t('import.title')}
+                {importMutation.isPending ? t('import.importing') : t('import.importButton')}
               </button>
             </>
           )}
