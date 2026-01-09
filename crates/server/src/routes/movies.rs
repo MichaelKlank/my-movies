@@ -14,7 +14,7 @@ use my_movies_core::models::{Claims, CreateMovie, Movie, MovieFilter, UpdateMovi
 use my_movies_core::services::{TmdbCollectionOverview, TmdbMovie, TmdbService};
 use serde::{Deserialize, Serialize};
 
-use crate::AppState;
+use crate::{ApiError, AppState};
 
 /// Download poster image from TMDB URL and return as bytes
 async fn download_poster_image(poster_path: &str) -> Option<Vec<u8>> {
@@ -57,78 +57,43 @@ pub async fn list(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Query(filter): Query<MovieFilter>,
-) -> impl IntoResponse {
-    // Get total count first
-    let total = match state.movie_service.count(claims.sub, &filter).await {
-        Ok(count) => count,
-        Err(e) => {
-            return (
-                StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(json!({ "error": e.to_string() })),
-            )
-                .into_response();
-        }
-    };
-
-    let limit = filter.limit; // None = no limit
+) -> Result<impl IntoResponse, ApiError> {
+    let total = state.movie_service.count(claims.sub, &filter).await?;
+    let limit = filter.limit;
     let offset = filter.offset.unwrap_or(0);
+    let movies = state.movie_service.list(claims.sub, filter).await?;
 
-    match state.movie_service.list(claims.sub, filter).await {
-        Ok(movies) => (
-            StatusCode::OK,
-            Json(json!({
-                "items": movies,
-                "total": total,
-                "limit": limit.unwrap_or(total as i64), // Report actual count if no limit
-                "offset": offset
-            })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "items": movies,
+            "total": total,
+            "limit": limit.unwrap_or(total as i64),
+            "offset": offset
+        })),
+    ))
 }
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
-    match state.movie_service.get_by_id(claims.sub, id).await {
-        Ok(movie) => (StatusCode::OK, Json(json!(movie))).into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let movie = state.movie_service.get_by_id(claims.sub, id).await?;
+    Ok((StatusCode::OK, Json(json!(movie))))
 }
 
 pub async fn create(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Json(input): Json<CreateMovie>,
-) -> impl IntoResponse {
-    match state.movie_service.create(claims.sub, input).await {
-        Ok(movie) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_added",
-                "payload": movie
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let movie = state.movie_service.create(claims.sub, input).await?;
 
-            (StatusCode::CREATED, Json(json!(movie))).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "movie_added", "payload": movie });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok((StatusCode::CREATED, Json(json!(movie))))
 }
 
 pub async fn update(
@@ -136,76 +101,42 @@ pub async fn update(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateMovie>,
-) -> impl IntoResponse {
-    match state.movie_service.update(claims.sub, id, input).await {
-        Ok(movie) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_updated",
-                "payload": movie
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let movie = state.movie_service.update(claims.sub, id, input).await?;
 
-            (StatusCode::OK, Json(json!(movie))).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "movie_updated", "payload": movie });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok((StatusCode::OK, Json(json!(movie))))
 }
 
 pub async fn delete(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
-    match state.movie_service.delete(claims.sub, id).await {
-        Ok(_) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_deleted",
-                "payload": { "id": id }
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    state.movie_service.delete(claims.sub, id).await?;
 
-            StatusCode::NO_CONTENT.into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "movie_deleted", "payload": { "id": id } });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Delete all movies for the current user
 pub async fn delete_all(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
-    match state.movie_service.delete_all(claims.sub).await {
-        Ok(count) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "all_movies_deleted",
-                "payload": { "count": count }
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let count = state.movie_service.delete_all(claims.sub).await?;
 
-            (
-                StatusCode::OK,
-                Json(json!({ "deleted": count, "message": format!("{} movies deleted", count) })),
-            )
-                .into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "all_movies_deleted", "payload": { "count": count } });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "deleted": count, "message": format!("{} movies deleted", count) })),
+    ))
 }
 
 /// Export movie for JSON (without binary poster data)
@@ -255,27 +186,17 @@ pub struct JsonImportResult {
 pub async fn export(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
     use std::io::{Cursor, Write};
     use zip::ZipWriter;
     use zip::write::SimpleFileOptions;
 
-    // Get ALL movies - no limit!
     let filter = MovieFilter {
         exclude_collection_children: Some(false),
         ..Default::default()
     };
 
-    let movies = match state.movie_service.list(claims.sub, filter).await {
-        Ok(m) => m,
-        Err(e) => {
-            return (
-                StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(json!({ "error": e.to_string() })),
-            )
-                .into_response();
-        }
-    };
+    let movies = state.movie_service.list(claims.sub, filter).await?;
 
     // Get list of movie IDs that have poster data
     // (list() doesn't include poster_data for performance, so we need to check separately)
@@ -417,7 +338,7 @@ pub async fn export(
         chrono::Utc::now().format("%Y%m%d-%H%M%S")
     );
 
-    (
+    Ok((
         StatusCode::OK,
         [
             (
@@ -430,8 +351,7 @@ pub async fn export(
             ),
         ],
         zip_data,
-    )
-        .into_response()
+    ))
 }
 
 /// Import movies from JSON export
@@ -1346,34 +1266,12 @@ pub async fn refresh_tmdb(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
     Query(params): Query<RefreshTmdbQuery>,
-) -> impl IntoResponse {
-    // Get the movie first
-    let movie = match state.movie_service.get_by_id(claims.sub, id).await {
-        Ok(m) => m,
-        Err(e) => {
-            return (
-                StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(json!({ "error": e.to_string() })),
-            )
-                .into_response();
-        }
-    };
-
-    // Get user's preferences
-    let user = match state.auth_service.get_user(claims.sub).await {
-        Ok(u) => u,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": "Failed to get user" })),
-            )
-                .into_response();
-        }
-    };
+) -> Result<impl IntoResponse, ApiError> {
+    let movie = state.movie_service.get_by_id(claims.sub, id).await?;
+    let user = state.auth_service.get_user(claims.sub).await?;
     let language = user.language.as_deref();
     let include_adult = user.include_adult;
 
-    // Use the internal function for the actual refresh
     match refresh_movie_tmdb_internal(
         &state,
         claims.sub,
@@ -1385,22 +1283,12 @@ pub async fn refresh_tmdb(
     .await
     {
         TmdbRefreshResult::Success(final_movie) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_updated",
-                "payload": final_movie
-            });
+            let msg = json!({ "type": "movie_updated", "payload": final_movie });
             let _ = state.ws_broadcast.send(msg.to_string());
-            (StatusCode::OK, Json(json!(final_movie))).into_response()
+            Ok((StatusCode::OK, Json(json!(final_movie))))
         }
-        TmdbRefreshResult::NotFound(msg) => {
-            (StatusCode::NOT_FOUND, Json(json!({ "error": msg }))).into_response()
-        }
-        TmdbRefreshResult::Error(msg) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": msg })),
-        )
-            .into_response(),
+        TmdbRefreshResult::NotFound(msg) => Err(ApiError::not_found(msg)),
+        TmdbRefreshResult::Error(msg) => Err(ApiError::internal(msg)),
     }
 }
 
@@ -1416,8 +1304,8 @@ pub async fn check_duplicates(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Query(query): Query<CheckDuplicateQuery>,
-) -> impl IntoResponse {
-    match state
+) -> Result<impl IntoResponse, ApiError> {
+    let duplicates = state
         .movie_service
         .find_duplicates(
             claims.sub,
@@ -1425,44 +1313,31 @@ pub async fn check_duplicates(
             query.barcode.as_deref(),
             query.tmdb_id,
         )
-        .await
-    {
-        Ok(duplicates) => (
-            StatusCode::OK,
-            Json(json!({
-                "has_duplicates": !duplicates.is_empty(),
-                "duplicates": duplicates
-            })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+        .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "has_duplicates": !duplicates.is_empty(),
+            "duplicates": duplicates
+        })),
+    ))
 }
 
 /// Find all duplicate groups in the collection
 pub async fn find_all_duplicates(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
-    match state.movie_service.find_all_duplicates(claims.sub).await {
-        Ok(groups) => (
-            StatusCode::OK,
-            Json(json!({
-                "duplicate_groups": groups,
-                "total_groups": groups.len()
-            })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let groups = state.movie_service.find_all_duplicates(claims.sub).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "duplicate_groups": groups,
+            "total_groups": groups.len()
+        })),
+    ))
 }
 
 /// Upload a poster image for a movie
@@ -1471,93 +1346,50 @@ pub async fn upload_poster(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
     mut multipart: Multipart,
-) -> impl IntoResponse {
-    // Verify movie exists and belongs to user
-    if let Err(e) = state.movie_service.get_by_id(claims.sub, id).await {
-        return (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::NOT_FOUND),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response();
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    state.movie_service.get_by_id(claims.sub, id).await?;
 
-    // Process multipart upload
     while let Some(field) = multipart.next_field().await.unwrap_or(None) {
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            // Get content type (extension not needed anymore since we store in DB)
-            let _content_type = field.content_type().unwrap_or("image/jpeg").to_string();
+            let data = field
+                .bytes()
+                .await
+                .map_err(|e| ApiError::bad_request(format!("Failed to read file: {}", e)))?
+                .to_vec();
 
-            let data = match field.bytes().await {
-                Ok(bytes) => bytes.to_vec(),
-                Err(e) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({ "error": format!("Failed to read file: {}", e) })),
-                    )
-                        .into_response();
-                }
-            };
-
-            // Validate it's actually an image (basic check)
             if data.len() < 8 {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": "File too small to be a valid image" })),
-                )
-                    .into_response();
+                return Err(ApiError::bad_request("File too small to be a valid image"));
             }
 
-            // Validate file size (max 5MB)
-            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
+            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024;
             if data.len() > MAX_FILE_SIZE {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": format!("File too large. Maximum size is 5MB, got {} bytes", data.len()) })),
-                )
-                    .into_response();
+                return Err(ApiError::bad_request(format!(
+                    "File too large. Maximum size is 5MB, got {} bytes",
+                    data.len()
+                )));
             }
 
-            // Store image data directly in database
-            match state
+            let movie = state
                 .movie_service
                 .update_movie_poster_data(claims.sub, id, Some(data))
-                .await
-            {
-                Ok(movie) => {
-                    // Broadcast to WebSocket clients
-                    let msg = json!({
-                        "type": "movie_updated",
-                        "payload": movie
-                    });
-                    let _ = state.ws_broadcast.send(msg.to_string());
+                .await?;
 
-                    return (
-                        StatusCode::OK,
-                        Json(json!({
-                            "message": "Poster uploaded successfully",
-                            "movie": movie
-                        })),
-                    )
-                        .into_response();
-                }
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": format!("Failed to update movie: {}", e) })),
-                    )
-                        .into_response();
-                }
-            }
+            let msg = json!({ "type": "movie_updated", "payload": movie });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            return Ok((
+                StatusCode::OK,
+                Json(json!({
+                    "message": "Poster uploaded successfully",
+                    "movie": movie
+                })),
+            ));
         }
     }
 
-    (
-        StatusCode::BAD_REQUEST,
-        Json(json!({ "error": "No file provided" })),
-    )
-        .into_response()
+    Err(ApiError::bad_request("No file provided"))
 }
 
 /// Set poster from URL - downloads the image and stores it in the database
@@ -1571,94 +1403,55 @@ pub async fn set_poster_from_url(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
     Json(input): Json<SetPosterUrlRequest>,
-) -> impl IntoResponse {
-    // Verify movie exists and belongs to user
-    if let Err(e) = state.movie_service.get_by_id(claims.sub, id).await {
-        return (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::NOT_FOUND),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response();
+) -> Result<impl IntoResponse, ApiError> {
+    state.movie_service.get_by_id(claims.sub, id).await?;
+
+    let response = reqwest::get(&input.url)
+        .await
+        .map_err(|e| ApiError::bad_request(format!("Failed to download image: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(ApiError::bad_request(format!(
+            "Failed to download image: HTTP {}",
+            response.status()
+        )));
     }
 
-    // Download the image from URL
-    let image_data = match reqwest::get(&input.url).await {
-        Ok(response) => {
-            if !response.status().is_success() {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": format!("Failed to download image: HTTP {}", response.status()) })),
-                )
-                    .into_response();
-            }
-            match response.bytes().await {
-                Ok(bytes) => bytes.to_vec(),
-                Err(e) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({ "error": format!("Failed to read image data: {}", e) })),
-                    )
-                        .into_response();
-                }
-            }
-        }
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": format!("Failed to download image: {}", e) })),
-            )
-                .into_response();
-        }
-    };
+    let image_data = response
+        .bytes()
+        .await
+        .map_err(|e| ApiError::bad_request(format!("Failed to read image data: {}", e)))?
+        .to_vec();
 
-    // Validate it's actually an image (basic check)
     if image_data.len() < 8 {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "Downloaded file too small to be a valid image" })),
-        )
-            .into_response();
+        return Err(ApiError::bad_request(
+            "Downloaded file too small to be a valid image",
+        ));
     }
 
-    // Validate file size (max 5MB)
-    let max_file_size: usize = 5 * 1024 * 1024; // 5MB
-    if image_data.len() > max_file_size {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": format!("Image too large. Maximum size is 5MB, got {} bytes", image_data.len()) })),
-        )
-            .into_response();
+    const MAX_FILE_SIZE: usize = 5 * 1024 * 1024;
+    if image_data.len() > MAX_FILE_SIZE {
+        return Err(ApiError::bad_request(format!(
+            "Image too large. Maximum size is 5MB, got {} bytes",
+            image_data.len()
+        )));
     }
 
-    // Store image data directly in database
-    match state
+    let movie = state
         .movie_service
         .update_movie_poster_data(claims.sub, id, Some(image_data))
-        .await
-    {
-        Ok(movie) => {
-            // Broadcast to WebSocket clients
-            let msg = json!({
-                "type": "movie_updated",
-                "payload": movie
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+        .await?;
 
-            (
-                StatusCode::OK,
-                Json(json!({
-                    "message": "Poster set successfully",
-                    "movie": movie
-                })),
-            )
-                .into_response()
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("Failed to update movie: {}", e) })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "movie_updated", "payload": movie });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "message": "Poster set successfully",
+            "movie": movie
+        })),
+    ))
 }
 
 /// Get poster image for a movie
@@ -1666,68 +1459,43 @@ pub async fn get_poster(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
-    // Verify movie belongs to user
-    if state.movie_service.get_by_id(claims.sub, id).await.is_err() {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Movie not found" })),
-        )
-            .into_response();
-    }
-    match state
+) -> Result<Response, ApiError> {
+    state.movie_service.get_by_id(claims.sub, id).await?;
+
+    let data = state
         .movie_service
         .get_movie_poster_data(claims.sub, id)
-        .await
-    {
-        Ok(Some(data)) => {
-            // Determine content type from first few bytes (magic numbers)
-            let content_type = if data.len() >= 8 {
-                if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
-                    "image/png"
-                } else if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
-                    "image/jpeg"
-                } else if data.len() >= 6
-                    && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
-                        || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
-                {
-                    "image/gif"
-                } else if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
-                    "image/webp"
-                } else {
-                    "image/jpeg" // Default fallback
-                }
-            } else {
-                "image/jpeg"
-            };
+        .await?
+        .ok_or_else(|| ApiError::not_found("Poster not found"))?;
 
-            match Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, content_type)
-                .body(Body::from(data))
-            {
-                Ok(response) => response.into_response(),
-                Err(e) => {
-                    tracing::error!("Failed to build response: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": "Failed to build response" })),
-                    )
-                        .into_response()
-                }
-            }
+    let content_type = detect_image_type(&data);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(data))
+        .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)))
+}
+
+fn detect_image_type(data: &[u8]) -> &'static str {
+    if data.len() >= 8 {
+        if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
+            return "image/png";
         }
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Poster not found" })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
+        if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
+            return "image/jpeg";
+        }
+        if data.len() >= 6
+            && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
+                || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+        {
+            return "image/gif";
+        }
+        if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
+            return "image/webp";
+        }
     }
+    "image/jpeg"
 }
 
 /// Get thumbnail image for a movie (smaller version for grid view)
@@ -1735,7 +1503,7 @@ pub async fn get_thumbnail(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Result<Response, ApiError> {
     // Check thumbnail cache first
     {
         let cache = state.thumbnail_cache.read().await;
@@ -1743,78 +1511,47 @@ pub async fn get_thumbnail(
             return Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "image/jpeg")
-                .header(header::CACHE_CONTROL, "public, max-age=86400") // Cache for 24h
+                .header(header::CACHE_CONTROL, "public, max-age=86400")
                 .body(Body::from(data.clone()))
-                .unwrap()
-                .into_response();
+                .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)));
         }
     }
 
-    // Verify movie belongs to user
-    if state.movie_service.get_by_id(claims.sub, id).await.is_err() {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Movie not found" })),
-        )
-            .into_response();
-    }
+    state.movie_service.get_by_id(claims.sub, id).await?;
 
-    // Get original poster data
-    match state
+    let data = state
         .movie_service
         .get_movie_poster_data(claims.sub, id)
-        .await
-    {
-        Ok(Some(data)) => {
-            // Generate thumbnail
-            match generate_thumbnail(&data, 200, 300) {
-                Ok(thumbnail_data) => {
-                    // Cache the thumbnail
-                    {
-                        let mut cache = state.thumbnail_cache.write().await;
-                        // Limit cache size to ~100MB (assuming ~50KB per thumbnail = ~2000 thumbnails)
-                        if cache.len() > 2000 {
-                            // Remove oldest entries (simple strategy: clear half)
-                            let to_remove: Vec<_> =
-                                cache.keys().take(cache.len() / 2).cloned().collect();
-                            for key in to_remove {
-                                cache.remove(&key);
-                            }
-                        }
-                        cache.insert(id, thumbnail_data.clone());
-                    }
+        .await?
+        .ok_or_else(|| ApiError::not_found("Poster not found"))?;
 
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header(header::CONTENT_TYPE, "image/jpeg")
-                        .header(header::CACHE_CONTROL, "public, max-age=86400")
-                        .body(Body::from(thumbnail_data))
-                        .unwrap()
-                        .into_response()
+    let response_data = match generate_thumbnail(&data, 200, 300) {
+        Ok(thumbnail_data) => {
+            // Cache the thumbnail
+            {
+                let mut cache = state.thumbnail_cache.write().await;
+                if cache.len() > 2000 {
+                    let to_remove: Vec<_> = cache.keys().take(cache.len() / 2).cloned().collect();
+                    for key in to_remove {
+                        cache.remove(&key);
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to generate thumbnail for movie {}: {}", id, e);
-                    // Fall back to original image
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header(header::CONTENT_TYPE, "image/jpeg")
-                        .body(Body::from(data))
-                        .unwrap()
-                        .into_response()
-                }
+                cache.insert(id, thumbnail_data.clone());
             }
+            thumbnail_data
         }
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Poster not found" })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+        Err(e) => {
+            tracing::warn!("Failed to generate thumbnail for movie {}: {}", id, e);
+            data // Fall back to original
+        }
+    };
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/jpeg")
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(response_data))
+        .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)))
 }
 
 /// Generate a thumbnail from image data

@@ -404,34 +404,68 @@ function MoviesPage() {
         </div>
       )}
 
-      {/* Alphabet Navigation - Vertical on right (both mobile and desktop) */}
+      {/* Alphabet Navigation - Vertical on right */}
       {!searchParams.search && availableLetters.length > 0 && (
-        <nav className="fixed right-1 md:right-4 z-40 flex flex-col"
-          style={{
-            top: showToolbar ? 'calc(6.5rem + env(safe-area-inset-top, 0px))' : 'calc(5rem + env(safe-area-inset-top, 0px))',
-            bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
-          }}
-        >
-          {ALPHABET.map(letter => {
-            const hasMovies = moviesByLetter[letter]?.length > 0
-            return (
-              <button
-                key={letter}
-                onClick={() => hasMovies && scrollToLetter(letter)}
-                disabled={!hasMovies}
-                className={`w-4 md:w-5 flex-1 min-h-0 text-[10px] md:text-[10px] font-semibold transition-all flex items-center justify-center ${
-                  activeLetter === letter
-                    ? 'text-primary font-bold scale-125'
-                    : hasMovies
-                      ? 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                      : 'text-gray-200 dark:text-gray-700 cursor-default'
-                }`}
-              >
-                {letter}
-              </button>
-            )
-          })}
-        </nav>
+        <>
+          {/* Mobile */}
+          <div 
+            className="md:hidden fixed right-0 z-40 flex flex-col items-center py-1"
+            style={{
+              top: showToolbar ? '7.5rem' : '5rem',
+              bottom: '5.5rem',
+            }}
+          >
+            {ALPHABET.map(letter => {
+              const hasMovies = moviesByLetter[letter]?.length > 0
+              return (
+                <button
+                  key={letter}
+                  onClick={() => hasMovies && scrollToLetter(letter)}
+                  disabled={!hasMovies}
+                  style={{ flex: '1 1 0', minHeight: 0 }}
+                  className={`w-6 text-[9px] font-semibold flex items-center justify-center ${
+                    activeLetter === letter
+                      ? 'text-primary font-bold'
+                      : hasMovies
+                        ? 'text-muted-foreground hover:text-foreground'
+                        : 'text-muted-foreground/30 cursor-default'
+                  }`}
+                >
+                  {letter}
+                </button>
+              )
+            })}
+          </div>
+          {/* Desktop */}
+          <div 
+            className="hidden md:flex fixed right-2 z-40 flex-col items-center py-2"
+            style={{
+              top: showToolbar ? '7rem' : '4.5rem',
+              bottom: '1rem',
+            }}
+          >
+            {ALPHABET.map(letter => {
+              const hasMovies = moviesByLetter[letter]?.length > 0
+              return (
+                <button
+                  key={letter}
+                  onClick={() => hasMovies && scrollToLetter(letter)}
+                  disabled={!hasMovies}
+                  style={{ flex: '1 1 0', minHeight: 0 }}
+                  className={`w-6 text-[11px] font-semibold flex items-center justify-center ${
+                    activeLetter === letter
+                      ? 'text-primary font-bold'
+                      : hasMovies
+                        ? 'text-muted-foreground hover:text-foreground'
+                        : 'text-muted-foreground/30 cursor-default'
+                  }`}
+                >
+                  {letter}
+                </button>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* Content with right padding for alphabet nav */}

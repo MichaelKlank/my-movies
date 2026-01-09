@@ -22,6 +22,9 @@ import { api, UserWithDate } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
 import { Avatar } from '@/components/Avatar'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 
 export const Route = createFileRoute('/users')({
   beforeLoad: ({ context }) => {
@@ -433,60 +436,50 @@ function PasswordModal({ user, onClose }: { user: UserWithDate; onClose: () => v
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-base md:text-lg font-semibold">{t('users.setPassword')}</h3>
-        <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-          {t('resetPassword.newPassword')} for <strong>{user.username}</strong>
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs md:text-sm font-medium">{t('resetPassword.newPassword')}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-              autoFocus
-            />
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={t('users.setPassword')}
+      description={`${t('resetPassword.newPassword')} for ${user.username}`}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
           </div>
+        )}
 
-          <div>
-            <label className="block text-xs md:text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-            />
-          </div>
+        <div>
+          <label className="block text-xs md:text-sm font-medium">{t('resetPassword.newPassword')}</label>
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1"
+            autoFocus
+          />
+        </div>
 
-          <div className="flex flex-col sm:flex-row justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
-            >
-              {mutation.isPending ? t('settings.saving') : t('users.setPassword')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label className="block text-xs md:text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="mt-1"
+          />
+        </div>
+
+        <Modal.Footer>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" isLoading={mutation.isPending}>
+            {t('users.setPassword')}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   )
 }
 
@@ -503,33 +496,23 @@ function DeleteModal({
 }) {
   const { t } = useI18n()
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-base md:text-lg font-semibold text-destructive">{t('deleteUser.title')}</h3>
-        <p className="mt-2 text-xs md:text-sm text-muted-foreground break-words">
-          {t('deleteUser.confirm')} <strong>{user.username}</strong>?
-        </p>
-        <p className="mt-2 text-xs md:text-sm text-destructive break-words">
-          {t('deleteUser.warning')}
-        </p>
+    <Modal open={true} onClose={onClose} title={t('deleteUser.title')}>
+      <p className="text-sm text-muted-foreground">
+        {t('deleteUser.confirm')} <strong>{user.username}</strong>?
+      </p>
+      <p className="mt-2 text-sm text-destructive">
+        {t('deleteUser.warning')}
+      </p>
 
-        <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="flex items-center justify-center rounded-md bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
-          >
-            {isDeleting ? t('common.loading') : t('common.delete')}
-          </button>
-        </div>
-      </div>
-    </div>
+      <Modal.Footer>
+        <Button variant="outline" onClick={onClose}>
+          {t('common.cancel')}
+        </Button>
+        <Button variant="destructive" onClick={onConfirm} isLoading={isDeleting}>
+          {t('common.delete')}
+        </Button>
+      </Modal.Footer>
+    </Modal>
   )
 }
 
@@ -605,140 +588,120 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
   // Show reset link after creation
   if (resetLink) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-        <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-base md:text-lg font-semibold flex items-center gap-2">
-            <Check className="h-5 w-5 text-green-500" />
-            {t('users.userCreated')}
-          </h3>
-          <p className="mt-2 text-xs md:text-sm text-muted-foreground">
-            {t('users.shareResetLink')}
-          </p>
-
-          <div className="mt-4 flex gap-2">
-            <input
-              type="text"
-              value={resetLink}
-              readOnly
-              className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs font-mono"
-            />
-            <button
-              onClick={copyLink}
-              className="rounded-md border px-3 py-2 hover:bg-muted"
-              title={t('users.copyLink')}
-            >
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 min-h-touch"
-            >
-              {t('common.close')}
-            </button>
-          </div>
+      <Modal open={true} onClose={onClose} title={t('users.userCreated')} showCloseButton={false}>
+        <div className="flex items-center gap-2 mb-4">
+          <Check className="h-5 w-5 text-green-500" />
+          <span className="text-sm text-muted-foreground">{t('users.shareResetLink')}</span>
         </div>
-      </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={resetLink}
+            readOnly
+            className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs font-mono"
+          />
+          <button
+            onClick={copyLink}
+            className="rounded-md border px-3 py-2 hover:bg-muted"
+            title={t('users.copyLink')}
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <Modal.Footer>
+          <Button onClick={onClose}>{t('common.close')}</Button>
+        </Modal.Footer>
+      </Modal>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg bg-card p-4 md:p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-base md:text-lg font-semibold">{t('users.createUser')}</h3>
-        <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-          {t('users.createUserDesc')}
-        </p>
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={t('users.createUser')}
+      description={t('users.createUserDesc')}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+        <div>
+          <label className="block text-xs md:text-sm font-medium">{t('auth.username')}</label>
+          <Input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="mt-1"
+            autoFocus
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs md:text-sm font-medium">{t('auth.email')}</label>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1"
+            required
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="useTemporaryPassword"
+            checked={useTemporaryPassword}
+            onChange={(e) => setUseTemporaryPassword(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <label htmlFor="useTemporaryPassword" className="text-xs md:text-sm">
+            {t('users.generateResetLink')}
+          </label>
+        </div>
+
+        {!useTemporaryPassword && (
+          <>
+            <div>
+              <label className="block text-xs md:text-sm font-medium">{t('auth.password')}</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1"
+                required
+              />
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs md:text-sm font-medium">{t('auth.username')}</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-              autoFocus
-              required
-            />
-          </div>
+            <div>
+              <label className="block text-xs md:text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-1"
+                required
+              />
+            </div>
+          </>
+        )}
 
-          <div>
-            <label className="block text-xs md:text-sm font-medium">{t('auth.email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-              required
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="useTemporaryPassword"
-              checked={useTemporaryPassword}
-              onChange={(e) => setUseTemporaryPassword(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <label htmlFor="useTemporaryPassword" className="text-xs md:text-sm">
-              {t('users.generateResetLink')}
-            </label>
-          </div>
-
-          {!useTemporaryPassword && (
-            <>
-              <div>
-                <label className="block text-xs md:text-sm font-medium">{t('auth.password')}</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-medium">{t('resetPassword.confirmPassword')}</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center justify-center rounded-md border px-4 py-3 text-sm font-medium hover:bg-muted active:bg-muted/80 min-h-touch w-full sm:w-auto"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch w-full sm:w-auto"
-            >
-              {mutation.isPending ? t('common.loading') : t('users.createUser')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Modal.Footer>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" isLoading={mutation.isPending}>
+            {t('users.createUser')}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   )
 }

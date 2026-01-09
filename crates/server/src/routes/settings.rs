@@ -6,16 +6,15 @@ use my_movies_core::{
     services::SettingStatus,
 };
 
-use crate::AppState;
+use crate::{ApiError, AppState};
 
 /// Get all settings status (for admin UI)
 pub async fn get_settings(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> Result<Json<Vec<SettingStatus>>, crate::routes::AppError> {
-    // Only admins can view settings
+) -> Result<Json<Vec<SettingStatus>>, ApiError> {
     if claims.role != UserRole::Admin {
-        return Err(my_movies_core::Error::Forbidden.into());
+        return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
     let statuses = state.settings_service.get_status().await?;
@@ -28,16 +27,14 @@ pub async fn update_setting(
     Extension(claims): Extension<Claims>,
     axum::extract::Path(key): axum::extract::Path<String>,
     Json(update): Json<SettingUpdate>,
-) -> Result<Json<SettingStatus>, crate::routes::AppError> {
-    // Only admins can update settings
+) -> Result<Json<SettingStatus>, ApiError> {
     if claims.role != UserRole::Admin {
-        return Err(my_movies_core::Error::Forbidden.into());
+        return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    // Parse the key
     let setting_key = match key.as_str() {
         "tmdb_api_key" => SettingKey::TmdbApiKey,
-        _ => return Err(my_movies_core::Error::NotFound.into()),
+        _ => return Err(ApiError::not_found("Setting not found")),
     };
 
     // Update runtime services directly (no restart needed!)
@@ -47,15 +44,13 @@ pub async fn update_setting(
         }
     }
 
-    // Update the setting in database
     state.settings_service.update(setting_key, update).await?;
 
-    // Return updated status
     let statuses = state.settings_service.get_status().await?;
     let status = statuses
         .into_iter()
         .find(|s| s.key == key)
-        .ok_or(my_movies_core::Error::NotFound)?;
+        .ok_or_else(|| ApiError::not_found("Setting not found"))?;
 
     Ok(Json(status))
 }
@@ -64,18 +59,12 @@ pub async fn update_setting(
 pub async fn test_tmdb(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> Result<Json<TmdbTestResult>, crate::routes::AppError> {
-    // Only admins can test settings
+) -> Result<Json<TmdbTestResult>, ApiError> {
     if claims.role != UserRole::Admin {
-        return Err(my_movies_core::Error::Forbidden.into());
+        return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    // Try to make a simple TMDB API call (uses current key from TmdbService)
-    match state
-        .tmdb_service
-        .search_movies("test", None, None, false)
-        .await
-    {
+    match state.tmdb_service.search_movies("test", None, None, false).await {
         Ok(_) => Ok(Json(TmdbTestResult {
             success: true,
             message: "TMDB API key is valid".to_string(),

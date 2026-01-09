@@ -37,7 +37,7 @@ tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
 
 # Multipart for file uploads
-axum_typed_multipart = "0.13"
+axum_typed_multipart = "0.16"
 tempfile = "3.12"
 
 # WebSocket
@@ -51,7 +51,7 @@ reqwest = { workspace = true }
 regex = { workspace = true }
 
 # ZIP archive support for backup/restore
-zip = "2.2"
+zip = "2.4"
 
 # Image processing for thumbnails
 image = "0.25"

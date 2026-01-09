@@ -172,7 +172,7 @@ function RootLayout() {
     <div className="h-screen bg-background flex flex-col overflow-hidden relative">
       {/* Header - Hidden on mobile, shown on desktop */}
       <header className="hidden md:block border-b bg-card shrink-0 relative z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="container flex h-14 items-center justify-between px-4">
+        <div className="flex h-14 items-center justify-between px-4 2xl:px-8">
           <Link to="/movies" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5" />
             <span>My Movies</span>
@@ -244,11 +244,11 @@ function RootLayout() {
 
       {/* Main content - Scrollable area */}
       <main 
-        className="flex-1 container px-4 overflow-y-auto min-h-0 relative z-0 pt-safe-top pb-safe-bottom"
+        className="flex-1 w-full px-4 2xl:px-8 overflow-y-auto min-h-0 relative z-0 pt-safe-top pb-safe-bottom"
         style={{ 
           paddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0px))', // 72px (h-14 + extra) + safe area for mobile fixed header
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))', // 80px (h-16 + extra) + safe area for bottom navigation
-          WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+          WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
         }}
       >
         <Outlet />

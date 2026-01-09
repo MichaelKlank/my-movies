@@ -8,26 +8,5 @@ pub mod settings;
 pub mod users;
 pub mod ws;
 
-use axum::{
-    Json,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
-
-/// Application error type for routes
-pub struct AppError(pub my_movies_core::Error);
-
-impl From<my_movies_core::Error> for AppError {
-    fn from(err: my_movies_core::Error) -> Self {
-        AppError(err)
-    }
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let status =
-            StatusCode::from_u16(self.0.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-        let body = Json(serde_json::json!({ "error": self.0.to_string() }));
-        (status, body).into_response()
-    }
-}
+// Re-export ApiError as AppError for backward compatibility
+pub use crate::error::ApiError as AppError;

@@ -32,12 +32,14 @@ function getColumns(cardSize: CardSize, width: number): number {
 
 // Estimate row height based on card size
 function getRowHeight(cardSize: CardSize, columnWidth: number): number {
-  // Aspect ratio 2:3 for poster + padding + details
+  // Aspect ratio 2:3 for poster + padding + details + border
   const posterHeight = columnWidth * 1.5
   const showDetails = cardSize !== 'small'
-  const detailsHeight = showDetails ? 60 : 0
+  // Details section: p-2 md:p-3 (8-12px) + text height (~40-50px) + border (2px)
+  const detailsHeight = showDetails ? 70 : 0
+  const border = 2 // border on card
   const gap = 16 // gap-3 or gap-4
-  return posterHeight + detailsHeight + gap
+  return Math.ceil(posterHeight + detailsHeight + border + gap)
 }
 
 export function VirtualizedMovieGrid({ movies, cardSize, onMovieClick }: VirtualizedMovieGridProps) {
@@ -89,6 +91,11 @@ export function VirtualizedMovieGrid({ movies, cardSize, onMovieClick }: Virtual
     overscan: 3, // Render 3 extra rows above/below viewport
     scrollPaddingStart: 80, // Account for sticky header
   })
+  
+  // Force re-measure when row height changes (window resize)
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
   
   const virtualRows = virtualizer.getVirtualItems()
   
@@ -216,12 +223,16 @@ export const VirtualizedMovieGridGrouped = forwardRef<VirtualizedMovieGridGroupe
       scrollPaddingStart: 80, // Account for sticky header
     })
     
+    // Force re-measure when row height changes (window resize)
+    useEffect(() => {
+      virtualizer.measure()
+    }, [rowHeight, virtualizer])
+    
     // Expose scrollToLetter function via ref
     useImperativeHandle(ref, () => ({
       scrollToLetter: (letter: string) => {
         const index = letterIndices[letter]
         if (index !== undefined) {
-          // Scroll to the header with some offset for the sticky toolbar
           virtualizer.scrollToIndex(index, { align: 'start', behavior: 'smooth' })
         }
       }
@@ -243,6 +254,7 @@ export const VirtualizedMovieGridGrouped = forwardRef<VirtualizedMovieGridGroupe
               <div
                 key={virtualItem.key}
                 data-letter={item.letter}
+                className="text-base md:text-lg font-bold py-2 border-b bg-background"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -252,12 +264,10 @@ export const VirtualizedMovieGridGrouped = forwardRef<VirtualizedMovieGridGroupe
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
               >
-                <h2 className="text-base md:text-lg font-bold sticky top-0 bg-background/95 backdrop-blur py-2 z-10 border-b">
-                  {item.letter}
-                  <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
-                    ({item.count})
-                  </span>
-                </h2>
+                <span className="font-bold">{item.letter}</span>
+                <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
+                  ({item.count})
+                </span>
               </div>
             )
           }

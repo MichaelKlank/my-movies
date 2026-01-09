@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { Film } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: ({ context }) => {
@@ -27,7 +29,6 @@ function LoginPage() {
   const navigate = useNavigate()
   const router = useRouter()
 
-  // Redirect if already authenticated (fallback for beforeLoad)
   useEffect(() => {
     if (isAuthenticated) {
       navigate({ to: '/' })
@@ -38,7 +39,6 @@ function LoginPage() {
     e.preventDefault()
     setError('')
 
-    // Validation for registration
     if (isRegister) {
       if (password.length < 6) {
         setError(t('resetPassword.passwordTooShort'))
@@ -91,12 +91,11 @@ function LoginPage() {
             <label htmlFor="username" className="text-sm font-medium">
               {t('auth.username')}
             </label>
-            <input
+            <Input
               id="username"
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               required
               autoComplete="username"
             />
@@ -107,12 +106,11 @@ function LoginPage() {
               <label htmlFor="email" className="text-sm font-medium">
                 {t('auth.email')}
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
                 required
                 autoComplete="email"
               />
@@ -123,12 +121,11 @@ function LoginPage() {
             <label htmlFor="password" className="text-sm font-medium">
               {t('auth.password')}
             </label>
-            <input
+            <Input
               id="password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
               required
               autoComplete={isRegister ? 'new-password' : 'current-password'}
             />
@@ -139,25 +136,20 @@ function LoginPage() {
               <label htmlFor="confirmPassword" className="text-sm font-medium">
                 {t('resetPassword.confirmPassword')}
               </label>
-              <input
+              <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full rounded-md border bg-background px-4 py-3 text-base md:text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-touch"
                 required
                 autoComplete="new-password"
               />
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-md bg-primary px-4 py-3 text-base md:text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50 min-h-touch"
-          >
-            {isLoading ? t('common.loading') : isRegister ? t('auth.register') : t('auth.login')}
-          </button>
+          <Button type="submit" isLoading={isLoading} className="w-full">
+            {isRegister ? t('auth.register') : t('auth.login')}
+          </Button>
         </form>
 
         <p className="text-center text-xs md:text-sm text-muted-foreground">

@@ -21,8 +21,11 @@ use my_movies_core::{
     },
 };
 
+pub mod error;
 pub mod middleware;
 pub mod routes;
+
+pub use error::{ApiError, ApiResult};
 
 use routes::{auth, collections, import, movies, scan, series, settings, users, ws};
 

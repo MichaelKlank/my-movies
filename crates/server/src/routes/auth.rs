@@ -8,99 +8,56 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use uuid::Uuid;
 
 use my_movies_core::models::{
     Claims, CreateUser, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest,
 };
-use uuid::Uuid;
 
-use crate::AppState;
+use crate::{ApiError, AppState};
 
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(input): Json<CreateUser>,
-) -> impl IntoResponse {
-    match state.auth_service.register(input).await {
-        Ok(auth_response) => {
-            // Broadcast new user to WebSocket clients (for admin user list)
-            let msg = json!({
-                "type": "user_created",
-                "payload": &auth_response.user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let auth_response = state.auth_service.register(input).await?;
+    
+    let msg = json!({ "type": "user_created", "payload": &auth_response.user });
+    let _ = state.ws_broadcast.send(msg.to_string());
 
-            (StatusCode::CREATED, Json(auth_response)).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((StatusCode::CREATED, Json(auth_response)))
 }
 
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(input): Json<LoginRequest>,
-) -> impl IntoResponse {
-    match state.auth_service.login(input).await {
-        Ok(auth_response) => (StatusCode::OK, Json(auth_response)).into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::UNAUTHORIZED),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let auth_response = state.auth_service.login(input).await?;
+    Ok((StatusCode::OK, Json(auth_response)))
 }
 
 pub async fn me(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
-    match state.auth_service.get_user(claims.sub).await {
-        Ok(user) => (StatusCode::OK, Json(user)).into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.get_user(claims.sub).await?;
+    Ok((StatusCode::OK, Json(user)))
 }
 
 pub async fn forgot_password(
     State(state): State<Arc<AppState>>,
     Json(input): Json<ForgotPasswordRequest>,
-) -> impl IntoResponse {
-    match state.auth_service.request_password_reset(input).await {
-        Ok(_) => (
-            StatusCode::OK,
-            Json(json!({ "message": "Password reset email sent" })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    state.auth_service.request_password_reset(input).await?;
+    Ok((StatusCode::OK, Json(json!({ "message": "Password reset email sent" }))))
 }
 
 pub async fn reset_password(
     State(state): State<Arc<AppState>>,
     Json(input): Json<ResetPasswordRequest>,
-) -> impl IntoResponse {
-    match state.auth_service.reset_password(input).await {
-        Ok(_) => (
-            StatusCode::OK,
-            Json(json!({ "message": "Password reset successfully" })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    state.auth_service.reset_password(input).await?;
+    Ok((StatusCode::OK, Json(json!({ "message": "Password reset successfully" }))))
 }
 
 #[derive(serde::Deserialize)]
@@ -112,28 +69,13 @@ pub async fn update_language(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateLanguageRequest>,
-) -> impl IntoResponse {
-    match state
-        .auth_service
-        .update_user_language(claims.sub, body.language)
-        .await
-    {
-        Ok(user) => {
-            // Broadcast update to WebSocket clients
-            let msg = json!({
-                "type": "user_updated",
-                "payload": user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.update_user_language(claims.sub, body.language).await?;
+    
+    let msg = json!({ "type": "user_updated", "payload": user });
+    let _ = state.ws_broadcast.send(msg.to_string());
 
-            (StatusCode::OK, Json(user)).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((StatusCode::OK, Json(user)))
 }
 
 #[derive(serde::Deserialize)]
@@ -145,28 +87,13 @@ pub async fn update_include_adult(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateIncludeAdultRequest>,
-) -> impl IntoResponse {
-    match state
-        .auth_service
-        .update_user_include_adult(claims.sub, body.include_adult)
-        .await
-    {
-        Ok(user) => {
-            // Broadcast update to WebSocket clients
-            let msg = json!({
-                "type": "user_updated",
-                "payload": user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.update_user_include_adult(claims.sub, body.include_adult).await?;
+    
+    let msg = json!({ "type": "user_updated", "payload": user });
+    let _ = state.ws_broadcast.send(msg.to_string());
 
-            (StatusCode::OK, Json(user)).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((StatusCode::OK, Json(user)))
 }
 
 #[derive(serde::Deserialize)]
@@ -178,28 +105,13 @@ pub async fn update_theme(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateThemeRequest>,
-) -> impl IntoResponse {
-    match state
-        .auth_service
-        .update_user_theme(claims.sub, body.theme)
-        .await
-    {
-        Ok(user) => {
-            // Broadcast update to WebSocket clients
-            let msg = json!({
-                "type": "user_updated",
-                "payload": user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.update_user_theme(claims.sub, body.theme).await?;
+    
+    let msg = json!({ "type": "user_updated", "payload": user });
+    let _ = state.ws_broadcast.send(msg.to_string());
 
-            (StatusCode::OK, Json(user)).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((StatusCode::OK, Json(user)))
 }
 
 #[derive(serde::Deserialize)]
@@ -211,28 +123,13 @@ pub async fn update_card_size(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateCardSizeRequest>,
-) -> impl IntoResponse {
-    match state
-        .auth_service
-        .update_user_card_size(claims.sub, body.card_size)
-        .await
-    {
-        Ok(user) => {
-            // Broadcast update to WebSocket clients
-            let msg = json!({
-                "type": "user_updated",
-                "payload": user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.update_user_card_size(claims.sub, body.card_size).await?;
+    
+    let msg = json!({ "type": "user_updated", "payload": user });
+    let _ = state.ws_broadcast.send(msg.to_string());
 
-            (StatusCode::OK, Json(user)).into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    Ok((StatusCode::OK, Json(user)))
 }
 
 /// Upload avatar image for current user
@@ -240,26 +137,17 @@ pub async fn upload_avatar(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
     mut multipart: Multipart,
-) -> impl IntoResponse {
-    // Process multipart upload
+) -> Result<impl IntoResponse, ApiError> {
     loop {
-        let field_result = multipart.next_field().await;
-        let field = match field_result {
+        let field = match multipart.next_field().await {
             Ok(Some(field)) => field,
-            Ok(None) => break, // No more fields
-            Err(e) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": format!("Failed to parse multipart form: {}", e) })),
-                )
-                    .into_response();
-            }
+            Ok(None) => break,
+            Err(e) => return Err(ApiError::bad_request(format!("Failed to parse multipart form: {}", e))),
         };
 
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            // Get content type
             let content_type = field.content_type().unwrap_or("image/jpeg").to_string();
 
             let _extension = match content_type.as_str() {
@@ -267,177 +155,92 @@ pub async fn upload_avatar(
                 "image/gif" => "gif",
                 "image/webp" => "webp",
                 "image/jpeg" | "image/jpg" => "jpg",
-                _ => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({
-                            "error": format!("Unsupported content type: {}. Supported types: image/png, image/jpeg, image/gif, image/webp", content_type)
-                        })),
-                    )
-                        .into_response();
-                }
+                _ => return Err(ApiError::bad_request(format!(
+                    "Unsupported content type: {}. Supported: image/png, image/jpeg, image/gif, image/webp",
+                    content_type
+                ))),
             };
 
-            // Read file data using bytes() - same approach as upload_poster
-            let data = match field.bytes().await {
-                Ok(bytes) => bytes.to_vec(),
-                Err(e) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({ "error": format!("Failed to read file: {}", e) })),
-                    )
-                        .into_response();
-                }
-            };
+            let data = field.bytes().await
+                .map_err(|e| ApiError::bad_request(format!("Failed to read file: {}", e)))?
+                .to_vec();
 
-            // Validate file size (max 5MB)
-            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
+            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024;
             if data.len() > MAX_FILE_SIZE {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": format!("File too large. Maximum size is 5MB, got {} bytes", data.len()) })),
-                )
-                    .into_response();
+                return Err(ApiError::bad_request(format!(
+                    "File too large. Maximum size is 5MB, got {} bytes",
+                    data.len()
+                )));
             }
 
-            // Validate it's actually an image (basic check)
             if data.len() < 8 {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({ "error": "File too small to be a valid image" })),
-                )
-                    .into_response();
+                return Err(ApiError::bad_request("File too small to be a valid image"));
             }
 
-            // Store image data directly in database
-            match state
-                .auth_service
-                .update_user_avatar_data(claims.sub, Some(data))
-                .await
-            {
-                Ok(user) => {
-                    // Broadcast update to WebSocket clients
-                    let msg = json!({
-                        "type": "user_updated",
-                        "payload": user
-                    });
-                    let _ = state.ws_broadcast.send(msg.to_string());
+            let user = state.auth_service.update_user_avatar_data(claims.sub, Some(data)).await?;
 
-                    return (
-                        StatusCode::OK,
-                        Json(json!({
-                            "message": "Avatar uploaded successfully",
-                            "user": user
-                        })),
-                    )
-                        .into_response();
-                }
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": format!("Failed to update user: {}", e) })),
-                    )
-                        .into_response();
-                }
-            }
+            let msg = json!({ "type": "user_updated", "payload": user });
+            let _ = state.ws_broadcast.send(msg.to_string());
+
+            return Ok((
+                StatusCode::OK,
+                Json(json!({ "message": "Avatar uploaded successfully", "user": user })),
+            ));
         }
     }
 
-    (
-        StatusCode::BAD_REQUEST,
-        Json(json!({ "error": "No file provided" })),
-    )
-        .into_response()
+    Err(ApiError::bad_request("No file provided"))
 }
 
 /// Delete avatar for current user
 pub async fn delete_avatar(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
-    // Remove avatar data from database
-    match state
-        .auth_service
-        .update_user_avatar_data(claims.sub, None)
-        .await
-    {
-        Ok(user) => {
-            // Broadcast update to WebSocket clients
-            let msg = json!({
-                "type": "user_updated",
-                "payload": user
-            });
-            let _ = state.ws_broadcast.send(msg.to_string());
+) -> Result<impl IntoResponse, ApiError> {
+    let user = state.auth_service.update_user_avatar_data(claims.sub, None).await?;
 
-            (
-                StatusCode::OK,
-                Json(json!({
-                    "message": "Avatar deleted successfully",
-                    "user": user
-                })),
-            )
-                .into_response()
-        }
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+    let msg = json!({ "type": "user_updated", "payload": user });
+    let _ = state.ws_broadcast.send(msg.to_string());
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "message": "Avatar deleted successfully", "user": user })),
+    ))
 }
 
 /// Get avatar image for a user
 pub async fn get_avatar(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<Uuid>,
-) -> impl IntoResponse {
-    match state.auth_service.get_user_avatar_data(user_id).await {
-        Ok(Some(data)) => {
-            // Determine content type from first few bytes (magic numbers)
-            let content_type = if data.len() >= 8 {
-                if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
-                    "image/png"
-                } else if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
-                    "image/jpeg"
-                } else if data.len() >= 6
-                    && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
-                        || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
-                {
-                    "image/gif"
-                } else if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
-                    "image/webp"
-                } else {
-                    "image/jpeg" // Default fallback
-                }
-            } else {
-                "image/jpeg"
-            };
+) -> Result<Response, ApiError> {
+    let data = state.auth_service.get_user_avatar_data(user_id).await?
+        .ok_or_else(|| ApiError::not_found("Avatar not found"))?;
 
-            match Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, content_type)
-                .body(Body::from(data))
-            {
-                Ok(response) => response.into_response(),
-                Err(e) => {
-                    tracing::error!("Failed to build response: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": "Failed to build response" })),
-                    )
-                        .into_response()
-                }
-            }
+    let content_type = detect_image_type(&data);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(data))
+        .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)))
+}
+
+fn detect_image_type(data: &[u8]) -> &'static str {
+    if data.len() >= 8 {
+        if data[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] {
+            return "image/png";
         }
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Avatar not found" })),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
+        if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
+            return "image/jpeg";
+        }
+        if data.len() >= 6 && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
+            || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+        {
+            return "image/gif";
+        }
+        if data.len() >= 12 && data[8..12] == [0x57, 0x45, 0x42, 0x50] {
+            return "image/webp";
+        }
     }
+    "image/jpeg"
 }
