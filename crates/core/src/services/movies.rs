@@ -5,6 +5,21 @@ use crate::db::DbPool;
 use crate::error::{Error, Result};
 use crate::models::{CreateMovie, Movie, MovieFilter, UpdateMovie};
 
+/// Check if a barcode is a placeholder/invalid value that shouldn't be used for duplicate detection
+fn is_placeholder_barcode(barcode: &str) -> bool {
+    // All zeros (any length) - e.g., "000000000000"
+    if barcode.chars().all(|c| c == '0') {
+        return true;
+    }
+    // All same digit (e.g., "111111111111", "999999999999")
+    if let Some(first) = barcode.chars().next() {
+        if first.is_ascii_digit() && barcode.chars().all(|c| c == first) {
+            return true;
+        }
+    }
+    false
+}
+
 pub struct MovieService {
     pool: DbPool,
 }
@@ -484,8 +499,9 @@ impl MovieService {
             return Ok(duplicates); // Barcode match is definitive
         }
 
-        // Check by TMDB ID
+        // Check by TMDB ID (exclude 0 as it's a placeholder)
         if let Some(id) = tmdb_id
+            && id > 0
             && let Some(movie) = self.find_by_tmdb_id(user_id, id).await?
         {
             duplicates.push(movie);
@@ -522,9 +538,10 @@ impl MovieService {
 
             let mut group = vec![movie.clone()];
 
-            // Find duplicates by barcode
+            // Find duplicates by barcode (exclude empty and placeholder barcodes)
             if let Some(ref barcode) = movie.barcode
                 && !barcode.is_empty()
+                && !is_placeholder_barcode(barcode)
             {
                 for other in &movies {
                     if other.id != movie.id
@@ -536,8 +553,10 @@ impl MovieService {
                 }
             }
 
-            // Find duplicates by TMDB ID
-            if let Some(tmdb_id) = movie.tmdb_id {
+            // Find duplicates by TMDB ID (exclude 0 as it's a placeholder)
+            if let Some(tmdb_id) = movie.tmdb_id
+                && tmdb_id > 0
+            {
                 for other in &movies {
                     if other.id != movie.id
                         && other.tmdb_id == Some(tmdb_id)
