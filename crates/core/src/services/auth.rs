@@ -434,7 +434,7 @@ impl AuthService {
         )
         .bind(&password_hash)
         .bind(Utc::now().to_rfc3339())
-        .bind(user_id.to_string())
+        .bind(user_id)
         .execute(&self.pool)
         .await?;
 
