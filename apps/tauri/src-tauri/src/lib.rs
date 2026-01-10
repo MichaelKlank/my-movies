@@ -75,14 +75,14 @@ fn start_embedded_server() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize tracing
+    // Initialize tracing (disable ANSI colors for Xcode compatibility)
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 "info,my_movies_server=debug,my_movies_core=debug,my_movies_tauri=debug".into()
             }),
         )
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_ansi(false))
         .init();
 
     // Setup environment variables for the app

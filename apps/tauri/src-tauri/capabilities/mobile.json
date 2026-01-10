@@ -3,6 +3,7 @@
   "identifier": "mobile",
   "description": "Mobile capabilities for My Movies app",
   "platforms": ["iOS", "android"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     {

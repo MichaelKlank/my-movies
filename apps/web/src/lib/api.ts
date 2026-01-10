@@ -26,8 +26,8 @@ async function tauriFetch(url: string, options?: RequestInit): Promise<Response>
       }
       return tauriFetchFn(url, options)
     } catch (e) {
-      // Plugin not available, fall back to regular fetch
-      console.warn('Tauri HTTP plugin not available, using regular fetch:', e)
+      // Plugin not available or request failed, re-throw
+      throw e
     }
   }
   return fetch(url, options)
