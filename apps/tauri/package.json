@@ -13,6 +13,7 @@
     "tauri:ios": "tauri ios",
     "tauri:ios:init": "tauri ios init && ./scripts/setup-ios.sh",
     "tauri:ios:dev": "tauri ios dev --host $(ipconfig getifaddr en0)",
+    "tauri:ios:dev:open": "tauri ios dev --host $(ipconfig getifaddr en0) --open",
     "tauri:ios:setup": "./scripts/setup-ios.sh",
     "tauri:android": "tauri android"
   },
