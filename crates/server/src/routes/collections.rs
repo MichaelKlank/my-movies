@@ -48,7 +48,10 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateCollection>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let collection = state.collection_service.update(claims.sub, id, input).await?;
+    let collection = state
+        .collection_service
+        .update(claims.sub, id, input)
+        .await?;
     Ok((StatusCode::OK, Json(json!(collection))))
 }
 
@@ -76,7 +79,10 @@ pub async fn add_item(
     Path(id): Path<Uuid>,
     Json(input): Json<AddCollectionItem>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let item = state.collection_service.add_item(claims.sub, id, input).await?;
+    let item = state
+        .collection_service
+        .add_item(claims.sub, id, input)
+        .await?;
     Ok((StatusCode::CREATED, Json(json!(item))))
 }
 
@@ -85,6 +91,9 @@ pub async fn remove_item(
     Extension(claims): Extension<Claims>,
     Path((id, item_id)): Path<(Uuid, Uuid)>,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.collection_service.remove_item(claims.sub, id, item_id).await?;
+    state
+        .collection_service
+        .remove_item(claims.sub, id, item_id)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }

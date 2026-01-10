@@ -217,7 +217,7 @@ export const VirtualizedMovieGridGrouped = forwardRef<VirtualizedMovieGridGroupe
       getScrollElement: () => scrollElementRef.current,
       estimateSize: (index) => {
         const item = items[index]
-        return item.type === 'header' ? 48 : rowHeight // Header is ~48px
+        return item.type === 'header' ? 44 : rowHeight // Header is ~44px (py-2 + text)
       },
       overscan: 5,
       scrollPaddingStart: 80, // Account for sticky header
@@ -254,7 +254,7 @@ export const VirtualizedMovieGridGrouped = forwardRef<VirtualizedMovieGridGroupe
               <div
                 key={virtualItem.key}
                 data-letter={item.letter}
-                className="text-base md:text-lg font-bold py-2 border-b bg-background"
+                className="text-base md:text-lg font-bold py-2 bg-background"
                 style={{
                   position: 'absolute',
                   top: 0,

@@ -158,7 +158,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         // Avatar upload
         .route("/auth/avatar", axum::routing::post(auth::upload_avatar))
         .route("/auth/avatar", axum::routing::delete(auth::delete_avatar))
-        .route("/auth/avatar/:id", axum::routing::get(auth::get_avatar))
+        .route("/auth/avatar/{id}", axum::routing::get(auth::get_avatar))
         // Movies
         .route("/movies", get(movies::list).post(movies::create))
         .route("/movies/all", delete(movies::delete_all))
@@ -168,37 +168,40 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/movies/check-duplicates", get(movies::check_duplicates))
         .route("/movies/duplicates", get(movies::find_all_duplicates))
         .route(
-            "/movies/:id",
+            "/movies/{id}",
             get(movies::get).put(movies::update).delete(movies::delete),
         )
-        .route("/movies/:id/refresh-tmdb", post(movies::refresh_tmdb))
-        .route("/movies/:id/upload-poster", post(movies::upload_poster))
+        .route("/movies/{id}/refresh-tmdb", post(movies::refresh_tmdb))
+        .route("/movies/{id}/upload-poster", post(movies::upload_poster))
         .route(
-            "/movies/:id/set-poster-url",
+            "/movies/{id}/set-poster-url",
             post(movies::set_poster_from_url),
         )
-        .route("/movies/:id/poster", axum::routing::get(movies::get_poster))
         .route(
-            "/movies/:id/thumbnail",
+            "/movies/{id}/poster",
+            axum::routing::get(movies::get_poster),
+        )
+        .route(
+            "/movies/{id}/thumbnail",
             axum::routing::get(movies::get_thumbnail),
         )
         // Collection analysis (for box sets)
         .route(
-            "/movies/:id/analyze-collection",
+            "/movies/{id}/analyze-collection",
             get(movies::analyze_collection),
         )
         .route(
-            "/movies/:id/split-collection",
+            "/movies/{id}/split-collection",
             post(movies::split_collection),
         )
         .route(
-            "/movies/:id/collection-movies",
+            "/movies/{id}/collection-movies",
             get(movies::get_collection_movies),
         )
         // Series
         .route("/series", get(series::list).post(series::create))
         .route(
-            "/series/:id",
+            "/series/{id}",
             get(series::get).put(series::update).delete(series::delete),
         )
         // Collections
@@ -207,25 +210,25 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             get(collections::list).post(collections::create),
         )
         .route(
-            "/collections/:id",
+            "/collections/{id}",
             get(collections::get)
                 .put(collections::update)
                 .delete(collections::delete),
         )
         .route(
-            "/collections/:id/items",
+            "/collections/{id}/items",
             get(collections::get_items).post(collections::add_item),
         )
         .route(
-            "/collections/:id/items/:item_id",
+            "/collections/{id}/items/{item_id}",
             delete(collections::remove_item),
         )
         // Scanning & Lookup
         .route("/scan", post(scan::lookup_barcode))
         .route("/tmdb/search/movies", get(scan::search_tmdb_movies))
         .route("/tmdb/search/tv", get(scan::search_tmdb_tv))
-        .route("/tmdb/movies/:id", get(scan::get_tmdb_movie))
-        .route("/tmdb/tv/:id", get(scan::get_tmdb_tv))
+        .route("/tmdb/movies/{id}", get(scan::get_tmdb_movie))
+        .route("/tmdb/tv/{id}", get(scan::get_tmdb_tv))
         // Import/Export
         .route("/import/csv", post(import::import_csv))
         .route("/import/enrich-tmdb", post(import::enrich_movies_tmdb))
@@ -237,7 +240,7 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         // Settings (admin only)
         .route("/settings", get(settings::get_settings))
         .route(
-            "/settings/:key",
+            "/settings/{key}",
             axum::routing::put(settings::update_setting),
         )
         .route("/settings/test/tmdb", post(settings::test_tmdb))
@@ -247,12 +250,12 @@ fn protected_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             get(users::list_users).post(users::admin_create_user),
         )
         .route(
-            "/users/:id/role",
+            "/users/{id}/role",
             axum::routing::put(users::update_user_role),
         )
-        .route("/users/:id", delete(users::delete_user))
+        .route("/users/{id}", delete(users::delete_user))
         .route(
-            "/users/:id/password",
+            "/users/{id}/password",
             axum::routing::put(users::admin_set_password),
         )
         .layer(axum::middleware::from_fn_with_state(

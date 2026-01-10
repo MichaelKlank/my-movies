@@ -16,16 +16,14 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    // Exclude Tauri plugins from pre-bundling - they're only available at runtime
+    // Exclude mobile-only plugins from pre-bundling
     exclude: ['@tauri-apps/plugin-barcode-scanner'],
   },
   build: {
     rollupOptions: {
-      // Externalize Tauri plugins - they're only available at runtime in Tauri
-      external: (id) => {
-        // Externalize all @tauri-apps/plugin-* packages
-        return id.startsWith('@tauri-apps/plugin-')
-      },
+      // Only externalize barcode-scanner (mobile-only, causes issues if bundled)
+      // HTTP plugin MUST be bundled for Tauri HTTP requests to work
+      external: ['@tauri-apps/plugin-barcode-scanner'],
     },
   },
   server: {

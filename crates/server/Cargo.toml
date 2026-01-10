@@ -55,3 +55,10 @@ zip = "2.4"
 
 # Image processing for thumbnails
 image = "0.25"
+
+[dev-dependencies]
+# Testing
+axum-test = "17"
+tokio-test = "0.4"
+tower = { workspace = true }
+once_cell = "1.19"

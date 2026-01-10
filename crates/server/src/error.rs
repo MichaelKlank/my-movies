@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde_json::json;
 
@@ -49,8 +49,8 @@ impl IntoResponse for ApiError {
 /// Convert from core service errors to API errors
 impl From<my_movies_core::error::Error> for ApiError {
     fn from(err: my_movies_core::error::Error) -> Self {
-        let status = StatusCode::from_u16(err.status_code())
-            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let status =
+            StatusCode::from_u16(err.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         Self::new(status, err.to_string())
     }
 }

@@ -292,24 +292,68 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_validate_ean13() {
+    fn test_validate_ean13_valid() {
         assert!(EanService::validate_ean13("5050582721478")); // Valid EAN
-        assert!(!EanService::validate_ean13("5050582721479")); // Invalid checksum
-        assert!(!EanService::validate_ean13("123")); // Too short
+        assert!(EanService::validate_ean13("4006680083094")); // Another valid EAN
+        assert!(EanService::validate_ean13("9783161484100")); // ISBN-13 format
     }
 
     #[test]
-    fn test_clean_title() {
+    fn test_validate_ean13_invalid() {
+        assert!(!EanService::validate_ean13("5050582721479")); // Invalid checksum
+        assert!(!EanService::validate_ean13("123")); // Too short
+        assert!(!EanService::validate_ean13("12345678901234")); // Too long
+        assert!(!EanService::validate_ean13("123456789012a")); // Non-numeric
+        assert!(!EanService::validate_ean13("")); // Empty
+    }
+
+    #[test]
+    fn test_clean_title_format_indicators() {
         assert_eq!(
             EanService::clean_title("The Matrix [Blu-ray]"),
             "The Matrix"
         );
         assert_eq!(EanService::clean_title("Inception (4K UHD)"), "Inception");
+        assert_eq!(EanService::clean_title("Avatar BD"), "Avatar");
+        // Note: "HD DVD" is in patterns but leaves "HD" - should be fine for movie search
+        assert_eq!(EanService::clean_title("Titanic (HD DVD)"), "Titanic");
+    }
+
+    #[test]
+    fn test_clean_title_edition_info() {
         assert_eq!(
             EanService::clean_title("Star Wars Steelbook Limited Edition"),
             "Star Wars"
         );
-        // UPCitemdb format
+        assert_eq!(
+            EanService::clean_title("Blade Runner Director's Cut"),
+            "Blade Runner"
+        );
+        assert_eq!(
+            EanService::clean_title("Lord of the Rings Extended Edition"),
+            "Lord of the Rings"
+        );
+        assert_eq!(
+            EanService::clean_title("E.T. Anniversary Edition Remastered"),
+            "E.T."
+        );
+    }
+
+    #[test]
+    fn test_clean_title_import_info() {
+        assert_eq!(
+            EanService::clean_title("The Dark Knight (Blu-ray) (UK Import)"),
+            "The Dark Knight"
+        );
+        assert_eq!(
+            EanService::clean_title("Gladiator [Region 2] [UK Import]"),
+            "Gladiator"
+        );
+        assert_eq!(EanService::clean_title("Alien (German Import)"), "Alien");
+    }
+
+    #[test]
+    fn test_clean_title_dc_prefix() {
         assert_eq!(
             EanService::clean_title(
                 "Dc: Constantine: City Of Demons - (german Import) (us Import) Dvd"
@@ -317,20 +361,39 @@ mod tests {
             "Constantine: City Of Demons"
         );
         assert_eq!(
-            EanService::clean_title("The Dark Knight (Blu-ray) (UK Import)"),
-            "The Dark Knight"
+            EanService::clean_title("DC: Batman Begins"),
+            "Batman Begins"
         );
-        // With actor names after dash
+    }
+
+    #[test]
+    fn test_clean_title_actor_names() {
         assert_eq!(
             EanService::clean_title(
                 "Fast And Furious 2 [regio Free (0)] - Paul Walker, Tyrese Gibson, Eva Mende"
             ),
             "Fast And Furious 2"
         );
-        // Region info in brackets
+    }
+
+    #[test]
+    fn test_clean_title_preserves_important_content() {
+        // Should NOT strip important parts of the title
         assert_eq!(
-            EanService::clean_title("Gladiator [Region 2] [UK Import]"),
-            "Gladiator"
+            EanService::clean_title("Mission: Impossible"),
+            "Mission: Impossible"
         );
+        assert_eq!(
+            EanService::clean_title("Spider-Man: No Way Home"),
+            "Spider-Man: No Way Home"
+        );
+    }
+
+    #[test]
+    fn test_default_creates_service() {
+        let service = EanService::default();
+        // Just verify it creates without panic
+        assert!(EanService::validate_ean13("5050582721478"));
+        drop(service);
     }
 }

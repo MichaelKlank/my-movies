@@ -716,3 +716,835 @@ fn same_disc_type(a: &Option<String>, b: &Option<String>) -> bool {
         .filter(|s| !s.is_empty());
     a_normalized == b_normalized
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::{create_test_db_with_users, fixtures};
+
+    async fn setup() -> MovieService {
+        let pool = create_test_db_with_users().await;
+        MovieService::new(pool)
+    }
+
+    #[tokio::test]
+    async fn test_create_movie() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let movie = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: Some("1234567890123".to_string()),
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: Some("Fight Club".to_string()),
+                    disc_type: Some("Blu-ray".to_string()),
+                    production_year: Some(1999),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(movie.title, "Fight Club");
+        assert_eq!(movie.tmdb_id, Some(550));
+        assert_eq!(movie.barcode, Some("1234567890123".to_string()));
+        assert_eq!(movie.production_year, Some(1999));
+    }
+
+    #[tokio::test]
+    async fn test_get_movie_by_id() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let created = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let retrieved = service.get_by_id(user_id, created.id).await.unwrap();
+        assert_eq!(retrieved.id, created.id);
+        assert_eq!(retrieved.title, "Fight Club");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_movie_fails() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let result = service.get_by_id(user_id, Uuid::new_v4()).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::NotFound => {}
+            e => panic!("Expected NotFound error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_movies() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        // Create multiple movies
+        for i in 1..=5i32 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: None,
+                        tmdb_id: Some(i as i64),
+                        title: format!("Movie {}", i),
+                        original_title: None,
+                        disc_type: None,
+                        production_year: Some(2000 + i),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        let movies = service.list(user_id, MovieFilter::default()).await.unwrap();
+        assert_eq!(movies.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_movies_with_limit() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        for i in 1..=10i64 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: None,
+                        tmdb_id: Some(i),
+                        title: format!("Movie {}", i),
+                        original_title: None,
+                        disc_type: None,
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        let movies = service
+            .list(
+                user_id,
+                MovieFilter {
+                    limit: Some(5),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(movies.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_movies_with_search() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(1),
+                    title: "The Matrix".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(2),
+                    title: "Inception".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let movies = service
+            .list(
+                user_id,
+                MovieFilter {
+                    search: Some("Matrix".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(movies.len(), 1);
+        assert_eq!(movies[0].title, "The Matrix");
+    }
+
+    #[tokio::test]
+    async fn test_list_movies_with_disc_type_filter() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(1),
+                    title: "DVD Movie".to_string(),
+                    original_title: None,
+                    disc_type: Some("DVD".to_string()),
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(2),
+                    title: "Blu-ray Movie".to_string(),
+                    original_title: None,
+                    disc_type: Some("Blu-ray".to_string()),
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let movies = service
+            .list(
+                user_id,
+                MovieFilter {
+                    disc_type: Some("DVD".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(movies.len(), 1);
+        assert_eq!(movies[0].title, "DVD Movie");
+    }
+
+    #[tokio::test]
+    async fn test_update_movie() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let movie = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let updated = service
+            .update(
+                user_id,
+                movie.id,
+                UpdateMovie {
+                    title: Some("Fight Club (Updated)".to_string()),
+                    personal_rating: Some(9.0),
+                    watched: Some(true),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(updated.title, "Fight Club (Updated)");
+        assert_eq!(updated.personal_rating, Some(9.0));
+        assert!(updated.watched);
+    }
+
+    #[tokio::test]
+    async fn test_delete_movie() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let movie = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        service.delete(user_id, movie.id).await.unwrap();
+
+        let result = service.get_by_id(user_id, movie.id).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_all_movies() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        for i in 1..=5i64 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: None,
+                        tmdb_id: Some(i),
+                        title: format!("Movie {}", i),
+                        original_title: None,
+                        disc_type: None,
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        let deleted = service.delete_all(user_id).await.unwrap();
+        assert_eq!(deleted, 5);
+
+        let movies = service.list(user_id, MovieFilter::default()).await.unwrap();
+        assert!(movies.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_count_movies() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        for i in 1..=10i64 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: None,
+                        tmdb_id: Some(i),
+                        title: format!("Movie {}", i),
+                        original_title: None,
+                        disc_type: None,
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        let count = service
+            .count(user_id, &MovieFilter::default())
+            .await
+            .unwrap();
+        assert_eq!(count, 10);
+    }
+
+    #[tokio::test]
+    async fn test_find_by_barcode() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: Some("1234567890123".to_string()),
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let movie = service
+            .find_by_barcode(user_id, "1234567890123")
+            .await
+            .unwrap();
+        assert!(movie.is_some());
+        assert_eq!(movie.unwrap().title, "Fight Club");
+
+        let movie = service
+            .find_by_barcode(user_id, "0000000000000")
+            .await
+            .unwrap();
+        assert!(movie.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_update_movie_poster_data() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let movie = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let poster_data = vec![1, 2, 3, 4, 5]; // Fake image data
+        service
+            .update_movie_poster_data(user_id, movie.id, Some(poster_data.clone()))
+            .await
+            .unwrap();
+
+        let retrieved_poster = service.get_poster_data(user_id, movie.id).await.unwrap();
+        assert!(retrieved_poster.is_some());
+        assert_eq!(retrieved_poster.unwrap(), poster_data);
+    }
+
+    #[test]
+    fn test_is_placeholder_barcode() {
+        assert!(is_placeholder_barcode("000000000000"));
+        assert!(is_placeholder_barcode("0000000000000"));
+        assert!(is_placeholder_barcode("111111111111"));
+        assert!(is_placeholder_barcode("999999999999"));
+        assert!(!is_placeholder_barcode("1234567890123"));
+        assert!(!is_placeholder_barcode("5050582721478"));
+    }
+
+    #[test]
+    fn test_same_disc_type() {
+        // Same types
+        assert!(same_disc_type(
+            &Some("DVD".to_string()),
+            &Some("DVD".to_string())
+        ));
+        assert!(same_disc_type(
+            &Some("dvd".to_string()),
+            &Some("DVD".to_string())
+        ));
+        assert!(same_disc_type(
+            &Some("Blu-ray".to_string()),
+            &Some("blu-ray".to_string())
+        ));
+
+        // Different types
+        assert!(!same_disc_type(
+            &Some("DVD".to_string()),
+            &Some("Blu-ray".to_string())
+        ));
+
+        // None and empty
+        assert!(same_disc_type(&None, &None));
+        assert!(same_disc_type(&None, &Some("".to_string())));
+        assert!(same_disc_type(&Some("".to_string()), &None));
+        assert!(same_disc_type(&Some("  ".to_string()), &None));
+    }
+
+    #[tokio::test]
+    async fn test_find_by_tmdb_id() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let movie = service.find_by_tmdb_id(user_id, 550).await.unwrap();
+        assert!(movie.is_some());
+        assert_eq!(movie.unwrap().title, "Fight Club");
+
+        let movie = service.find_by_tmdb_id(user_id, 999999).await.unwrap();
+        assert!(movie.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_by_title() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(551),
+                    title: "Fight Club 2".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let movies = service.find_by_title(user_id, "Fight Club").await.unwrap();
+        assert_eq!(movies.len(), 1);
+        assert_eq!(movies[0].title, "Fight Club");
+
+        let movies = service.find_by_title(user_id, "NonExistent").await.unwrap();
+        assert!(movies.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_delete_all() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        for i in 1..=5i64 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: None,
+                        tmdb_id: Some(i),
+                        title: format!("Movie {}", i),
+                        original_title: None,
+                        disc_type: None,
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        let count = service
+            .count(user_id, &MovieFilter::default())
+            .await
+            .unwrap();
+        assert_eq!(count, 5);
+
+        let deleted = service.delete_all(user_id).await.unwrap();
+        assert_eq!(deleted, 5);
+
+        let count = service
+            .count(user_id, &MovieFilter::default())
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_movie_ids_with_poster() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        // Create movies without posters
+        let movie1 = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(1),
+                    title: "Movie 1".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let _movie2 = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(2),
+                    title: "Movie 2".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        // Add poster to movie1 only
+        service
+            .update_movie_poster_data(user_id, movie1.id, Some(vec![1, 2, 3]))
+            .await
+            .unwrap();
+
+        let ids_with_poster = service.get_movie_ids_with_poster(user_id).await.unwrap();
+        assert_eq!(ids_with_poster.len(), 1);
+        assert_eq!(ids_with_poster[0], movie1.id);
+    }
+
+    #[tokio::test]
+    async fn test_find_duplicates() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        // Create one movie
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: Some("1234567890123".to_string()),
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: Some("DVD".to_string()),
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        // Check for duplicates - should find the existing movie by barcode
+        let duplicates = service
+            .find_duplicates(user_id, "Fight Club", Some("1234567890123"), Some(550))
+            .await
+            .unwrap();
+        assert_eq!(duplicates.len(), 1);
+        assert_eq!(duplicates[0].title, "Fight Club");
+
+        // Check with unknown barcode - should find by title
+        let duplicates = service
+            .find_duplicates(user_id, "Fight Club", None, None)
+            .await
+            .unwrap();
+        assert_eq!(duplicates.len(), 1);
+
+        // Check with non-matching data - should find nothing
+        let duplicates = service
+            .find_duplicates(user_id, "NonExistent", None, None)
+            .await
+            .unwrap();
+        assert!(duplicates.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_all_duplicates() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        // Create duplicates for barcode A
+        for _ in 0..2 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: Some("1111111111111".to_string()),
+                        tmdb_id: Some(1),
+                        title: "Movie A".to_string(),
+                        original_title: None,
+                        disc_type: Some("DVD".to_string()),
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        // Create duplicates for barcode B
+        for _ in 0..3 {
+            service
+                .create(
+                    user_id,
+                    CreateMovie {
+                        barcode: Some("2222222222222".to_string()),
+                        tmdb_id: Some(2),
+                        title: "Movie B".to_string(),
+                        original_title: None,
+                        disc_type: Some("DVD".to_string()),
+                        production_year: None,
+                    },
+                )
+                .await
+                .unwrap();
+        }
+
+        // Create unique movie (no duplicate)
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: Some("3333333333333".to_string()),
+                    tmdb_id: Some(3),
+                    title: "Movie C".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let duplicate_groups = service.find_all_duplicates(user_id).await.unwrap();
+        assert_eq!(duplicate_groups.len(), 2); // Two groups of duplicates
+    }
+
+    #[tokio::test]
+    async fn test_list_with_filters() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        // Create movies with different attributes
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(1),
+                    title: "Action Movie".to_string(),
+                    original_title: None,
+                    disc_type: Some("DVD".to_string()),
+                    production_year: Some(2020),
+                },
+            )
+            .await
+            .unwrap();
+
+        service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(2),
+                    title: "Comedy Movie".to_string(),
+                    original_title: None,
+                    disc_type: Some("Blu-ray".to_string()),
+                    production_year: Some(2021),
+                },
+            )
+            .await
+            .unwrap();
+
+        // Test search filter
+        let movies = service
+            .list(
+                user_id,
+                MovieFilter {
+                    search: Some("Action".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(movies.len(), 1);
+        assert_eq!(movies[0].title, "Action Movie");
+
+        // Test disc_type filter
+        let movies = service
+            .list(
+                user_id,
+                MovieFilter {
+                    disc_type: Some("DVD".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(movies.len(), 1);
+        assert_eq!(movies[0].disc_type, Some("DVD".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_update_movie_various_fields() {
+        let service = setup().await;
+        let user_id = fixtures::test_user_id();
+
+        let movie = service
+            .create(
+                user_id,
+                CreateMovie {
+                    barcode: None,
+                    tmdb_id: Some(550),
+                    title: "Fight Club".to_string(),
+                    original_title: None,
+                    disc_type: None,
+                    production_year: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        // Update multiple fields
+        let updated = service
+            .update(
+                user_id,
+                movie.id,
+                UpdateMovie {
+                    title: Some("Fight Club (Special Edition)".to_string()),
+                    watched: Some(true),
+                    personal_rating: Some(9.5),
+                    location: Some("Shelf A".to_string()),
+                    notes: Some("Great movie!".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(updated.title, "Fight Club (Special Edition)");
+        assert!(updated.watched);
+        assert_eq!(updated.personal_rating, Some(9.5));
+        assert_eq!(updated.location, Some("Shelf A".to_string()));
+        assert_eq!(updated.notes, Some("Great movie!".to_string()));
+    }
+}

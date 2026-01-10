@@ -8,8 +8,8 @@ use tokio::time::{Duration, sleep};
 
 use my_movies_core::models::{Claims, MovieFilter};
 
-use crate::{ApiError, AppState};
 use crate::routes::movies::{TmdbRefreshResult, refresh_movie_tmdb_internal};
+use crate::{ApiError, AppState};
 
 /// Global state for TMDB enrichment
 static ENRICH_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -28,7 +28,9 @@ pub async fn import_csv(
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            let data = field.bytes().await
+            let data = field
+                .bytes()
+                .await
                 .map_err(|e| ApiError::bad_request(format!("Failed to read file: {}", e)))?;
 
             let cursor = std::io::Cursor::new(data);
@@ -95,10 +97,7 @@ pub async fn enrich_movies_tmdb(
             .filter(|m| m.tmdb_id.is_none() || !movies_with_poster.contains(&m.id))
             .collect();
 
-        tracing::info!(
-            "After filter: {} movies need enrichment",
-            filtered.len()
-        );
+        tracing::info!("After filter: {} movies need enrichment", filtered.len());
 
         filtered
     };
@@ -138,7 +137,15 @@ pub async fn enrich_movies_tmdb(
     let user_id = claims.sub;
 
     tokio::spawn(async move {
-        run_enrichment(state_clone, user_id, movies_to_enrich, language, include_adult, params.force).await;
+        run_enrichment(
+            state_clone,
+            user_id,
+            movies_to_enrich,
+            language,
+            include_adult,
+            params.force,
+        )
+        .await;
     });
 
     Ok((
@@ -172,7 +179,8 @@ async fn run_enrichment(
             break;
         }
 
-        match refresh_movie_tmdb_internal(&state, user_id, movie, lang, include_adult, force).await {
+        match refresh_movie_tmdb_internal(&state, user_id, movie, lang, include_adult, force).await
+        {
             TmdbRefreshResult::Success(_) => enriched += 1,
             TmdbRefreshResult::NotFound(msg) | TmdbRefreshResult::Error(msg) => errors.push(msg),
         }
@@ -217,11 +225,17 @@ pub async fn cancel_enrich_tmdb(
     }
 
     if !ENRICH_RUNNING.load(Ordering::SeqCst) {
-        return Ok((StatusCode::OK, Json(json!({ "message": "No enrichment running" }))));
+        return Ok((
+            StatusCode::OK,
+            Json(json!({ "message": "No enrichment running" })),
+        ));
     }
 
     ENRICH_CANCELLED.store(true, Ordering::SeqCst);
-    Ok((StatusCode::OK, Json(json!({ "message": "Cancellation requested" }))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "message": "Cancellation requested" })),
+    ))
 }
 
 /// Get current enrichment status
@@ -229,13 +243,16 @@ pub async fn get_enrich_status() -> impl IntoResponse {
     let is_running = ENRICH_RUNNING.load(Ordering::SeqCst);
 
     if is_running {
-        (StatusCode::OK, Json(json!({
-            "is_running": true,
-            "total": ENRICH_TOTAL.load(Ordering::SeqCst),
-            "current": ENRICH_CURRENT.load(Ordering::SeqCst),
-            "updated": ENRICH_UPDATED.load(Ordering::SeqCst),
-            "errors_count": ENRICH_ERRORS.load(Ordering::SeqCst)
-        })))
+        (
+            StatusCode::OK,
+            Json(json!({
+                "is_running": true,
+                "total": ENRICH_TOTAL.load(Ordering::SeqCst),
+                "current": ENRICH_CURRENT.load(Ordering::SeqCst),
+                "updated": ENRICH_UPDATED.load(Ordering::SeqCst),
+                "errors_count": ENRICH_ERRORS.load(Ordering::SeqCst)
+            })),
+        )
     } else {
         (StatusCode::OK, Json(json!({ "is_running": false })))
     }

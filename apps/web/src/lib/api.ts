@@ -12,11 +12,12 @@ const API_BASE = isTauri
 // Cache for Tauri fetch function
 let tauriFetchFn: typeof fetch | null = null
 
-// Use Tauri's fetch in Tauri production (bypasses WebView CORS restrictions)
+// Use Tauri's fetch in Tauri environment (bypasses WebView CORS/ATS restrictions)
 // Falls back to regular fetch in browser or if plugin not available
 async function tauriFetch(url: string, options?: RequestInit): Promise<Response> {
-  // Only try Tauri fetch in Tauri production mode
-  if (isTauri && import.meta.env.PROD) {
+  // Use Tauri fetch in any Tauri environment (dev or prod)
+  // This is needed because iOS WebView blocks HTTP requests even to localhost
+  if (isTauri) {
     try {
       // Cache the Tauri fetch function
       if (!tauriFetchFn) {
@@ -24,9 +25,9 @@ async function tauriFetch(url: string, options?: RequestInit): Promise<Response>
         tauriFetchFn = module.fetch as typeof fetch
       }
       return tauriFetchFn(url, options)
-    } catch {
+    } catch (e) {
       // Plugin not available, fall back to regular fetch
-      console.warn('Tauri HTTP plugin not available, using regular fetch')
+      console.warn('Tauri HTTP plugin not available, using regular fetch:', e)
     }
   }
   return fetch(url, options)

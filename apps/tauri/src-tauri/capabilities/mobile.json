@@ -1,9 +1,8 @@
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Desktop capabilities for My Movies app",
-  "platforms": ["macOS", "windows", "linux"],
-  "windows": ["main"],
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Mobile capabilities for My Movies app",
+  "platforms": ["iOS", "android"],
   "permissions": [
     "core:default",
     {
@@ -16,7 +15,9 @@
         { "url": "https://image.tmdb.org/**" },
         { "url": "https://api.themoviedb.org/**" }
       ]
-    }
+    },
+    "barcode-scanner:allow-scan",
+    "barcode-scanner:allow-vibrate",
+    "barcode-scanner:allow-cancel"
   ]
 }
-

@@ -141,3 +141,173 @@ pub enum SettingSource {
     Database,
     None,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::create_test_db;
+
+    async fn setup() -> SettingsService {
+        let pool = create_test_db().await;
+        SettingsService::new(pool)
+    }
+
+    #[tokio::test]
+    async fn test_update_and_get_setting() {
+        let service = setup().await;
+
+        // Update a setting
+        let setting = service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "test-api-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(setting.value, "test-api-key");
+
+        // Get the setting
+        let value = service.get(SettingKey::TmdbApiKey).await.unwrap();
+        assert_eq!(value, Some("test-api-key".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_setting() {
+        let service = setup().await;
+
+        // Ensure no env var is set for this test
+        // SAFETY: We're in a single-threaded test context
+        unsafe { std::env::remove_var("TMDB_API_KEY") };
+
+        let value = service.get(SettingKey::TmdbApiKey).await.unwrap();
+        assert!(value.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_required_fails_when_not_configured() {
+        let service = setup().await;
+
+        // Ensure no env var is set
+        // SAFETY: We're in a single-threaded test context
+        unsafe { std::env::remove_var("TMDB_API_KEY") };
+
+        let result = service.get_required(SettingKey::TmdbApiKey).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::Configuration(_) => {}
+            e => panic!("Expected Configuration error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_required_succeeds_when_configured() {
+        let service = setup().await;
+
+        service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "test-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        let value = service.get_required(SettingKey::TmdbApiKey).await.unwrap();
+        assert_eq!(value, "test-key");
+    }
+
+    #[tokio::test]
+    async fn test_list_settings() {
+        let service = setup().await;
+
+        // Add a setting
+        service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "test-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        let settings = service.list().await.unwrap();
+        assert!(!settings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_is_configured_false_when_not_set() {
+        let service = setup().await;
+        // SAFETY: We're in a single-threaded test context
+        unsafe { std::env::remove_var("TMDB_API_KEY") };
+
+        let is_configured = service.is_configured(SettingKey::TmdbApiKey).await;
+        assert!(!is_configured);
+    }
+
+    #[tokio::test]
+    async fn test_is_configured_true_when_set_in_db() {
+        let service = setup().await;
+        // SAFETY: We're in a single-threaded test context
+        unsafe { std::env::remove_var("TMDB_API_KEY") };
+
+        service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "test-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        let is_configured = service.is_configured(SettingKey::TmdbApiKey).await;
+        assert!(is_configured);
+    }
+
+    #[tokio::test]
+    async fn test_get_status() {
+        let service = setup().await;
+        // SAFETY: We're in a single-threaded test context
+        unsafe { std::env::remove_var("TMDB_API_KEY") };
+
+        let statuses = service.get_status().await.unwrap();
+        assert!(!statuses.is_empty());
+
+        let tmdb_status = statuses.iter().find(|s| s.key == "tmdb_api_key").unwrap();
+        assert!(!tmdb_status.is_configured);
+        assert_eq!(tmdb_status.source, SettingSource::None);
+    }
+
+    #[tokio::test]
+    async fn test_update_overwrites_existing() {
+        let service = setup().await;
+
+        service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "first-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        service
+            .update(
+                SettingKey::TmdbApiKey,
+                SettingUpdate {
+                    value: "second-key".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        let value = service.get(SettingKey::TmdbApiKey).await.unwrap();
+        assert_eq!(value, Some("second-key".to_string()));
+    }
+}

@@ -64,7 +64,11 @@ pub async fn test_tmdb(
         return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    match state.tmdb_service.search_movies("test", None, None, false).await {
+    match state
+        .tmdb_service
+        .search_movies("test", None, None, false)
+        .await
+    {
         Ok(_) => Ok(Json(TmdbTestResult {
             success: true,
             message: "TMDB API key is valid".to_string(),

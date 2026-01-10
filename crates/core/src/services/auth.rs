@@ -568,3 +568,651 @@ impl AuthService {
         Ok((user, reset_token))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::CreateUser;
+    use crate::test_helpers::create_test_db;
+
+    const TEST_JWT_SECRET: &str = "test-secret-key-for-testing-only";
+
+    async fn setup() -> AuthService {
+        let pool = create_test_db().await;
+        AuthService::new(pool, TEST_JWT_SECRET.to_string())
+    }
+
+    #[tokio::test]
+    async fn test_register_first_user_is_admin() {
+        let auth = setup().await;
+
+        let result = auth
+            .register(CreateUser {
+                username: "admin".to_string(),
+                email: "admin@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.user.username, "admin");
+        assert_eq!(response.user.role, UserRole::Admin);
+    }
+
+    #[tokio::test]
+    async fn test_register_second_user_is_user() {
+        let auth = setup().await;
+
+        // Register first user (will be admin)
+        auth.register(CreateUser {
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        // Register second user (should be regular user)
+        let result = auth
+            .register(CreateUser {
+                username: "user".to_string(),
+                email: "user@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.user.username, "user");
+        assert_eq!(response.user.role, UserRole::User);
+    }
+
+    #[tokio::test]
+    async fn test_register_duplicate_username_fails() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "testuser".to_string(),
+            email: "test1@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let result = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test2@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::Duplicate(_) => {}
+            e => panic!("Expected Duplicate error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_register_duplicate_email_fails() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "user1".to_string(),
+            email: "same@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let result = auth
+            .register(CreateUser {
+                username: "user2".to_string(),
+                email: "same@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::Duplicate(_) => {}
+            e => panic!("Expected Duplicate error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_success() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "testuser".to_string(),
+            email: "test@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let result = auth
+            .login(LoginRequest {
+                username: "testuser".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.user.username, "testuser");
+        assert!(!response.token.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_login_wrong_password_fails() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "testuser".to_string(),
+            email: "test@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let result = auth
+            .login(LoginRequest {
+                username: "testuser".to_string(),
+                password: "wrongpassword".to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::InvalidCredentials => {}
+            e => panic!("Expected InvalidCredentials error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_nonexistent_user_fails() {
+        let auth = setup().await;
+
+        let result = auth
+            .login(LoginRequest {
+                username: "nonexistent".to_string(),
+                password: "password123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::InvalidCredentials => {}
+            e => panic!("Expected InvalidCredentials error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_and_verify_token() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let claims = auth.verify_token(&response.token);
+        assert!(claims.is_ok());
+        let claims = claims.unwrap();
+        assert_eq!(claims.username, "testuser");
+    }
+
+    #[tokio::test]
+    async fn test_verify_invalid_token_fails() {
+        let auth = setup().await;
+
+        let result = auth.verify_token("invalid.token.here");
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_user() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let user = auth.get_user(response.user.id).await;
+        assert!(user.is_ok());
+        let user = user.unwrap();
+        assert_eq!(user.username, "testuser");
+        assert_eq!(user.email, "test@test.com");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_user_fails() {
+        let auth = setup().await;
+
+        let result = auth.get_user(Uuid::new_v4()).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::UserNotFound => {}
+            e => panic!("Expected UserNotFound error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_all_users() {
+        let auth = setup().await;
+
+        // Create multiple users
+        auth.register(CreateUser {
+            username: "user1".to_string(),
+            email: "user1@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        auth.register(CreateUser {
+            username: "user2".to_string(),
+            email: "user2@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let users = auth.list_all_users().await.unwrap();
+        assert_eq!(users.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_role() {
+        let auth = setup().await;
+
+        // Create admin (first user)
+        auth.register(CreateUser {
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        // Create regular user (second user)
+        let user_response = auth
+            .register(CreateUser {
+                username: "user".to_string(),
+                email: "user@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(user_response.user.role, UserRole::User);
+
+        // Update to admin
+        let updated = auth
+            .update_user_role(user_response.user.id, UserRole::Admin)
+            .await
+            .unwrap();
+        assert_eq!(updated.role, UserRole::Admin);
+
+        // Update back to user
+        let updated = auth
+            .update_user_role(user_response.user.id, UserRole::User)
+            .await
+            .unwrap();
+        assert_eq!(updated.role, UserRole::User);
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let delete_result = auth.delete_user(response.user.id).await;
+        assert!(delete_result.is_ok());
+
+        // Verify user is deleted
+        let get_result = auth.get_user(response.user.id).await;
+        assert!(get_result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_admin_set_password() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "oldpassword".to_string(),
+            })
+            .await
+            .unwrap();
+
+        // Set new password
+        auth.admin_set_password(response.user.id, "newpassword")
+            .await
+            .unwrap();
+
+        // Old password should fail
+        let login_result = auth
+            .login(LoginRequest {
+                username: "testuser".to_string(),
+                password: "oldpassword".to_string(),
+            })
+            .await;
+        assert!(login_result.is_err());
+
+        // New password should work
+        let login_result = auth
+            .login(LoginRequest {
+                username: "testuser".to_string(),
+                password: "newpassword".to_string(),
+            })
+            .await;
+        assert!(login_result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_user_language() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let updated = auth
+            .update_user_language(response.user.id, Some("de".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(updated.language, Some("de".to_string()));
+
+        let updated = auth
+            .update_user_language(response.user.id, None)
+            .await
+            .unwrap();
+        assert_eq!(updated.language, None);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_theme() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let updated = auth
+            .update_user_theme(response.user.id, Some("dark".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(updated.theme, Some("dark".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_update_user_card_size() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let updated = auth
+            .update_user_card_size(response.user.id, Some("large".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(updated.card_size, Some("large".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_admin_create_user_with_password() {
+        let auth = setup().await;
+
+        // Create first admin
+        auth.register(CreateUser {
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        // Admin creates new user with password
+        let (user, reset_token) = auth
+            .admin_create_user(
+                "newuser".to_string(),
+                "newuser@test.com".to_string(),
+                Some("userpassword".to_string()),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(user.username, "newuser");
+        assert!(reset_token.is_none());
+
+        // New user can login
+        let login = auth
+            .login(LoginRequest {
+                username: "newuser".to_string(),
+                password: "userpassword".to_string(),
+            })
+            .await;
+        assert!(login.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_admin_create_user_without_password() {
+        let auth = setup().await;
+
+        // Create first admin
+        auth.register(CreateUser {
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        // Admin creates new user without password
+        let (user, reset_token) = auth
+            .admin_create_user("newuser".to_string(), "newuser@test.com".to_string(), None)
+            .await
+            .unwrap();
+
+        assert_eq!(user.username, "newuser");
+        assert!(reset_token.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_user_include_adult() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let updated = auth
+            .update_user_include_adult(response.user.id, true)
+            .await
+            .unwrap();
+        assert!(updated.include_adult);
+
+        let updated = auth
+            .update_user_include_adult(response.user.id, false)
+            .await
+            .unwrap();
+        assert!(!updated.include_adult);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_avatar() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        // Update avatar path
+        let updated = auth
+            .update_user_avatar(response.user.id, Some("avatars/test.png".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(updated.avatar_path, Some("avatars/test.png".to_string()));
+
+        // Remove avatar path
+        let updated = auth
+            .update_user_avatar(response.user.id, None)
+            .await
+            .unwrap();
+        assert_eq!(updated.avatar_path, None);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_avatar_data() {
+        let auth = setup().await;
+
+        let response = auth
+            .register(CreateUser {
+                username: "testuser".to_string(),
+                email: "test@test.com".to_string(),
+                password: "password123".to_string(),
+            })
+            .await
+            .unwrap();
+
+        // Set avatar data
+        let avatar_data = vec![1, 2, 3, 4, 5]; // Fake image data
+        auth.update_user_avatar_data(response.user.id, Some(avatar_data.clone()))
+            .await
+            .unwrap();
+
+        // Retrieve avatar data
+        let retrieved = auth.get_user_avatar_data(response.user.id).await.unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap(), avatar_data);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_username() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "testuser".to_string(),
+            email: "test@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        let user = auth.get_user_by_username("testuser").await.unwrap();
+        assert_eq!(user.username, "testuser");
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_username_not_found() {
+        let auth = setup().await;
+
+        let result = auth.get_user_by_username("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_request_password_reset() {
+        let auth = setup().await;
+
+        auth.register(CreateUser {
+            username: "testuser".to_string(),
+            email: "test@test.com".to_string(),
+            password: "password123".to_string(),
+        })
+        .await
+        .unwrap();
+
+        // Request password reset - returns a message, not the token
+        let message = auth
+            .request_password_reset(ForgotPasswordRequest {
+                email: "test@test.com".to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(!message.is_empty());
+        // Token is stored hashed in DB and only logged - we can't use it directly in test
+    }
+
+    #[tokio::test]
+    async fn test_reset_password_invalid_token() {
+        let auth = setup().await;
+
+        // Try to reset with invalid token
+        let result = auth
+            .reset_password(ResetPasswordRequest {
+                token: "invalid_token".to_string(),
+                password: "newpassword".to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::InvalidResetToken => {}
+            e => panic!("Expected InvalidResetToken error, got {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_request_password_reset_email_not_found() {
+        let auth = setup().await;
+
+        let result = auth
+            .request_password_reset(ForgotPasswordRequest {
+                email: "nonexistent@test.com".to_string(),
+            })
+            .await;
+        assert!(result.is_err());
+    }
+}

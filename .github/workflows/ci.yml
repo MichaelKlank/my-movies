@@ -54,6 +54,9 @@ jobs:
       - name: Build Frontend
         run: pnpm --filter @my-movies/web build
 
+      - name: Run Frontend Tests
+        run: pnpm --filter @my-movies/web test:run
+
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
@@ -63,7 +66,7 @@ jobs:
       - name: Build Rust (Server only)
         run: cargo build --release --package my-movies-server --package my-movies-core
 
-      - name: Run Tests
+      - name: Run Backend Tests
         run: cargo test --package my-movies-server --package my-movies-core
 
   # ==========================================================================

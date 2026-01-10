@@ -52,8 +52,12 @@ pub async fn lookup_barcode(
                 .map(|m| TmdbSearchResult {
                     id: m.id,
                     title: m.title,
-                    year: m.release_date.and_then(|d| d.get(..4).map(|s| s.to_string())),
-                    poster_url: m.poster_path.as_ref()
+                    year: m
+                        .release_date
+                        .and_then(|d| d.get(..4).map(|s| s.to_string())),
+                    poster_url: m
+                        .poster_path
+                        .as_ref()
                         .map(|p| my_movies_core::services::TmdbService::poster_url(p, "w200")),
                     poster_path: m.poster_path,
                 })
@@ -84,7 +88,8 @@ pub async fn search_tmdb_movies(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TmdbSearchQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let results = state.tmdb_service
+    let results = state
+        .tmdb_service
         .search_movies(&params.query, params.year, None, false)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
@@ -95,8 +100,12 @@ pub async fn search_tmdb_movies(
         .map(|m| TmdbSearchResult {
             id: m.id,
             title: m.title,
-            year: m.release_date.and_then(|d| d.get(..4).map(|s| s.to_string())),
-            poster_url: m.poster_path.as_ref()
+            year: m
+                .release_date
+                .and_then(|d| d.get(..4).map(|s| s.to_string())),
+            poster_url: m
+                .poster_path
+                .as_ref()
                 .map(|p| my_movies_core::services::TmdbService::poster_url(p, "w200")),
             poster_path: m.poster_path,
         })
@@ -109,7 +118,8 @@ pub async fn search_tmdb_tv(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TmdbSearchQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let results = state.tmdb_service
+    let results = state
+        .tmdb_service
         .search_tv(&params.query, None)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
@@ -120,8 +130,12 @@ pub async fn search_tmdb_tv(
         .map(|m| TmdbSearchResult {
             id: m.id,
             title: m.name,
-            year: m.first_air_date.and_then(|d| d.get(..4).map(|s| s.to_string())),
-            poster_url: m.poster_path.as_ref()
+            year: m
+                .first_air_date
+                .and_then(|d| d.get(..4).map(|s| s.to_string())),
+            poster_url: m
+                .poster_path
+                .as_ref()
                 .map(|p| my_movies_core::services::TmdbService::poster_url(p, "w200")),
             poster_path: m.poster_path,
         })
@@ -134,7 +148,8 @@ pub async fn get_tmdb_movie(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let details = state.tmdb_service
+    let details = state
+        .tmdb_service
         .get_movie_details(id, None)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
@@ -146,7 +161,8 @@ pub async fn get_tmdb_tv(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let details = state.tmdb_service
+    let details = state
+        .tmdb_service
         .get_tv_details(id, None)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;

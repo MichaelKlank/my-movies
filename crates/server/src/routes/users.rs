@@ -36,11 +36,13 @@ pub async fn update_user_role(
         return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| ApiError::bad_request("Invalid user ID"))?;
+    let user_id =
+        Uuid::parse_str(&user_id).map_err(|_| ApiError::bad_request("Invalid user ID"))?;
 
     if user_id == claims.sub && body.role != "admin" {
-        return Err(ApiError::bad_request("Du kannst deine eigene Admin-Rolle nicht entfernen"));
+        return Err(ApiError::bad_request(
+            "Du kannst deine eigene Admin-Rolle nicht entfernen",
+        ));
     }
 
     let new_role = match body.role.as_str() {
@@ -49,7 +51,10 @@ pub async fn update_user_role(
         _ => return Err(ApiError::bad_request("Invalid role")),
     };
 
-    let user = state.auth_service.update_user_role(user_id, new_role).await?;
+    let user = state
+        .auth_service
+        .update_user_role(user_id, new_role)
+        .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -67,8 +72,8 @@ pub async fn delete_user(
         return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| ApiError::bad_request("Invalid user ID"))?;
+    let user_id =
+        Uuid::parse_str(&user_id).map_err(|_| ApiError::bad_request("Invalid user ID"))?;
 
     if user_id == claims.sub {
         return Err(ApiError::bad_request("Du kannst dich selbst nicht löschen"));
@@ -101,14 +106,19 @@ pub async fn admin_set_password(
         return Err(ApiError::from(my_movies_core::Error::Forbidden));
     }
 
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| ApiError::bad_request("Invalid user ID"))?;
+    let user_id =
+        Uuid::parse_str(&user_id).map_err(|_| ApiError::bad_request("Invalid user ID"))?;
 
     if body.password.len() < 4 {
-        return Err(ApiError::bad_request("Passwort muss mindestens 4 Zeichen lang sein"));
+        return Err(ApiError::bad_request(
+            "Passwort muss mindestens 4 Zeichen lang sein",
+        ));
     }
 
-    state.auth_service.admin_set_password(user_id, &body.password).await?;
+    state
+        .auth_service
+        .admin_set_password(user_id, &body.password)
+        .await?;
     Ok(Json(PasswordResetResponse {
         message: "Password updated successfully".to_string(),
     }))
@@ -143,15 +153,21 @@ pub async fn admin_create_user(
     }
 
     if body.username.len() < 2 {
-        return Err(ApiError::bad_request("Username muss mindestens 2 Zeichen lang sein"));
+        return Err(ApiError::bad_request(
+            "Username muss mindestens 2 Zeichen lang sein",
+        ));
     }
 
     if !body.email.contains('@') {
         return Err(ApiError::bad_request("Ungültige E-Mail-Adresse"));
     }
 
-    if let Some(ref pwd) = body.password && pwd.len() < 4 {
-        return Err(ApiError::bad_request("Passwort muss mindestens 4 Zeichen lang sein"));
+    if let Some(ref pwd) = body.password
+        && pwd.len() < 4
+    {
+        return Err(ApiError::bad_request(
+            "Passwort muss mindestens 4 Zeichen lang sein",
+        ));
     }
 
     let (user, reset_token) = state

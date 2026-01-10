@@ -21,7 +21,7 @@ pub async fn register(
     Json(input): Json<CreateUser>,
 ) -> Result<impl IntoResponse, ApiError> {
     let auth_response = state.auth_service.register(input).await?;
-    
+
     let msg = json!({ "type": "user_created", "payload": &auth_response.user });
     let _ = state.ws_broadcast.send(msg.to_string());
 
@@ -49,7 +49,10 @@ pub async fn forgot_password(
     Json(input): Json<ForgotPasswordRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     state.auth_service.request_password_reset(input).await?;
-    Ok((StatusCode::OK, Json(json!({ "message": "Password reset email sent" }))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "message": "Password reset email sent" })),
+    ))
 }
 
 pub async fn reset_password(
@@ -57,7 +60,10 @@ pub async fn reset_password(
     Json(input): Json<ResetPasswordRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     state.auth_service.reset_password(input).await?;
-    Ok((StatusCode::OK, Json(json!({ "message": "Password reset successfully" }))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "message": "Password reset successfully" })),
+    ))
 }
 
 #[derive(serde::Deserialize)]
@@ -70,8 +76,11 @@ pub async fn update_language(
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateLanguageRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.update_user_language(claims.sub, body.language).await?;
-    
+    let user = state
+        .auth_service
+        .update_user_language(claims.sub, body.language)
+        .await?;
+
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
 
@@ -88,8 +97,11 @@ pub async fn update_include_adult(
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateIncludeAdultRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.update_user_include_adult(claims.sub, body.include_adult).await?;
-    
+    let user = state
+        .auth_service
+        .update_user_include_adult(claims.sub, body.include_adult)
+        .await?;
+
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
 
@@ -106,8 +118,11 @@ pub async fn update_theme(
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateThemeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.update_user_theme(claims.sub, body.theme).await?;
-    
+    let user = state
+        .auth_service
+        .update_user_theme(claims.sub, body.theme)
+        .await?;
+
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
 
@@ -124,8 +139,11 @@ pub async fn update_card_size(
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateCardSizeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.update_user_card_size(claims.sub, body.card_size).await?;
-    
+    let user = state
+        .auth_service
+        .update_user_card_size(claims.sub, body.card_size)
+        .await?;
+
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
 
@@ -142,7 +160,12 @@ pub async fn upload_avatar(
         let field = match multipart.next_field().await {
             Ok(Some(field)) => field,
             Ok(None) => break,
-            Err(e) => return Err(ApiError::bad_request(format!("Failed to parse multipart form: {}", e))),
+            Err(e) => {
+                return Err(ApiError::bad_request(format!(
+                    "Failed to parse multipart form: {}",
+                    e
+                )));
+            }
         };
 
         let name = field.name().unwrap_or("").to_string();
@@ -155,13 +178,17 @@ pub async fn upload_avatar(
                 "image/gif" => "gif",
                 "image/webp" => "webp",
                 "image/jpeg" | "image/jpg" => "jpg",
-                _ => return Err(ApiError::bad_request(format!(
-                    "Unsupported content type: {}. Supported: image/png, image/jpeg, image/gif, image/webp",
-                    content_type
-                ))),
+                _ => {
+                    return Err(ApiError::bad_request(format!(
+                        "Unsupported content type: {}. Supported: image/png, image/jpeg, image/gif, image/webp",
+                        content_type
+                    )));
+                }
             };
 
-            let data = field.bytes().await
+            let data = field
+                .bytes()
+                .await
                 .map_err(|e| ApiError::bad_request(format!("Failed to read file: {}", e)))?
                 .to_vec();
 
@@ -177,7 +204,10 @@ pub async fn upload_avatar(
                 return Err(ApiError::bad_request("File too small to be a valid image"));
             }
 
-            let user = state.auth_service.update_user_avatar_data(claims.sub, Some(data)).await?;
+            let user = state
+                .auth_service
+                .update_user_avatar_data(claims.sub, Some(data))
+                .await?;
 
             let msg = json!({ "type": "user_updated", "payload": user });
             let _ = state.ws_broadcast.send(msg.to_string());
@@ -197,7 +227,10 @@ pub async fn delete_avatar(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.update_user_avatar_data(claims.sub, None).await?;
+    let user = state
+        .auth_service
+        .update_user_avatar_data(claims.sub, None)
+        .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -213,7 +246,10 @@ pub async fn get_avatar(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
-    let data = state.auth_service.get_user_avatar_data(user_id).await?
+    let data = state
+        .auth_service
+        .get_user_avatar_data(user_id)
+        .await?
         .ok_or_else(|| ApiError::not_found("Avatar not found"))?;
 
     let content_type = detect_image_type(&data);
@@ -233,8 +269,9 @@ fn detect_image_type(data: &[u8]) -> &'static str {
         if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
             return "image/jpeg";
         }
-        if data.len() >= 6 && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
-            || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+        if data.len() >= 6
+            && (data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
+                || data[0..6] == [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
         {
             return "image/gif";
         }
