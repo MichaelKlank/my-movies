@@ -68,7 +68,7 @@ pub async fn list(
         Json(json!({
             "items": movies,
             "total": total,
-            "limit": limit.unwrap_or(total as i64),
+            "limit": limit.unwrap_or(total),
             "offset": offset
         })),
     ))
