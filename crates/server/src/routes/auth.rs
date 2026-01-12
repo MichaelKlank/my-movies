@@ -40,7 +40,7 @@ pub async fn me(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user = state.auth_service.get_user(claims.sub).await?;
+    let user = state.auth_service.get_user(claims.id).await?;
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -78,7 +78,7 @@ pub async fn update_language(
 ) -> Result<impl IntoResponse, ApiError> {
     let user = state
         .auth_service
-        .update_user_language(claims.sub, body.language)
+        .update_user_language(claims.id, body.language)
         .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
@@ -99,7 +99,7 @@ pub async fn update_include_adult(
 ) -> Result<impl IntoResponse, ApiError> {
     let user = state
         .auth_service
-        .update_user_include_adult(claims.sub, body.include_adult)
+        .update_user_include_adult(claims.id, body.include_adult)
         .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
@@ -120,7 +120,7 @@ pub async fn update_theme(
 ) -> Result<impl IntoResponse, ApiError> {
     let user = state
         .auth_service
-        .update_user_theme(claims.sub, body.theme)
+        .update_user_theme(claims.id, body.theme)
         .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
@@ -141,7 +141,7 @@ pub async fn update_card_size(
 ) -> Result<impl IntoResponse, ApiError> {
     let user = state
         .auth_service
-        .update_user_card_size(claims.sub, body.card_size)
+        .update_user_card_size(claims.id, body.card_size)
         .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });
@@ -206,7 +206,7 @@ pub async fn upload_avatar(
 
             let user = state
                 .auth_service
-                .update_user_avatar_data(claims.sub, Some(data))
+                .update_user_avatar_data(claims.id, Some(data))
                 .await?;
 
             let msg = json!({ "type": "user_updated", "payload": user });
@@ -229,7 +229,7 @@ pub async fn delete_avatar(
 ) -> Result<impl IntoResponse, ApiError> {
     let user = state
         .auth_service
-        .update_user_avatar_data(claims.sub, None)
+        .update_user_avatar_data(claims.id, None)
         .await?;
 
     let msg = json!({ "type": "user_updated", "payload": user });

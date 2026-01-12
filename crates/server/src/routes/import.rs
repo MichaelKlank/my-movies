@@ -34,7 +34,7 @@ pub async fn import_csv(
                 .map_err(|e| ApiError::bad_request(format!("Failed to read file: {}", e)))?;
 
             let cursor = std::io::Cursor::new(data);
-            let result = state.import_service.import_csv(claims.sub, cursor).await?;
+            let result = state.import_service.import_csv(claims.id, cursor).await?;
 
             let msg = json!({ "type": "collection_imported" });
             let _ = state.ws_broadcast.send(msg.to_string());
@@ -71,7 +71,7 @@ pub async fn enrich_movies_tmdb(
         ..Default::default()
     };
 
-    let movies = state.movie_service.list(claims.sub, filter).await?;
+    let movies = state.movie_service.list(claims.id, filter).await?;
 
     let movies_to_enrich: Vec<_> = if params.force {
         tracing::info!("Force mode: processing all {} movies", movies.len());
@@ -79,7 +79,7 @@ pub async fn enrich_movies_tmdb(
     } else {
         let movies_with_poster: std::collections::HashSet<_> = state
             .movie_service
-            .get_movie_ids_with_poster(claims.sub)
+            .get_movie_ids_with_poster(claims.id)
             .await
             .unwrap_or_default()
             .into_iter()
@@ -129,12 +129,12 @@ pub async fn enrich_movies_tmdb(
     let msg = json!({ "type": "tmdb_enrich_started", "payload": { "total": total } });
     let _ = state.ws_broadcast.send(msg.to_string());
 
-    let user = state.auth_service.get_user(claims.sub).await?;
+    let user = state.auth_service.get_user(claims.id).await?;
     let language = user.language.clone();
     let include_adult = user.include_adult;
 
     let state_clone = state.clone();
-    let user_id = claims.sub;
+    let user_id = claims.id;
 
     tokio::spawn(async move {
         run_enrichment(

@@ -58,10 +58,10 @@ pub async fn list(
     Extension(claims): Extension<Claims>,
     Query(filter): Query<MovieFilter>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let total = state.movie_service.count(claims.sub, &filter).await?;
+    let total = state.movie_service.count(claims.id, &filter).await?;
     let limit = filter.limit;
     let offset = filter.offset.unwrap_or(0);
-    let movies = state.movie_service.list(claims.sub, filter).await?;
+    let movies = state.movie_service.list(claims.id, filter).await?;
 
     Ok((
         StatusCode::OK,
@@ -79,7 +79,7 @@ pub async fn get(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let movie = state.movie_service.get_by_id(claims.sub, id).await?;
+    let movie = state.movie_service.get_by_id(claims.id, id).await?;
     Ok((StatusCode::OK, Json(json!(movie))))
 }
 
@@ -88,7 +88,7 @@ pub async fn create(
     Extension(claims): Extension<Claims>,
     Json(input): Json<CreateMovie>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let movie = state.movie_service.create(claims.sub, input).await?;
+    let movie = state.movie_service.create(claims.id, input).await?;
 
     let msg = json!({ "type": "movie_added", "payload": movie });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -102,7 +102,7 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateMovie>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let movie = state.movie_service.update(claims.sub, id, input).await?;
+    let movie = state.movie_service.update(claims.id, id, input).await?;
 
     let msg = json!({ "type": "movie_updated", "payload": movie });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -115,7 +115,7 @@ pub async fn delete(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.movie_service.delete(claims.sub, id).await?;
+    state.movie_service.delete(claims.id, id).await?;
 
     let msg = json!({ "type": "movie_deleted", "payload": { "id": id } });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -128,7 +128,7 @@ pub async fn delete_all(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let count = state.movie_service.delete_all(claims.sub).await?;
+    let count = state.movie_service.delete_all(claims.id).await?;
 
     let msg = json!({ "type": "all_movies_deleted", "payload": { "count": count } });
     let _ = state.ws_broadcast.send(msg.to_string());
@@ -196,13 +196,13 @@ pub async fn export(
         ..Default::default()
     };
 
-    let movies = state.movie_service.list(claims.sub, filter).await?;
+    let movies = state.movie_service.list(claims.id, filter).await?;
 
     // Get list of movie IDs that have poster data
     // (list() doesn't include poster_data for performance, so we need to check separately)
     let poster_ids_result = state
         .movie_service
-        .get_movie_ids_with_poster(claims.sub)
+        .get_movie_ids_with_poster(claims.id)
         .await;
 
     let movies_with_poster: std::collections::HashSet<uuid::Uuid> = match &poster_ids_result {
@@ -246,7 +246,7 @@ pub async fn export(
                 checked_count += 1;
                 match state
                     .movie_service
-                    .get_poster_data(claims.sub, movie.id)
+                    .get_poster_data(claims.id, movie.id)
                     .await
                 {
                     Ok(Some(poster_data)) => {
@@ -380,7 +380,7 @@ pub async fn import_json(
             if !barcode.is_empty() && !barcode.chars().all(|c| c == '0') {
                 state
                     .movie_service
-                    .find_by_barcode(claims.sub, barcode)
+                    .find_by_barcode(claims.id, barcode)
                     .await
                     .ok()
                     .flatten()
@@ -405,12 +405,10 @@ pub async fn import_json(
             }
         });
 
-        if existing.is_some() {
+        if let Some(ref existing_movie) = existing {
             skipped += 1;
             // Still map the old ID to the existing movie's ID
-            if let Some(ref existing_movie) = existing {
-                id_map.insert(export_movie.id.clone(), existing_movie.id);
-            }
+            id_map.insert(export_movie.id.clone(), existing_movie.id);
             continue;
         }
 
@@ -430,7 +428,7 @@ pub async fn import_json(
             disc_type: export_movie.disc_type.clone(),
         };
 
-        match state.movie_service.create(claims.sub, create_movie).await {
+        match state.movie_service.create(claims.id, create_movie).await {
             Ok(new_movie) => {
                 // Map old ID to new ID
                 id_map.insert(export_movie.id.clone(), new_movie.id);
@@ -459,7 +457,7 @@ pub async fn import_json(
 
                 if let Err(e) = state
                     .movie_service
-                    .update(claims.sub, new_movie.id, update)
+                    .update(claims.id, new_movie.id, update)
                     .await
                 {
                     errors.push(format!("Error updating '{}': {}", export_movie.title, e));
@@ -605,7 +603,7 @@ pub async fn import_zip(
                     if !barcode.is_empty() && !barcode.chars().all(|c| c == '0') {
                         state
                             .movie_service
-                            .find_by_barcode(claims.sub, barcode)
+                            .find_by_barcode(claims.id, barcode)
                             .await
                             .ok()
                             .flatten()
@@ -616,11 +614,9 @@ pub async fn import_zip(
                     None
                 };
 
-                if existing.is_some() {
+                if let Some(ref existing_movie) = existing {
                     skipped += 1;
-                    if let Some(ref existing_movie) = existing {
-                        id_map.insert(export_movie.id.clone(), existing_movie.id);
-                    }
+                    id_map.insert(export_movie.id.clone(), existing_movie.id);
                     continue;
                 }
 
@@ -640,7 +636,7 @@ pub async fn import_zip(
                     disc_type: export_movie.disc_type.clone(),
                 };
 
-                match state.movie_service.create(claims.sub, create_movie).await {
+                match state.movie_service.create(claims.id, create_movie).await {
                     Ok(new_movie) => {
                         id_map.insert(export_movie.id.clone(), new_movie.id);
 
@@ -672,7 +668,7 @@ pub async fn import_zip(
 
                         if let Err(e) = state
                             .movie_service
-                            .update(claims.sub, new_movie.id, update)
+                            .update(claims.id, new_movie.id, update)
                             .await
                         {
                             errors.push(format!("Error updating '{}': {}", export_movie.title, e));
@@ -1267,14 +1263,14 @@ pub async fn refresh_tmdb(
     Path(id): Path<Uuid>,
     Query(params): Query<RefreshTmdbQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let movie = state.movie_service.get_by_id(claims.sub, id).await?;
-    let user = state.auth_service.get_user(claims.sub).await?;
+    let movie = state.movie_service.get_by_id(claims.id, id).await?;
+    let user = state.auth_service.get_user(claims.id).await?;
     let language = user.language.as_deref();
     let include_adult = user.include_adult;
 
     match refresh_movie_tmdb_internal(
         &state,
-        claims.sub,
+        claims.id,
         &movie,
         language,
         include_adult,
@@ -1308,7 +1304,7 @@ pub async fn check_duplicates(
     let duplicates = state
         .movie_service
         .find_duplicates(
-            claims.sub,
+            claims.id,
             &query.title,
             query.barcode.as_deref(),
             query.tmdb_id,
@@ -1329,7 +1325,7 @@ pub async fn find_all_duplicates(
     State(state): State<Arc<AppState>>,
     Extension(claims): Extension<Claims>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let groups = state.movie_service.find_all_duplicates(claims.sub).await?;
+    let groups = state.movie_service.find_all_duplicates(claims.id).await?;
 
     Ok((
         StatusCode::OK,
@@ -1347,7 +1343,7 @@ pub async fn upload_poster(
     Path(id): Path<Uuid>,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.movie_service.get_by_id(claims.sub, id).await?;
+    state.movie_service.get_by_id(claims.id, id).await?;
 
     while let Some(field) = multipart.next_field().await.unwrap_or(None) {
         let name = field.name().unwrap_or("").to_string();
@@ -1373,7 +1369,7 @@ pub async fn upload_poster(
 
             let movie = state
                 .movie_service
-                .update_movie_poster_data(claims.sub, id, Some(data))
+                .update_movie_poster_data(claims.id, id, Some(data))
                 .await?;
 
             let msg = json!({ "type": "movie_updated", "payload": movie });
@@ -1404,7 +1400,7 @@ pub async fn set_poster_from_url(
     Path(id): Path<Uuid>,
     Json(input): Json<SetPosterUrlRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.movie_service.get_by_id(claims.sub, id).await?;
+    state.movie_service.get_by_id(claims.id, id).await?;
 
     let response = reqwest::get(&input.url)
         .await
@@ -1439,7 +1435,7 @@ pub async fn set_poster_from_url(
 
     let movie = state
         .movie_service
-        .update_movie_poster_data(claims.sub, id, Some(image_data))
+        .update_movie_poster_data(claims.id, id, Some(image_data))
         .await?;
 
     let msg = json!({ "type": "movie_updated", "payload": movie });
@@ -1460,11 +1456,11 @@ pub async fn get_poster(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
-    state.movie_service.get_by_id(claims.sub, id).await?;
+    state.movie_service.get_by_id(claims.id, id).await?;
 
     let data = state
         .movie_service
-        .get_movie_poster_data(claims.sub, id)
+        .get_movie_poster_data(claims.id, id)
         .await?
         .ok_or_else(|| ApiError::not_found("Poster not found"))?;
 
@@ -1517,11 +1513,11 @@ pub async fn get_thumbnail(
         }
     }
 
-    state.movie_service.get_by_id(claims.sub, id).await?;
+    state.movie_service.get_by_id(claims.id, id).await?;
 
     let data = state
         .movie_service
-        .get_movie_poster_data(claims.sub, id)
+        .get_movie_poster_data(claims.id, id)
         .await?
         .ok_or_else(|| ApiError::not_found("Poster not found"))?;
 
@@ -1642,7 +1638,7 @@ pub async fn analyze_collection(
     Path(movie_id): Path<Uuid>,
 ) -> impl IntoResponse {
     // Get the movie
-    let movie = match state.movie_service.get_by_id(claims.sub, movie_id).await {
+    let movie = match state.movie_service.get_by_id(claims.id, movie_id).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -1654,7 +1650,7 @@ pub async fn analyze_collection(
     };
 
     // Get user's language preference
-    let user = state.auth_service.get_user(claims.sub).await.ok();
+    let user = state.auth_service.get_user(claims.id).await.ok();
     let language = user
         .and_then(|u| u.language)
         .unwrap_or_else(|| "de-DE".to_string());
@@ -2232,7 +2228,7 @@ pub async fn split_collection(
     Json(request): Json<SplitCollectionRequest>,
 ) -> impl IntoResponse {
     // Get the original movie
-    let original = match state.movie_service.get_by_id(claims.sub, movie_id).await {
+    let original = match state.movie_service.get_by_id(claims.id, movie_id).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -2244,7 +2240,7 @@ pub async fn split_collection(
     };
 
     // Get user's language preference for TMDB
-    let user = state.auth_service.get_user(claims.sub).await.ok();
+    let user = state.auth_service.get_user(claims.id).await.ok();
     let language = user
         .as_ref()
         .and_then(|u| u.language.clone())
@@ -2255,7 +2251,7 @@ pub async fn split_collection(
     if let Err(e) = state
         .movie_service
         .update(
-            claims.sub,
+            claims.id,
             movie_id,
             UpdateMovie {
                 is_collection: Some(true),
@@ -2281,7 +2277,7 @@ pub async fn split_collection(
         if let Some(poster_data) = download_poster_image(poster_path).await {
             let _ = state
                 .movie_service
-                .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
+                .update_movie_poster_data(claims.id, movie_id, Some(poster_data))
                 .await;
         }
     }
@@ -2338,7 +2334,7 @@ pub async fn split_collection(
             }),
         };
 
-        match state.movie_service.create(claims.sub, create_input).await {
+        match state.movie_service.create(claims.id, create_input).await {
             Ok(new_movie) => {
                 // Update with more details and link to parent collection
                 let mut update = UpdateMovie {
@@ -2376,7 +2372,7 @@ pub async fn split_collection(
                             let _ = state
                                 .movie_service
                                 .update_movie_poster_data(
-                                    claims.sub,
+                                    claims.id,
                                     new_movie.id,
                                     Some(poster_data),
                                 )
@@ -2417,7 +2413,7 @@ pub async fn split_collection(
 
                 let _ = state
                     .movie_service
-                    .update(claims.sub, new_movie.id, update)
+                    .update(claims.id, new_movie.id, update)
                     .await;
                 created_movies.push(new_movie.id.to_string());
             }
@@ -2436,7 +2432,7 @@ pub async fn split_collection(
         if let Some(poster_data) = download_poster_image(poster_path).await {
             let _ = state
                 .movie_service
-                .update_movie_poster_data(claims.sub, movie_id, Some(poster_data))
+                .update_movie_poster_data(claims.id, movie_id, Some(poster_data))
                 .await;
         }
     }
@@ -2475,7 +2471,7 @@ pub async fn get_collection_movies(
         ..Default::default()
     };
 
-    match state.movie_service.list(claims.sub, filter).await {
+    match state.movie_service.list(claims.id, filter).await {
         Ok(movies) => {
             let collection_movies: Vec<_> = movies
                 .into_iter()

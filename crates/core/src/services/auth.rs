@@ -133,7 +133,7 @@ impl AuthService {
         let exp = now + Duration::days(7);
 
         let claims = Claims {
-            sub: user.id,
+            id: user.id,
             username: user.username.clone(),
             role: user.role.clone(),
             iat: now.timestamp(),
@@ -423,11 +423,7 @@ impl AuthService {
         avatar_data: Option<Vec<u8>>,
     ) -> Result<UserPublic> {
         // Set avatar_path to "db" to indicate it's stored in database
-        let avatar_path = if avatar_data.is_some() {
-            Some("db".to_string())
-        } else {
-            None
-        };
+        let avatar_path = avatar_data.as_ref().map(|_| "db".to_string());
 
         sqlx::query(
             "UPDATE users SET avatar_path = ?, avatar_data = ?, updated_at = ? WHERE id = ?",

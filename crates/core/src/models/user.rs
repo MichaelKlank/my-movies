@@ -93,7 +93,7 @@ impl From<User> for UserPublic {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: Uuid,
+    pub id: Uuid,
     pub username: String,
     pub role: UserRole,
     pub exp: i64,

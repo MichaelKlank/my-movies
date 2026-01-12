@@ -18,7 +18,7 @@ pub async fn list(
     Extension(claims): Extension<Claims>,
     Query(filter): Query<SeriesFilter>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let series = state.series_service.list(claims.sub, filter).await?;
+    let series = state.series_service.list(claims.id, filter).await?;
     Ok((StatusCode::OK, Json(json!(series))))
 }
 
@@ -27,7 +27,7 @@ pub async fn get(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let series = state.series_service.get_by_id(claims.sub, id).await?;
+    let series = state.series_service.get_by_id(claims.id, id).await?;
     Ok((StatusCode::OK, Json(json!(series))))
 }
 
@@ -36,7 +36,7 @@ pub async fn create(
     Extension(claims): Extension<Claims>,
     Json(input): Json<CreateSeries>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let series = state.series_service.create(claims.sub, input).await?;
+    let series = state.series_service.create(claims.id, input).await?;
     let msg = json!({ "type": "series_added", "payload": series });
     let _ = state.ws_broadcast.send(msg.to_string());
     Ok((StatusCode::CREATED, Json(json!(series))))
@@ -48,7 +48,7 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateSeries>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let series = state.series_service.update(claims.sub, id, input).await?;
+    let series = state.series_service.update(claims.id, id, input).await?;
     let msg = json!({ "type": "series_updated", "payload": series });
     let _ = state.ws_broadcast.send(msg.to_string());
     Ok((StatusCode::OK, Json(json!(series))))
@@ -59,7 +59,7 @@ pub async fn delete(
     Extension(claims): Extension<Claims>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.series_service.delete(claims.sub, id).await?;
+    state.series_service.delete(claims.id, id).await?;
     let msg = json!({ "type": "series_deleted", "payload": { "id": id } });
     let _ = state.ws_broadcast.send(msg.to_string());
     Ok(StatusCode::NO_CONTENT)

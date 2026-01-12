@@ -39,7 +39,7 @@ pub async fn update_user_role(
     let user_id =
         Uuid::parse_str(&user_id).map_err(|_| ApiError::bad_request("Invalid user ID"))?;
 
-    if user_id == claims.sub && body.role != "admin" {
+    if user_id == claims.id && body.role != "admin" {
         return Err(ApiError::bad_request(
             "Du kannst deine eigene Admin-Rolle nicht entfernen",
         ));
@@ -75,7 +75,7 @@ pub async fn delete_user(
     let user_id =
         Uuid::parse_str(&user_id).map_err(|_| ApiError::bad_request("Invalid user ID"))?;
 
-    if user_id == claims.sub {
+    if user_id == claims.id {
         return Err(ApiError::bad_request("Du kannst dich selbst nicht löschen"));
     }
 
