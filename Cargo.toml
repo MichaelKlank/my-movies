@@ -18,7 +18,7 @@ tokio = { version = "1.49", features = ["full"] }
 
 # Web framework
 axum = { version = "0.8", features = ["ws", "macros", "multipart"] }
-axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-extra = { version = "0.12", features = ["typed-header"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "fs", "limit"] }
 
@@ -39,7 +39,7 @@ reqwest = { version = "0.13", features = ["json"] }
 # Utilities
 uuid = { version = "1.19", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1.0"
+thiserror = "2"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -55,3 +55,4 @@ regex = "1.10"
 tauri = { version = "2.9" }
 tauri-build = { version = "2.0" }
 tauri-plugin-barcode-scanner = "2.4"
+

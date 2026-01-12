@@ -13,7 +13,6 @@ sqlx = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
-serde_json = { workspace = true }
 
 # Auth
 jsonwebtoken = { workspace = true }
@@ -26,7 +25,6 @@ reqwest = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
 tracing = { workspace = true }
 
 # CSV
